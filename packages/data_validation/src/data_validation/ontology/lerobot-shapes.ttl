@@ -1,0 +1,24 @@
+@prefix lr: <https://hcis.example.org/lerobot#> .
+@prefix sh: <http://www.w3.org/ns/shacl#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+lr:DatasetShape a sh:NodeShape ;
+    sh:targetClass lr:Dataset ;
+    sh:property [ sh:path lr:formatVersion ; sh:minCount 1 ; sh:hasValue "v3.0" ] ;
+    sh:property [ sh:path lr:datasetFPS ; sh:minCount 1 ; sh:datatype xsd:integer ; sh:minInclusive 1 ] ;
+    sh:property [ sh:path lr:hasEpisode ; sh:minCount 1 ; sh:class lr:Episode ] ;
+    sh:property [ sh:path lr:hasTask ; sh:minCount 1 ; sh:class lr:Task ] ;
+    sh:property [ sh:path lr:hasFeature ; sh:minCount 5 ; sh:class lr:Feature ] .
+
+lr:EpisodeShape a sh:NodeShape ;
+    sh:targetClass lr:Episode ;
+    sh:property [ sh:path lr:hasFrame ; sh:minCount 1 ; sh:class lr:Frame ] .
+
+lr:FrameShape a sh:NodeShape ;
+    sh:targetClass lr:Frame ;
+    sh:property [ sh:path lr:frameIndex ; sh:minCount 1 ; sh:datatype xsd:integer ; sh:minInclusive 0 ] ;
+    sh:property [ sh:path lr:belongsToEpisode ; sh:minCount 1 ; sh:maxCount 1 ; sh:class lr:Episode ] ;
+    sh:property [ sh:path lr:hasObservationState ; sh:minCount 1 ; sh:maxCount 1 ; sh:class lr:StateFeature ] ;
+    sh:property [ sh:path lr:hasAction ; sh:minCount 1 ; sh:maxCount 1 ; sh:class lr:ActionFeature ] ;
+    sh:property [ sh:path lr:hasFrontImage ; sh:minCount 1 ; sh:maxCount 1 ; sh:class lr:ImageFeature ] ;
+    sh:property [ sh:path lr:hasWristImage ; sh:minCount 1 ; sh:maxCount 1 ; sh:class lr:ImageFeature ] .

@@ -1,0 +1,14 @@
+@prefix lr: <https://hcis.example.org/lerobot#> .
+
+lr:HCISDatasetContract a lr:DatasetContract ;
+    lr:contractFeature lr:ObservationState, lr:Action, lr:FrontCamera, lr:WristCamera, lr:TaskIndex .
+
+lr:ObservationState a lr:StateFeature ;
+    lr:featureName "observation.state" ; lr:featureDType "float32" ; lr:featureShape "[9]" .
+lr:Action a lr:ActionFeature ;
+    lr:featureName "action" ; lr:featureDType "float32" ; lr:featureShape "[8]" .
+lr:FrontCamera a lr:ImageFeature ;
+    lr:featureName "observation.images.front" ; lr:featureDType "video" ; lr:featureShape "[480,640,3]" .
+lr:WristCamera a lr:ImageFeature ;
+    lr:featureName "observation.images.wrist" ; lr:featureDType "video" ; lr:featureShape "[480,640,3]" .
+lr:TaskIndex a lr:Feature ; lr:featureName "task_index" ; lr:featureDType "int64" ; lr:featureShape "[1]" .

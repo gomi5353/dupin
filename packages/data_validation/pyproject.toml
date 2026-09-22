@@ -1,0 +1,25 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "data-validation"
+version = "0.1.0"
+description = "RDF/OWL and SHACL validation for LeRobot v3 datasets."
+requires-python = ">=3.11"
+dependencies = [
+    "pyshacl>=0.30.1",
+    "rdflib>=7.1.4",
+]
+
+[project.optional-dependencies]
+media = ["av>=14.0"]
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+data_validation = ["ontology/*.ttl"]

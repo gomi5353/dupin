@@ -7,6 +7,7 @@ ROOT = Path(__file__).resolve().parents[1]
 def test_expected_root_scaffolding_exists() -> None:
     for path in [
         "packages/umi",
+        "packages/data_validation",
         "packages/simulator",
         "scripts",
         "data",
@@ -21,12 +22,13 @@ def test_expected_root_scaffolding_exists() -> None:
 
 def test_workspace_members_have_pyproject_files() -> None:
     assert (ROOT / "packages" / "umi" / "pyproject.toml").is_file()
+    assert (ROOT / "packages" / "data_validation" / "pyproject.toml").is_file()
     assert (ROOT / "packages" / "simulator" / "pyproject.toml").is_file()
 
 
 def test_root_pyproject_declares_uv_workspace() -> None:
     pyproject = (ROOT / "pyproject.toml").read_text()
-    assert 'members = ["packages/umi"]' in pyproject
+    assert 'members = ["packages/umi", "packages/data_validation"]' in pyproject
     assert 'umi = { workspace = true }' in pyproject
 
 

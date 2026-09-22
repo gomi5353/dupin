@@ -1,0 +1,38 @@
+@prefix lr: <https://hcis.example.org/lerobot#> .
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+lr:LeRobotDatasetOntology a owl:Ontology ;
+    rdfs:label "LeRobot Dataset ontology"@en .
+
+lr:Dataset a owl:Class .
+lr:DatasetContract a owl:Class .
+lr:Episode a owl:Class .
+lr:Frame a owl:Class .
+lr:Feature a owl:Class .
+lr:StateFeature a owl:Class ; rdfs:subClassOf lr:Feature .
+lr:ActionFeature a owl:Class ; rdfs:subClassOf lr:Feature .
+lr:ImageFeature a owl:Class ; rdfs:subClassOf lr:Feature .
+lr:Task a owl:Class .
+lr:Robot a owl:Class .
+
+lr:hasEpisode a owl:ObjectProperty ; rdfs:domain lr:Dataset ; rdfs:range lr:Episode .
+lr:hasFrame a owl:ObjectProperty ; rdfs:domain lr:Episode ; rdfs:range lr:Frame .
+lr:hasFeature a owl:ObjectProperty ; rdfs:domain lr:Dataset ; rdfs:range lr:Feature .
+lr:contractFeature a owl:ObjectProperty ; rdfs:domain lr:DatasetContract ; rdfs:range lr:Feature .
+lr:hasTask a owl:ObjectProperty ; rdfs:domain lr:Dataset ; rdfs:range lr:Task .
+lr:usesRobot a owl:ObjectProperty ; rdfs:domain lr:Dataset ; rdfs:range lr:Robot .
+lr:hasObservationState a owl:ObjectProperty ; rdfs:domain lr:Frame ; rdfs:range lr:StateFeature .
+lr:hasAction a owl:ObjectProperty ; rdfs:domain lr:Frame ; rdfs:range lr:ActionFeature .
+lr:hasFrontImage a owl:ObjectProperty ; rdfs:domain lr:Frame ; rdfs:range lr:ImageFeature .
+lr:hasWristImage a owl:ObjectProperty ; rdfs:domain lr:Frame ; rdfs:range lr:ImageFeature .
+lr:belongsToEpisode a owl:ObjectProperty ; rdfs:domain lr:Frame ; rdfs:range lr:Episode .
+
+lr:formatVersion a owl:DatatypeProperty ; rdfs:domain lr:Dataset ; rdfs:range xsd:string .
+lr:datasetFPS a owl:DatatypeProperty ; rdfs:domain lr:Dataset ; rdfs:range xsd:integer .
+lr:featureName a owl:DatatypeProperty ; rdfs:domain lr:Feature ; rdfs:range xsd:string .
+lr:featureDType a owl:DatatypeProperty ; rdfs:domain lr:Feature ; rdfs:range xsd:string .
+lr:featureShape a owl:DatatypeProperty ; rdfs:domain lr:Feature ; rdfs:range xsd:string .
+lr:frameIndex a owl:DatatypeProperty ; rdfs:domain lr:Frame ; rdfs:range xsd:integer .
+lr:episodeOutcome a owl:DatatypeProperty ; rdfs:domain lr:Episode ; rdfs:range xsd:string .
