@@ -28,6 +28,8 @@ import time
 
 from isaaclab.app import AppLauncher
 
+from simulator.utils.grid_sweep import GridSlot, add_grid_args, make_slots, print_summary, write_coverage_spec
+
 parser = argparse.ArgumentParser(description="State machine data generation for LeIsaac tasks.")
 parser.add_argument("--num_envs", type=int, default=1, help="Number of environments to simulate.")
 parser.add_argument("--task", type=str, required=True, help="Name of the task.")
@@ -54,6 +56,7 @@ parser.add_argument("--quality", action="store_true", help="Whether to enable qu
 parser.add_argument("--use_lerobot_recorder", action="store_true", help="Whether to use lerobot recorder.")
 parser.add_argument("--lerobot_dataset_repo_id", type=str, default=None, help="Lerobot Dataset repository ID.")
 parser.add_argument("--lerobot_dataset_fps", type=int, default=30, help="Lerobot Dataset frames per second.")
+add_grid_args(parser)
 
 AppLauncher.add_app_launcher_args(parser)
 args_cli = parser.parse_args()
@@ -215,8 +218,22 @@ def _apply_episode_poses(env, poses):
         )
 
 
+def _episode_poses(episode):
+    """Pose dict to apply for an episode entry (grid slots draw a fresh sample each call)."""
+    if isinstance(episode, GridSlot):
+        print(f"[grid] {episode}")
+        return episode.sample()
+    return episode
+
+
 def _resolve_episode_poses(task_name, env_cfg, args_cli):
     """Return per-episode pose dicts, or empty dicts for reset-randomized episodes."""
+    if args_cli.grid_sweep:
+        episodes = make_slots(args_cli, env_cfg.seed)
+        print(f"[grid] layout={args_cli.grid_layout}: {len(episodes)} slots, up to {args_cli.grid_max_attempts} attempts each.")
+        if args_cli.grid_spec_out:
+            write_coverage_spec(args_cli, args_cli.grid_spec_out)
+        return episodes
     if task_name in DOMAIN_RANDOMIZED_TASKS:
         if args_cli.num_demos <= 0:
             raise ValueError(
@@ -245,6 +262,11 @@ def _resolve_episode_poses(task_name, env_cfg, args_cli):
         raise ValueError(f"No 'status==full' episodes in {args_cli.object_poses}; nothing to replay.")
     print(f"Loaded {len(episodes)} replay episodes from {args_cli.object_poses}")
     return episodes
+
+
+# Grid sweep bookkeeping: attempt number of the current slot, and one result dict per episode.
+_grid_attempt: int = 1
+_grid_results: list = []
 
 
 # z below which a task object is considered to have fallen off the table.
@@ -278,6 +300,7 @@ def _on_episode_done(
 
     Returns (next_episode_idx, current_recorded_demo_count, start_record_state, should_break).
     """
+    global _grid_attempt
     total_episodes = len(episodes)
 
     try:
@@ -318,12 +341,22 @@ def _on_episode_done(
     sm.reset()
     auto_terminate(env, False)
 
+    current = episodes[next_episode_idx - 1]
+    if isinstance(current, GridSlot):
+        _grid_results.append({"cells": dict(current.cells), "attempt": _grid_attempt, "success": success})
+        if not success and _grid_attempt < args_cli.grid_max_attempts:
+            _grid_attempt += 1
+            print(f"[grid] retry {_grid_attempt}/{args_cli.grid_max_attempts}")
+            _apply_episode_poses(env, _episode_poses(current))
+            return next_episode_idx, current_recorded_demo_count, start_record_state, False, success
+        _grid_attempt = 1
+
     if next_episode_idx >= total_episodes:
         print(f"Completed all {total_episodes} episodes. Exiting the app.")
         return next_episode_idx, current_recorded_demo_count, start_record_state, True, success
 
     if episodes[next_episode_idx]:
-        _apply_episode_poses(env, episodes[next_episode_idx])
+        _apply_episode_poses(env, _episode_poses(episodes[next_episode_idx]))
     next_episode_idx += 1
 
     return next_episode_idx, current_recorded_demo_count, start_record_state, False, success
@@ -392,7 +425,7 @@ def main():
         simulation_app.close()
         return
     if episodes[next_episode_idx]:
-        _apply_episode_poses(env, episodes[next_episode_idx])
+        _apply_episode_poses(env, _episode_poses(episodes[next_episode_idx]))
     next_episode_idx += 1
 
     start_record_state = False
@@ -471,6 +504,8 @@ def main():
         print("[INFO] Cleaning up resources...")
     finally:
         signal.signal(signal.SIGINT, original_sigint_handler)
+        if args_cli.grid_sweep:
+            print_summary(args_cli, _grid_results, args_cli.grid_min_episodes_per_cell)
         if args_cli.record and hasattr(env.recorder_manager, "finalize"):
             env.recorder_manager.finalize()
         env.close()

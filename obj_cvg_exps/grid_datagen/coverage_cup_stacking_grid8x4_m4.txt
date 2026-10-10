@@ -1,0 +1,20 @@
+Dataset : datasets/local/cup_stacking_grid8x4_m4
+Spec    : obj_cvg_exps/grid_datagen/coverage_spec_m4.ttl
+Episodes: 128
+
+[blue_cup] x=8.800..9.200  y=6.400..6.600  covered 32/32 cells (>= 4 each)
+  y3    4   4   4   4   4   4   4   4
+  y2    4   4   4   4   4   4   4   4
+  y1    4   4   4   4   4   4   4   4
+  y0    4   4   4   4   4   4   4   4
+        x0  x1  x2  x3  x4  x5  x6  x7
+
+[pink_cup] x=8.800..9.200  y=6.400..6.600  covered 32/32 cells (>= 4 each)
+  y3    4   4   4   4   4   4   4   4
+  y2    4   4   4   4   4   4   4   4
+  y1    4   4   4   4   4   4   4   4
+  y0    4   4   4   4   4   4   4   4
+        x0  x1  x2  x3  x4  x5  x6  x7
+
+
+RESULT: coverage spec met

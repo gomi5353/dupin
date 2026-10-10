@@ -1,0 +1,31 @@
+@prefix dv:   <urn:aicapstone:dv#> .
+  @prefix spec: <urn:aicapstone:spec:example#> .
+
+  spec:blue_cup a dv:TaskObject ;
+      dv:objectName "blue_cup" .
+
+  spec:blue_cup_coverage a dv:CoverageRequirement ;
+      dv:targetsAxis dv:ObjectPoseAxis ;
+      dv:forObject spec:blue_cup ;
+      dv:xMin 8.80 ;
+      dv:xMax 9.10 ;
+      dv:yMin 6.29 ;
+      dv:yMax 6.59 ;
+      dv:gridX 3 ;
+      dv:gridY 3 ;
+      dv:minEpisodesPerCell 1 .
+
+  spec:pink_cup a dv:TaskObject ;
+      dv:objectName "pink_cup" .
+
+  spec:pink_cup_coverage a dv:CoverageRequirement ;
+      dv:targetsAxis dv:ObjectPoseAxis ;
+      dv:forObject spec:pink_cup ;
+      dv:xMin 8.80 ;
+      dv:xMax 9.10 ;
+      dv:yMin 6.29 ;
+      dv:yMax 6.59 ;
+      dv:gridX 3 ;
+      dv:gridY 3 ;
+      dv:minEpisodesPerCell 1 .
+

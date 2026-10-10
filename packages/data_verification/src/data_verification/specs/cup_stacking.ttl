@@ -1,0 +1,33 @@
+# Object pose coverage spec: cup_stacking.
+#
+# PLACEHOLDER REGIONS: nominal init pose +/- pose_range from the public
+# eval/cup_stacking_eval.py. Staff: set these to the workspace region you
+# disclose to students before release.
+#
+# Frame: env-local (world minus env origin), metres. Same frame as the
+# object_pose.<name> dataset columns. Every episode counts, success or not.
+
+@prefix dv:   <urn:aicapstone:dv#> .
+@prefix spec: <urn:aicapstone:spec:cup_stacking#> .
+
+spec:task dv:taskName "cup_stacking" .
+
+spec:blue_cup a dv:TaskObject ; dv:objectName "blue_cup" .
+
+spec:blue_cup_coverage a dv:CoverageRequirement ;
+    dv:targetsAxis dv:ObjectPoseAxis ;
+    dv:forObject spec:blue_cup ;
+    dv:xMin 8.800 ; dv:xMax 9.100 ;
+    dv:yMin 6.290 ; dv:yMax 6.590 ;
+    dv:gridX 3 ; dv:gridY 3 ;
+    dv:minEpisodesPerCell 2 .
+
+spec:pink_cup a dv:TaskObject ; dv:objectName "pink_cup" .
+
+spec:pink_cup_coverage a dv:CoverageRequirement ;
+    dv:targetsAxis dv:ObjectPoseAxis ;
+    dv:forObject spec:pink_cup ;
+    dv:xMin 8.920 ; dv:xMax 9.220 ;
+    dv:yMin 6.380 ; dv:yMax 6.680 ;
+    dv:gridX 3 ; dv:gridY 3 ;
+    dv:minEpisodesPerCell 2 .

@@ -1,0 +1,82 @@
+Dataset : datasets/local/cup_stacking_fixed_128
+Spec    : obj_cvg_exps/grid_datagen/coverage_spec_m4.ttl
+Episodes: 128
+
+[blue_cup] x=8.800..9.200  y=6.400..6.600  covered 1/32 cells (>= 4 each)
+  y3   0!  0!  0!  0!  0!  0!  0!  0!
+  y2   0!  0!  0! 128  0!  0!  0!  0!
+  y1   0!  0!  0!  0!  0!  0!  0!  0!
+  y0   0!  0!  0!  0!  0!  0!  0!  0!
+        x0  x1  x2  x3  x4  x5  x6  x7
+
+[pink_cup] x=8.800..9.200  y=6.400..6.600  covered 1/32 cells (>= 4 each)
+  y3   0!  0!  0!  0!  0!  0!  0!  0!
+  y2   0!  0!  0!  0!  0!  0!  0!  0!
+  y1   0!  0!  0!  0!  0!  0!  0!  0!
+  y0   0!  0!  0!  0!  0! 128  0!  0!
+        x0  x1  x2  x3  x4  x5  x6  x7
+
+VIOLATION 'blue_cup' cell (i=0, j=0) x=[8.8, 8.85] y=[6.4, 6.45] has 0 episode(s); needs at least 4  [blue_cup_coverage/cell/0_0]
+VIOLATION 'blue_cup' cell (i=0, j=1) x=[8.8, 8.85] y=[6.45, 6.5] has 0 episode(s); needs at least 4  [blue_cup_coverage/cell/0_1]
+VIOLATION 'blue_cup' cell (i=0, j=2) x=[8.8, 8.85] y=[6.5, 6.55] has 0 episode(s); needs at least 4  [blue_cup_coverage/cell/0_2]
+VIOLATION 'blue_cup' cell (i=0, j=3) x=[8.8, 8.85] y=[6.55, 6.6] has 0 episode(s); needs at least 4  [blue_cup_coverage/cell/0_3]
+VIOLATION 'blue_cup' cell (i=1, j=0) x=[8.85, 8.9] y=[6.4, 6.45] has 0 episode(s); needs at least 4  [blue_cup_coverage/cell/1_0]
+VIOLATION 'blue_cup' cell (i=1, j=1) x=[8.85, 8.9] y=[6.45, 6.5] has 0 episode(s); needs at least 4  [blue_cup_coverage/cell/1_1]
+VIOLATION 'blue_cup' cell (i=1, j=2) x=[8.85, 8.9] y=[6.5, 6.55] has 0 episode(s); needs at least 4  [blue_cup_coverage/cell/1_2]
+VIOLATION 'blue_cup' cell (i=1, j=3) x=[8.85, 8.9] y=[6.55, 6.6] has 0 episode(s); needs at least 4  [blue_cup_coverage/cell/1_3]
+VIOLATION 'blue_cup' cell (i=2, j=0) x=[8.9, 8.95] y=[6.4, 6.45] has 0 episode(s); needs at least 4  [blue_cup_coverage/cell/2_0]
+VIOLATION 'blue_cup' cell (i=2, j=1) x=[8.9, 8.95] y=[6.45, 6.5] has 0 episode(s); needs at least 4  [blue_cup_coverage/cell/2_1]
+VIOLATION 'blue_cup' cell (i=2, j=2) x=[8.9, 8.95] y=[6.5, 6.55] has 0 episode(s); needs at least 4  [blue_cup_coverage/cell/2_2]
+VIOLATION 'blue_cup' cell (i=2, j=3) x=[8.9, 8.95] y=[6.55, 6.6] has 0 episode(s); needs at least 4  [blue_cup_coverage/cell/2_3]
+VIOLATION 'blue_cup' cell (i=3, j=0) x=[8.95, 9.0] y=[6.4, 6.45] has 0 episode(s); needs at least 4  [blue_cup_coverage/cell/3_0]
+VIOLATION 'blue_cup' cell (i=3, j=1) x=[8.95, 9.0] y=[6.45, 6.5] has 0 episode(s); needs at least 4  [blue_cup_coverage/cell/3_1]
+VIOLATION 'blue_cup' cell (i=3, j=3) x=[8.95, 9.0] y=[6.55, 6.6] has 0 episode(s); needs at least 4  [blue_cup_coverage/cell/3_3]
+VIOLATION 'blue_cup' cell (i=4, j=0) x=[9.0, 9.05] y=[6.4, 6.45] has 0 episode(s); needs at least 4  [blue_cup_coverage/cell/4_0]
+VIOLATION 'blue_cup' cell (i=4, j=1) x=[9.0, 9.05] y=[6.45, 6.5] has 0 episode(s); needs at least 4  [blue_cup_coverage/cell/4_1]
+VIOLATION 'blue_cup' cell (i=4, j=2) x=[9.0, 9.05] y=[6.5, 6.55] has 0 episode(s); needs at least 4  [blue_cup_coverage/cell/4_2]
+VIOLATION 'blue_cup' cell (i=4, j=3) x=[9.0, 9.05] y=[6.55, 6.6] has 0 episode(s); needs at least 4  [blue_cup_coverage/cell/4_3]
+VIOLATION 'blue_cup' cell (i=5, j=0) x=[9.05, 9.1] y=[6.4, 6.45] has 0 episode(s); needs at least 4  [blue_cup_coverage/cell/5_0]
+VIOLATION 'blue_cup' cell (i=5, j=1) x=[9.05, 9.1] y=[6.45, 6.5] has 0 episode(s); needs at least 4  [blue_cup_coverage/cell/5_1]
+VIOLATION 'blue_cup' cell (i=5, j=2) x=[9.05, 9.1] y=[6.5, 6.55] has 0 episode(s); needs at least 4  [blue_cup_coverage/cell/5_2]
+VIOLATION 'blue_cup' cell (i=5, j=3) x=[9.05, 9.1] y=[6.55, 6.6] has 0 episode(s); needs at least 4  [blue_cup_coverage/cell/5_3]
+VIOLATION 'blue_cup' cell (i=6, j=0) x=[9.1, 9.15] y=[6.4, 6.45] has 0 episode(s); needs at least 4  [blue_cup_coverage/cell/6_0]
+VIOLATION 'blue_cup' cell (i=6, j=1) x=[9.1, 9.15] y=[6.45, 6.5] has 0 episode(s); needs at least 4  [blue_cup_coverage/cell/6_1]
+VIOLATION 'blue_cup' cell (i=6, j=2) x=[9.1, 9.15] y=[6.5, 6.55] has 0 episode(s); needs at least 4  [blue_cup_coverage/cell/6_2]
+VIOLATION 'blue_cup' cell (i=6, j=3) x=[9.1, 9.15] y=[6.55, 6.6] has 0 episode(s); needs at least 4  [blue_cup_coverage/cell/6_3]
+VIOLATION 'blue_cup' cell (i=7, j=0) x=[9.15, 9.2] y=[6.4, 6.45] has 0 episode(s); needs at least 4  [blue_cup_coverage/cell/7_0]
+VIOLATION 'blue_cup' cell (i=7, j=1) x=[9.15, 9.2] y=[6.45, 6.5] has 0 episode(s); needs at least 4  [blue_cup_coverage/cell/7_1]
+VIOLATION 'blue_cup' cell (i=7, j=2) x=[9.15, 9.2] y=[6.5, 6.55] has 0 episode(s); needs at least 4  [blue_cup_coverage/cell/7_2]
+VIOLATION 'blue_cup' cell (i=7, j=3) x=[9.15, 9.2] y=[6.55, 6.6] has 0 episode(s); needs at least 4  [blue_cup_coverage/cell/7_3]
+VIOLATION 'pink_cup' cell (i=0, j=0) x=[8.8, 8.85] y=[6.4, 6.45] has 0 episode(s); needs at least 4  [pink_cup_coverage/cell/0_0]
+VIOLATION 'pink_cup' cell (i=0, j=1) x=[8.8, 8.85] y=[6.45, 6.5] has 0 episode(s); needs at least 4  [pink_cup_coverage/cell/0_1]
+VIOLATION 'pink_cup' cell (i=0, j=2) x=[8.8, 8.85] y=[6.5, 6.55] has 0 episode(s); needs at least 4  [pink_cup_coverage/cell/0_2]
+VIOLATION 'pink_cup' cell (i=0, j=3) x=[8.8, 8.85] y=[6.55, 6.6] has 0 episode(s); needs at least 4  [pink_cup_coverage/cell/0_3]
+VIOLATION 'pink_cup' cell (i=1, j=0) x=[8.85, 8.9] y=[6.4, 6.45] has 0 episode(s); needs at least 4  [pink_cup_coverage/cell/1_0]
+VIOLATION 'pink_cup' cell (i=1, j=1) x=[8.85, 8.9] y=[6.45, 6.5] has 0 episode(s); needs at least 4  [pink_cup_coverage/cell/1_1]
+VIOLATION 'pink_cup' cell (i=1, j=2) x=[8.85, 8.9] y=[6.5, 6.55] has 0 episode(s); needs at least 4  [pink_cup_coverage/cell/1_2]
+VIOLATION 'pink_cup' cell (i=1, j=3) x=[8.85, 8.9] y=[6.55, 6.6] has 0 episode(s); needs at least 4  [pink_cup_coverage/cell/1_3]
+VIOLATION 'pink_cup' cell (i=2, j=0) x=[8.9, 8.95] y=[6.4, 6.45] has 0 episode(s); needs at least 4  [pink_cup_coverage/cell/2_0]
+VIOLATION 'pink_cup' cell (i=2, j=1) x=[8.9, 8.95] y=[6.45, 6.5] has 0 episode(s); needs at least 4  [pink_cup_coverage/cell/2_1]
+VIOLATION 'pink_cup' cell (i=2, j=2) x=[8.9, 8.95] y=[6.5, 6.55] has 0 episode(s); needs at least 4  [pink_cup_coverage/cell/2_2]
+VIOLATION 'pink_cup' cell (i=2, j=3) x=[8.9, 8.95] y=[6.55, 6.6] has 0 episode(s); needs at least 4  [pink_cup_coverage/cell/2_3]
+VIOLATION 'pink_cup' cell (i=3, j=0) x=[8.95, 9.0] y=[6.4, 6.45] has 0 episode(s); needs at least 4  [pink_cup_coverage/cell/3_0]
+VIOLATION 'pink_cup' cell (i=3, j=1) x=[8.95, 9.0] y=[6.45, 6.5] has 0 episode(s); needs at least 4  [pink_cup_coverage/cell/3_1]
+VIOLATION 'pink_cup' cell (i=3, j=2) x=[8.95, 9.0] y=[6.5, 6.55] has 0 episode(s); needs at least 4  [pink_cup_coverage/cell/3_2]
+VIOLATION 'pink_cup' cell (i=3, j=3) x=[8.95, 9.0] y=[6.55, 6.6] has 0 episode(s); needs at least 4  [pink_cup_coverage/cell/3_3]
+VIOLATION 'pink_cup' cell (i=4, j=0) x=[9.0, 9.05] y=[6.4, 6.45] has 0 episode(s); needs at least 4  [pink_cup_coverage/cell/4_0]
+VIOLATION 'pink_cup' cell (i=4, j=1) x=[9.0, 9.05] y=[6.45, 6.5] has 0 episode(s); needs at least 4  [pink_cup_coverage/cell/4_1]
+VIOLATION 'pink_cup' cell (i=4, j=2) x=[9.0, 9.05] y=[6.5, 6.55] has 0 episode(s); needs at least 4  [pink_cup_coverage/cell/4_2]
+VIOLATION 'pink_cup' cell (i=4, j=3) x=[9.0, 9.05] y=[6.55, 6.6] has 0 episode(s); needs at least 4  [pink_cup_coverage/cell/4_3]
+VIOLATION 'pink_cup' cell (i=5, j=1) x=[9.05, 9.1] y=[6.45, 6.5] has 0 episode(s); needs at least 4  [pink_cup_coverage/cell/5_1]
+VIOLATION 'pink_cup' cell (i=5, j=2) x=[9.05, 9.1] y=[6.5, 6.55] has 0 episode(s); needs at least 4  [pink_cup_coverage/cell/5_2]
+VIOLATION 'pink_cup' cell (i=5, j=3) x=[9.05, 9.1] y=[6.55, 6.6] has 0 episode(s); needs at least 4  [pink_cup_coverage/cell/5_3]
+VIOLATION 'pink_cup' cell (i=6, j=0) x=[9.1, 9.15] y=[6.4, 6.45] has 0 episode(s); needs at least 4  [pink_cup_coverage/cell/6_0]
+VIOLATION 'pink_cup' cell (i=6, j=1) x=[9.1, 9.15] y=[6.45, 6.5] has 0 episode(s); needs at least 4  [pink_cup_coverage/cell/6_1]
+VIOLATION 'pink_cup' cell (i=6, j=2) x=[9.1, 9.15] y=[6.5, 6.55] has 0 episode(s); needs at least 4  [pink_cup_coverage/cell/6_2]
+VIOLATION 'pink_cup' cell (i=6, j=3) x=[9.1, 9.15] y=[6.55, 6.6] has 0 episode(s); needs at least 4  [pink_cup_coverage/cell/6_3]
+VIOLATION 'pink_cup' cell (i=7, j=0) x=[9.15, 9.2] y=[6.4, 6.45] has 0 episode(s); needs at least 4  [pink_cup_coverage/cell/7_0]
+VIOLATION 'pink_cup' cell (i=7, j=1) x=[9.15, 9.2] y=[6.45, 6.5] has 0 episode(s); needs at least 4  [pink_cup_coverage/cell/7_1]
+VIOLATION 'pink_cup' cell (i=7, j=2) x=[9.15, 9.2] y=[6.5, 6.55] has 0 episode(s); needs at least 4  [pink_cup_coverage/cell/7_2]
+VIOLATION 'pink_cup' cell (i=7, j=3) x=[9.15, 9.2] y=[6.55, 6.6] has 0 episode(s); needs at least 4  [pink_cup_coverage/cell/7_3]
+
+RESULT: coverage spec NOT met

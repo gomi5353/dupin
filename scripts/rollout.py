@@ -70,6 +70,8 @@ import argparse
 
 from isaaclab.app import AppLauncher
 
+from simulator.utils.grid_sweep import add_grid_args, make_slots, print_summary
+
 parser = argparse.ArgumentParser(
     description="Synchronous LeRobot inference for LeIsaac simulation."
 )
@@ -109,8 +111,9 @@ parser.add_argument(
 parser.add_argument(
     "--policy_action_horizon",
     type=int,
-    default=16,
-    help="Number of actions to execute per policy call.",
+    default=None,
+    help="Actions executed per model inference: overrides the checkpoint's config.n_action_steps "
+    "(diffusion: <= horizon - n_obs_steps + 1; ACT/SmolVLA etc.: <= chunk_size). Default: keep the checkpoint value.",
 )
 parser.add_argument(
     "--policy_language_instruction",
@@ -137,6 +140,21 @@ parser.add_argument(
         "Number of environments to simulate in parallel. Each round evaluates this many"
         " episodes concurrently; the policy is batched across envs and reset between rounds."
     ),
+)
+
+add_grid_args(parser)
+parser.add_argument(
+    "--grid_results_json",
+    type=str,
+    default=None,
+    help="--grid_sweep: write per-episode results and per-cell success tables to this JSON file.",
+)
+parser.add_argument(
+    "--joint_damping",
+    type=float,
+    default=10.0,
+    help="Joint damping written to every robot joint each step, matching the datagen state machines "
+    "(robot.write_joint_damping_to_sim(damping=10.0)). Negative: keep the asset defaults.",
 )
 
 AppLauncher.add_app_launcher_args(parser)
@@ -183,6 +201,9 @@ from simulator import FRANKA_JOINT_NAMES
 def setup_dual_viewports():
     """Setup dual viewports: main perspective view and GoPro camera view."""
     perspective_path = "/World/envs/env_0/Robot/panda_hand/wrist"
+    if omni.appwindow.get_default_app_window() is None:
+        print("[rollout] no app window (headless or no display); skipping viewport setup", flush=True)
+        return
 
     # Get main viewport window
     v1_window = ui.Workspace.get_window("Viewport")
@@ -251,7 +272,12 @@ class RateLimiter:
 
 class Controller:
     def __init__(self):
+        self.reset_state = False
         self._appwindow = omni.appwindow.get_default_app_window()
+        if self._appwindow is None:
+            # Headless / no window: no keyboard, so the 'R' reset hotkey is unavailable.
+            print("[rollout] no app window; keyboard reset (R) disabled", flush=True)
+            return
         self._input = carb.input.acquire_input_interface()
         self._keyboard = self._appwindow.get_keyboard()
         self._keyboard_sub = self._input.subscribe_to_keyboard_events(
@@ -304,11 +330,11 @@ class LeRobotSyncPolicy:
         pretrained_name_or_path: str,
         task_type: str,
         camera_infos: dict[str, tuple[int, int]],
-        actions_per_chunk: int,
+        actions_per_chunk: int | None,
         device: str,
         debug_policy_shapes: bool = False,
     ):
-        if actions_per_chunk <= 0:
+        if actions_per_chunk is not None and actions_per_chunk <= 0:
             raise ValueError(
                 f"policy_action_horizon must be positive, got {actions_per_chunk}."
             )
@@ -344,6 +370,9 @@ class LeRobotSyncPolicy:
         self.policy = policy_class.from_pretrained(pretrained_name_or_path, local_files_only=True)
         self.policy.to(device)
         self.policy.eval()
+        if actions_per_chunk is not None:
+            self._override_n_action_steps(actions_per_chunk)
+        print(f"[SyncPolicy] {self._config_horizon_summary()}", flush=True)
 
         device_override = {"device": device}
         self.preprocessor, self.postprocessor = make_pre_post_processors(
@@ -356,6 +385,21 @@ class LeRobotSyncPolicy:
             postprocessor_overrides={"device_processor": device_override},
         )
         print("Local LeRobot policy is ready.", flush=True)
+
+    def _override_n_action_steps(self, n: int) -> None:
+        """Set config.n_action_steps before the first reset(), which sizes the action queue from it."""
+        cfg = self.policy.config
+        if not hasattr(cfg, "n_action_steps"):
+            raise ValueError(f"{type(cfg).__name__} has no n_action_steps; cannot apply --policy_action_horizon.")
+        if hasattr(cfg, "horizon") and hasattr(cfg, "n_obs_steps"):  # diffusion
+            limit = cfg.horizon - cfg.n_obs_steps + 1
+        else:
+            limit = getattr(cfg, "chunk_size", None)
+        if limit is not None and n > limit:
+            raise ValueError(f"--policy_action_horizon {n} exceeds the max {limit} for this checkpoint.")
+        print(f"[SyncPolicy] n_action_steps: {cfg.n_action_steps} (checkpoint) -> {n}", flush=True)
+        cfg.n_action_steps = n
+        self.reset()
 
     def reset(self):
         policy_reset = getattr(self.policy, "reset", None)
@@ -508,6 +552,27 @@ def get_camera_infos(
     return camera_infos
 
 
+def apply_grid_poses(env: ManagerBasedRLEnv, poses_per_env: list[dict]) -> dict:
+    """Write one grid pose dict per env (env-local), then refresh observations.
+
+    The observation returned by ``env.reset()`` still shows the objects at
+    their reset pose, so one physics + render step is taken and observations
+    are recomputed before the policy sees the first frame.
+    """
+    env_ids = torch.arange(len(poses_per_env), device=env.device)
+    for name in poses_per_env[0]:
+        rows = [[*poses[name][0], *poses[name][1]] for poses in poses_per_env]
+        pose = torch.tensor(rows, device=env.device, dtype=torch.float32)
+        pose[:, :3] += env.scene.env_origins[env_ids]
+        obj = env.scene[name]
+        obj.write_root_pose_to_sim(pose, env_ids=env_ids)
+        obj.write_root_velocity_to_sim(torch.zeros(len(env_ids), 6, device=env.device), env_ids=env_ids)
+    env.scene.write_data_to_sim()
+    env.sim.step(render=True)
+    env.scene.update(dt=env.physics_dt)
+    return env.observation_manager.compute()
+
+
 def main():
     task_id = resolve_task(args_cli.task)
     args_cli.task = task_id
@@ -521,10 +586,16 @@ def main():
     print(f"[rollout] seed = {env_cfg.seed}", flush=True)
     env_cfg.episode_length_s = args_cli.episode_length_s
 
-    if args_cli.eval_rounds <= 0:
+    grid_slots = make_slots(args_cli, args_cli.seed) if args_cli.grid_sweep else None
+    if args_cli.eval_rounds <= 0 and grid_slots is None:
         if hasattr(env_cfg.terminations, "time_out"):
             env_cfg.terminations.time_out = None
     max_episode_count = args_cli.eval_rounds
+    if grid_slots is not None:
+        # One eval episode per grid slot; episodes end on success or time out.
+        max_episode_count = len(grid_slots)
+        print(f"[rollout] grid eval: layout={args_cli.grid_layout}, {len(grid_slots)} episodes", flush=True)
+    grid_results: list[dict] = []
     env_cfg.recorders = None
 
     env: ManagerBasedRLEnv = gym.make(task_id, cfg=env_cfg).unwrapped
@@ -602,10 +673,23 @@ def main():
 
         with torch.inference_mode():
             obs_dict, _ = env.reset()
+            if grid_slots is not None:
+                # Envs past `batch` in the last round reuse the last slot; their results are dropped.
+                round_slots = [grid_slots[min(episodes_done + i, len(grid_slots) - 1)] for i in range(num_envs)]
+                round_poses, round_cells, round_outside = [], [], []
+                for slot in round_slots:
+                    round_poses.append(slot.sample())
+                    round_cells.append(dict(slot.cells))
+                    round_outside.append(dict(slot.outside))
+                obs_dict = apply_grid_poses(env, round_poses)
+                for i in range(batch):
+                    print(f"[grid] env {i}: {round_slots[i]} cells={round_cells[i]}", flush=True)
         policy.reset()
         controller.reset()
         done_mask = torch.zeros(num_envs, dtype=torch.bool, device=env.device)
         success_mask = torch.zeros(num_envs, dtype=torch.bool, device=env.device)
+        episode_steps = torch.zeros(num_envs, dtype=torch.long, device=env.device)
+        round_t0 = time.time()
 
         while simulation_app.is_running():
             with torch.inference_mode():
@@ -617,9 +701,12 @@ def main():
                     obs_dict["policy"], language_instruction
                 )
                 actions = policy.get_action(policy_obs_dict).to(env.device)
+                if args_cli.joint_damping >= 0:
+                    env.scene["robot"].write_joint_damping_to_sim(damping=args_cli.joint_damping)
                 if env.cfg.dynamic_reset_gripper_effort_limit:
                     dynamic_reset_gripper_effort_limit_sim(env, teleop_device)
                 obs_dict, _, reset_terminated, reset_time_outs, _ = env.step(actions)
+                episode_steps += (~done_mask).long()
 
                 newly_done = (reset_terminated | reset_time_outs) & ~done_mask
                 # A success DoneTerm reports via `terminated`; time out via `truncated`.
@@ -630,6 +717,20 @@ def main():
                 if rate_limiter:
                     rate_limiter.sleep(env)
 
+        if grid_slots is not None:
+            for i in range(batch):
+                grid_results.append(
+                    {
+                        "episode": episodes_done + i,
+                        "slot": [round_slots[i].sweep, round_slots[i].row, round_slots[i].col],
+                        "cells": round_cells[i],
+                        "outside_m": round_outside[i],
+                        "poses": {k: list(v[0]) for k, v in round_poses[i].items()},
+                        "success": bool(success_mask[i].item()),
+                        "steps": int(episode_steps[i].item()),
+                        "round_wall_s": round(time.time() - round_t0, 1),
+                    }
+                )
         round_success = int(success_mask[:batch].sum().item())
         success_count += round_success
         episodes_done += batch
@@ -644,6 +745,25 @@ def main():
             f"[Evaluation] Final success rate: {success_count / max_episode_count:.3f} "
             f" [{success_count}/{max_episode_count}]"
         )
+
+    if grid_slots is not None:
+        print_summary(args_cli, grid_results)
+        if args_cli.grid_results_json:
+            from simulator.utils.grid_sweep import cell_tables
+
+            out = {
+                "checkpoint": args_cli.policy_checkpoint_path,
+                "seed": args_cli.seed,
+                "n_action_steps": getattr(policy.policy.config, "n_action_steps", None),
+                "joint_damping": args_cli.joint_damping,
+                "grid": {k: getattr(args_cli, k) for k in vars(args_cli) if k.startswith("grid_")},
+                "success_rate": sum(r["success"] for r in grid_results) / max(len(grid_results), 1),
+                "cell_tables": cell_tables(args_cli, grid_results),
+                "episodes": grid_results,
+            }
+            _Path(args_cli.grid_results_json).parent.mkdir(parents=True, exist_ok=True)
+            _Path(args_cli.grid_results_json).write_text(_json.dumps(out, indent=1))
+            print(f"[grid] wrote results to {args_cli.grid_results_json}")
 
     env.close()
     simulation_app.close()

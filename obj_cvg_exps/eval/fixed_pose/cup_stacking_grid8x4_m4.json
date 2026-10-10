@@ -1,0 +1,1208 @@
+{
+ "checkpoint": "outputs/obj_cvg/cup_stacking_grid8x4_m4/checkpoints/last/pretrained_model",
+ "seed": 42,
+ "n_action_steps": 8,
+ "joint_damping": 10.0,
+ "grid": {
+  "grid_sweep": true,
+  "grid_layout": "fixed",
+  "grid_objects": [
+   "blue_cup",
+   "pink_cup"
+  ],
+  "grid_center": [
+   9.0,
+   6.5,
+   1.0
+  ],
+  "grid_half": [
+   0.2,
+   0.1
+  ],
+  "grid_size": [
+   8,
+   4
+  ],
+  "grid_min_episodes_per_cell": 1,
+  "grid_max_attempts": 5,
+  "grid_cell_margin": 0.005,
+  "grid_fixed_xy": [
+   8.95,
+   6.52,
+   9.07,
+   6.43
+  ],
+  "grid_min_separation": 0.12,
+  "grid_spec_out": null,
+  "grid_results_json": "obj_cvg_exps/eval/fixed_pose/cup_stacking_grid8x4_m4.json"
+ },
+ "success_rate": 0.78125,
+ "cell_tables": {
+  "blue_cup": {
+   "trials": [
+    [
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    [
+     0,
+     0,
+     32,
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    [
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    [
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0
+    ]
+   ],
+   "successes": [
+    [
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    [
+     0,
+     0,
+     25,
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    [
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    [
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0
+    ]
+   ]
+  },
+  "pink_cup": {
+   "trials": [
+    [
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    [
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    [
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    [
+     0,
+     0,
+     0,
+     0,
+     0,
+     32,
+     0,
+     0
+    ]
+   ],
+   "successes": [
+    [
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    [
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    [
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    [
+     0,
+     0,
+     0,
+     0,
+     0,
+     25,
+     0,
+     0
+    ]
+   ]
+  }
+ },
+ "episodes": [
+  {
+   "episode": 0,
+   "slot": [
+    0,
+    0,
+    0
+   ],
+   "cells": {
+    "blue_cup": [
+     1,
+     2
+    ],
+    "pink_cup": [
+     3,
+     5
+    ]
+   },
+   "poses": {
+    "blue_cup": [
+     8.95,
+     6.52,
+     1.0
+    ],
+    "pink_cup": [
+     9.07,
+     6.43,
+     1.0
+    ]
+   },
+   "success": false
+  },
+  {
+   "episode": 1,
+   "slot": [
+    0,
+    0,
+    1
+   ],
+   "cells": {
+    "blue_cup": [
+     1,
+     2
+    ],
+    "pink_cup": [
+     3,
+     5
+    ]
+   },
+   "poses": {
+    "blue_cup": [
+     8.95,
+     6.52,
+     1.0
+    ],
+    "pink_cup": [
+     9.07,
+     6.43,
+     1.0
+    ]
+   },
+   "success": true
+  },
+  {
+   "episode": 2,
+   "slot": [
+    0,
+    0,
+    2
+   ],
+   "cells": {
+    "blue_cup": [
+     1,
+     2
+    ],
+    "pink_cup": [
+     3,
+     5
+    ]
+   },
+   "poses": {
+    "blue_cup": [
+     8.95,
+     6.52,
+     1.0
+    ],
+    "pink_cup": [
+     9.07,
+     6.43,
+     1.0
+    ]
+   },
+   "success": true
+  },
+  {
+   "episode": 3,
+   "slot": [
+    0,
+    0,
+    3
+   ],
+   "cells": {
+    "blue_cup": [
+     1,
+     2
+    ],
+    "pink_cup": [
+     3,
+     5
+    ]
+   },
+   "poses": {
+    "blue_cup": [
+     8.95,
+     6.52,
+     1.0
+    ],
+    "pink_cup": [
+     9.07,
+     6.43,
+     1.0
+    ]
+   },
+   "success": true
+  },
+  {
+   "episode": 4,
+   "slot": [
+    0,
+    0,
+    4
+   ],
+   "cells": {
+    "blue_cup": [
+     1,
+     2
+    ],
+    "pink_cup": [
+     3,
+     5
+    ]
+   },
+   "poses": {
+    "blue_cup": [
+     8.95,
+     6.52,
+     1.0
+    ],
+    "pink_cup": [
+     9.07,
+     6.43,
+     1.0
+    ]
+   },
+   "success": true
+  },
+  {
+   "episode": 5,
+   "slot": [
+    0,
+    0,
+    5
+   ],
+   "cells": {
+    "blue_cup": [
+     1,
+     2
+    ],
+    "pink_cup": [
+     3,
+     5
+    ]
+   },
+   "poses": {
+    "blue_cup": [
+     8.95,
+     6.52,
+     1.0
+    ],
+    "pink_cup": [
+     9.07,
+     6.43,
+     1.0
+    ]
+   },
+   "success": true
+  },
+  {
+   "episode": 6,
+   "slot": [
+    0,
+    0,
+    6
+   ],
+   "cells": {
+    "blue_cup": [
+     1,
+     2
+    ],
+    "pink_cup": [
+     3,
+     5
+    ]
+   },
+   "poses": {
+    "blue_cup": [
+     8.95,
+     6.52,
+     1.0
+    ],
+    "pink_cup": [
+     9.07,
+     6.43,
+     1.0
+    ]
+   },
+   "success": false
+  },
+  {
+   "episode": 7,
+   "slot": [
+    0,
+    0,
+    7
+   ],
+   "cells": {
+    "blue_cup": [
+     1,
+     2
+    ],
+    "pink_cup": [
+     3,
+     5
+    ]
+   },
+   "poses": {
+    "blue_cup": [
+     8.95,
+     6.52,
+     1.0
+    ],
+    "pink_cup": [
+     9.07,
+     6.43,
+     1.0
+    ]
+   },
+   "success": true
+  },
+  {
+   "episode": 8,
+   "slot": [
+    0,
+    1,
+    0
+   ],
+   "cells": {
+    "blue_cup": [
+     1,
+     2
+    ],
+    "pink_cup": [
+     3,
+     5
+    ]
+   },
+   "poses": {
+    "blue_cup": [
+     8.95,
+     6.52,
+     1.0
+    ],
+    "pink_cup": [
+     9.07,
+     6.43,
+     1.0
+    ]
+   },
+   "success": true
+  },
+  {
+   "episode": 9,
+   "slot": [
+    0,
+    1,
+    1
+   ],
+   "cells": {
+    "blue_cup": [
+     1,
+     2
+    ],
+    "pink_cup": [
+     3,
+     5
+    ]
+   },
+   "poses": {
+    "blue_cup": [
+     8.95,
+     6.52,
+     1.0
+    ],
+    "pink_cup": [
+     9.07,
+     6.43,
+     1.0
+    ]
+   },
+   "success": true
+  },
+  {
+   "episode": 10,
+   "slot": [
+    0,
+    1,
+    2
+   ],
+   "cells": {
+    "blue_cup": [
+     1,
+     2
+    ],
+    "pink_cup": [
+     3,
+     5
+    ]
+   },
+   "poses": {
+    "blue_cup": [
+     8.95,
+     6.52,
+     1.0
+    ],
+    "pink_cup": [
+     9.07,
+     6.43,
+     1.0
+    ]
+   },
+   "success": true
+  },
+  {
+   "episode": 11,
+   "slot": [
+    0,
+    1,
+    3
+   ],
+   "cells": {
+    "blue_cup": [
+     1,
+     2
+    ],
+    "pink_cup": [
+     3,
+     5
+    ]
+   },
+   "poses": {
+    "blue_cup": [
+     8.95,
+     6.52,
+     1.0
+    ],
+    "pink_cup": [
+     9.07,
+     6.43,
+     1.0
+    ]
+   },
+   "success": true
+  },
+  {
+   "episode": 12,
+   "slot": [
+    0,
+    1,
+    4
+   ],
+   "cells": {
+    "blue_cup": [
+     1,
+     2
+    ],
+    "pink_cup": [
+     3,
+     5
+    ]
+   },
+   "poses": {
+    "blue_cup": [
+     8.95,
+     6.52,
+     1.0
+    ],
+    "pink_cup": [
+     9.07,
+     6.43,
+     1.0
+    ]
+   },
+   "success": false
+  },
+  {
+   "episode": 13,
+   "slot": [
+    0,
+    1,
+    5
+   ],
+   "cells": {
+    "blue_cup": [
+     1,
+     2
+    ],
+    "pink_cup": [
+     3,
+     5
+    ]
+   },
+   "poses": {
+    "blue_cup": [
+     8.95,
+     6.52,
+     1.0
+    ],
+    "pink_cup": [
+     9.07,
+     6.43,
+     1.0
+    ]
+   },
+   "success": true
+  },
+  {
+   "episode": 14,
+   "slot": [
+    0,
+    1,
+    6
+   ],
+   "cells": {
+    "blue_cup": [
+     1,
+     2
+    ],
+    "pink_cup": [
+     3,
+     5
+    ]
+   },
+   "poses": {
+    "blue_cup": [
+     8.95,
+     6.52,
+     1.0
+    ],
+    "pink_cup": [
+     9.07,
+     6.43,
+     1.0
+    ]
+   },
+   "success": true
+  },
+  {
+   "episode": 15,
+   "slot": [
+    0,
+    1,
+    7
+   ],
+   "cells": {
+    "blue_cup": [
+     1,
+     2
+    ],
+    "pink_cup": [
+     3,
+     5
+    ]
+   },
+   "poses": {
+    "blue_cup": [
+     8.95,
+     6.52,
+     1.0
+    ],
+    "pink_cup": [
+     9.07,
+     6.43,
+     1.0
+    ]
+   },
+   "success": true
+  },
+  {
+   "episode": 16,
+   "slot": [
+    0,
+    2,
+    0
+   ],
+   "cells": {
+    "blue_cup": [
+     1,
+     2
+    ],
+    "pink_cup": [
+     3,
+     5
+    ]
+   },
+   "poses": {
+    "blue_cup": [
+     8.95,
+     6.52,
+     1.0
+    ],
+    "pink_cup": [
+     9.07,
+     6.43,
+     1.0
+    ]
+   },
+   "success": true
+  },
+  {
+   "episode": 17,
+   "slot": [
+    0,
+    2,
+    1
+   ],
+   "cells": {
+    "blue_cup": [
+     1,
+     2
+    ],
+    "pink_cup": [
+     3,
+     5
+    ]
+   },
+   "poses": {
+    "blue_cup": [
+     8.95,
+     6.52,
+     1.0
+    ],
+    "pink_cup": [
+     9.07,
+     6.43,
+     1.0
+    ]
+   },
+   "success": false
+  },
+  {
+   "episode": 18,
+   "slot": [
+    0,
+    2,
+    2
+   ],
+   "cells": {
+    "blue_cup": [
+     1,
+     2
+    ],
+    "pink_cup": [
+     3,
+     5
+    ]
+   },
+   "poses": {
+    "blue_cup": [
+     8.95,
+     6.52,
+     1.0
+    ],
+    "pink_cup": [
+     9.07,
+     6.43,
+     1.0
+    ]
+   },
+   "success": true
+  },
+  {
+   "episode": 19,
+   "slot": [
+    0,
+    2,
+    3
+   ],
+   "cells": {
+    "blue_cup": [
+     1,
+     2
+    ],
+    "pink_cup": [
+     3,
+     5
+    ]
+   },
+   "poses": {
+    "blue_cup": [
+     8.95,
+     6.52,
+     1.0
+    ],
+    "pink_cup": [
+     9.07,
+     6.43,
+     1.0
+    ]
+   },
+   "success": false
+  },
+  {
+   "episode": 20,
+   "slot": [
+    0,
+    2,
+    4
+   ],
+   "cells": {
+    "blue_cup": [
+     1,
+     2
+    ],
+    "pink_cup": [
+     3,
+     5
+    ]
+   },
+   "poses": {
+    "blue_cup": [
+     8.95,
+     6.52,
+     1.0
+    ],
+    "pink_cup": [
+     9.07,
+     6.43,
+     1.0
+    ]
+   },
+   "success": true
+  },
+  {
+   "episode": 21,
+   "slot": [
+    0,
+    2,
+    5
+   ],
+   "cells": {
+    "blue_cup": [
+     1,
+     2
+    ],
+    "pink_cup": [
+     3,
+     5
+    ]
+   },
+   "poses": {
+    "blue_cup": [
+     8.95,
+     6.52,
+     1.0
+    ],
+    "pink_cup": [
+     9.07,
+     6.43,
+     1.0
+    ]
+   },
+   "success": false
+  },
+  {
+   "episode": 22,
+   "slot": [
+    0,
+    2,
+    6
+   ],
+   "cells": {
+    "blue_cup": [
+     1,
+     2
+    ],
+    "pink_cup": [
+     3,
+     5
+    ]
+   },
+   "poses": {
+    "blue_cup": [
+     8.95,
+     6.52,
+     1.0
+    ],
+    "pink_cup": [
+     9.07,
+     6.43,
+     1.0
+    ]
+   },
+   "success": true
+  },
+  {
+   "episode": 23,
+   "slot": [
+    0,
+    2,
+    7
+   ],
+   "cells": {
+    "blue_cup": [
+     1,
+     2
+    ],
+    "pink_cup": [
+     3,
+     5
+    ]
+   },
+   "poses": {
+    "blue_cup": [
+     8.95,
+     6.52,
+     1.0
+    ],
+    "pink_cup": [
+     9.07,
+     6.43,
+     1.0
+    ]
+   },
+   "success": true
+  },
+  {
+   "episode": 24,
+   "slot": [
+    0,
+    3,
+    0
+   ],
+   "cells": {
+    "blue_cup": [
+     1,
+     2
+    ],
+    "pink_cup": [
+     3,
+     5
+    ]
+   },
+   "poses": {
+    "blue_cup": [
+     8.95,
+     6.52,
+     1.0
+    ],
+    "pink_cup": [
+     9.07,
+     6.43,
+     1.0
+    ]
+   },
+   "success": true
+  },
+  {
+   "episode": 25,
+   "slot": [
+    0,
+    3,
+    1
+   ],
+   "cells": {
+    "blue_cup": [
+     1,
+     2
+    ],
+    "pink_cup": [
+     3,
+     5
+    ]
+   },
+   "poses": {
+    "blue_cup": [
+     8.95,
+     6.52,
+     1.0
+    ],
+    "pink_cup": [
+     9.07,
+     6.43,
+     1.0
+    ]
+   },
+   "success": false
+  },
+  {
+   "episode": 26,
+   "slot": [
+    0,
+    3,
+    2
+   ],
+   "cells": {
+    "blue_cup": [
+     1,
+     2
+    ],
+    "pink_cup": [
+     3,
+     5
+    ]
+   },
+   "poses": {
+    "blue_cup": [
+     8.95,
+     6.52,
+     1.0
+    ],
+    "pink_cup": [
+     9.07,
+     6.43,
+     1.0
+    ]
+   },
+   "success": true
+  },
+  {
+   "episode": 27,
+   "slot": [
+    0,
+    3,
+    3
+   ],
+   "cells": {
+    "blue_cup": [
+     1,
+     2
+    ],
+    "pink_cup": [
+     3,
+     5
+    ]
+   },
+   "poses": {
+    "blue_cup": [
+     8.95,
+     6.52,
+     1.0
+    ],
+    "pink_cup": [
+     9.07,
+     6.43,
+     1.0
+    ]
+   },
+   "success": true
+  },
+  {
+   "episode": 28,
+   "slot": [
+    0,
+    3,
+    4
+   ],
+   "cells": {
+    "blue_cup": [
+     1,
+     2
+    ],
+    "pink_cup": [
+     3,
+     5
+    ]
+   },
+   "poses": {
+    "blue_cup": [
+     8.95,
+     6.52,
+     1.0
+    ],
+    "pink_cup": [
+     9.07,
+     6.43,
+     1.0
+    ]
+   },
+   "success": true
+  },
+  {
+   "episode": 29,
+   "slot": [
+    0,
+    3,
+    5
+   ],
+   "cells": {
+    "blue_cup": [
+     1,
+     2
+    ],
+    "pink_cup": [
+     3,
+     5
+    ]
+   },
+   "poses": {
+    "blue_cup": [
+     8.95,
+     6.52,
+     1.0
+    ],
+    "pink_cup": [
+     9.07,
+     6.43,
+     1.0
+    ]
+   },
+   "success": true
+  },
+  {
+   "episode": 30,
+   "slot": [
+    0,
+    3,
+    6
+   ],
+   "cells": {
+    "blue_cup": [
+     1,
+     2
+    ],
+    "pink_cup": [
+     3,
+     5
+    ]
+   },
+   "poses": {
+    "blue_cup": [
+     8.95,
+     6.52,
+     1.0
+    ],
+    "pink_cup": [
+     9.07,
+     6.43,
+     1.0
+    ]
+   },
+   "success": true
+  },
+  {
+   "episode": 31,
+   "slot": [
+    0,
+    3,
+    7
+   ],
+   "cells": {
+    "blue_cup": [
+     1,
+     2
+    ],
+    "pink_cup": [
+     3,
+     5
+    ]
+   },
+   "poses": {
+    "blue_cup": [
+     8.95,
+     6.52,
+     1.0
+    ],
+    "pink_cup": [
+     9.07,
+     6.43,
+     1.0
+    ]
+   },
+   "success": true
+  }
+ ]
+}

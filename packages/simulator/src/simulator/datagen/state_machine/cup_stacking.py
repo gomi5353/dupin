@@ -129,11 +129,11 @@ class CupStackingStateMachine(StateMachineBase):
         self._gripper_down_yaw_offset_w: torch.Tensor | None = None
         self._event: int = 0
         self._events_dt = [
-            160,  # Phase 0: Move above the blue cup
+            200,  # Phase 0: Move above the blue cup
             80,  # Phase 1: Approach down to the blue cup
             20,  # Phase 2: Close gripper to grasp
             100,  # Phase 3: Lift blue cup upward
-            120,  # Phase 4: Move blue cup above the pink cup
+            160,  # Phase 4: Move blue cup above the pink cup
             40,  # Phase 5: Lower/place and release
             80,  # Phase 6: Move up and away
         ]
@@ -273,6 +273,7 @@ class CupStackingStateMachine(StateMachineBase):
         if self._step_count < self._events_dt[self._event]:
             return
 
+        print("Next!!")
         self._event += 1
         self._step_count = 0
         if self._event >= len(self._events_dt):

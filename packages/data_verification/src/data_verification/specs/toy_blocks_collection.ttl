@@ -1,0 +1,43 @@
+# Object pose coverage spec: toy_blocks_collection.
+#
+# PLACEHOLDER REGIONS: nominal init pose +/- pose_range from the public
+# eval/toy_blocks_collection_eval.py. Staff: set these to the workspace region you
+# disclose to students before release.
+#
+# Frame: env-local (world minus env origin), metres. Same frame as the
+# object_pose.<name> dataset columns. Every episode counts, success or not.
+
+@prefix dv:   <urn:aicapstone:dv#> .
+@prefix spec: <urn:aicapstone:spec:toy_blocks_collection#> .
+
+spec:task dv:taskName "toy_blocks_collection" .
+
+spec:green_block a dv:TaskObject ; dv:objectName "green_block" .
+
+spec:green_block_coverage a dv:CoverageRequirement ;
+    dv:targetsAxis dv:ObjectPoseAxis ;
+    dv:forObject spec:green_block ;
+    dv:xMin 3.399 ; dv:xMax 3.499 ;
+    dv:yMin 0.750 ; dv:yMax 0.850 ;
+    dv:gridX 2 ; dv:gridY 2 ;
+    dv:minEpisodesPerCell 2 .
+
+spec:blue_block a dv:TaskObject ; dv:objectName "blue_block" .
+
+spec:blue_block_coverage a dv:CoverageRequirement ;
+    dv:targetsAxis dv:ObjectPoseAxis ;
+    dv:forObject spec:blue_block ;
+    dv:xMin 3.326 ; dv:xMax 3.426 ;
+    dv:yMin 0.751 ; dv:yMax 0.851 ;
+    dv:gridX 2 ; dv:gridY 2 ;
+    dv:minEpisodesPerCell 2 .
+
+spec:red_block a dv:TaskObject ; dv:objectName "red_block" .
+
+spec:red_block_coverage a dv:CoverageRequirement ;
+    dv:targetsAxis dv:ObjectPoseAxis ;
+    dv:forObject spec:red_block ;
+    dv:xMin 3.291 ; dv:xMax 3.391 ;
+    dv:yMin 0.711 ; dv:yMax 0.811 ;
+    dv:gridX 2 ; dv:gridY 2 ;
+    dv:minEpisodesPerCell 2 .

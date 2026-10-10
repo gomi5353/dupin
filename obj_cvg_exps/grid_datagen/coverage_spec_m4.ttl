@@ -1,0 +1,23 @@
+# Object pose coverage spec written by scripts/datagen/generate.py --grid_sweep.
+@prefix dv:   <urn:aicapstone:dv#> .
+@prefix spec: <urn:aicapstone:spec:grid_sweep#> .
+
+spec:task dv:taskName "grid_sweep" .
+
+spec:blue_cup a dv:TaskObject ; dv:objectName "blue_cup" .
+spec:blue_cup_coverage a dv:CoverageRequirement ;
+    dv:targetsAxis dv:ObjectPoseAxis ;
+    dv:forObject spec:blue_cup ;
+    dv:xMin 8.800 ; dv:xMax 9.200 ;
+    dv:yMin 6.400 ; dv:yMax 6.600 ;
+    dv:gridX 8 ; dv:gridY 4 ;
+    dv:minEpisodesPerCell 4 .
+
+spec:pink_cup a dv:TaskObject ; dv:objectName "pink_cup" .
+spec:pink_cup_coverage a dv:CoverageRequirement ;
+    dv:targetsAxis dv:ObjectPoseAxis ;
+    dv:forObject spec:pink_cup ;
+    dv:xMin 8.800 ; dv:xMax 9.200 ;
+    dv:yMin 6.400 ; dv:yMax 6.600 ;
+    dv:gridX 8 ; dv:gridY 4 ;
+    dv:minEpisodesPerCell 4 .

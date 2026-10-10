@@ -1,0 +1,33 @@
+# Object pose coverage spec: cutlery_arrangement.
+#
+# PLACEHOLDER REGIONS: nominal init pose +/- pose_range from the public
+# eval/cutlery_arrangement_eval.py. Staff: set these to the workspace region you
+# disclose to students before release.
+#
+# Frame: env-local (world minus env origin), metres. Same frame as the
+# object_pose.<name> dataset columns. Every episode counts, success or not.
+
+@prefix dv:   <urn:aicapstone:dv#> .
+@prefix spec: <urn:aicapstone:spec:cutlery_arrangement#> .
+
+spec:task dv:taskName "cutlery_arrangement" .
+
+spec:knife a dv:TaskObject ; dv:objectName "knife" .
+
+spec:knife_coverage a dv:CoverageRequirement ;
+    dv:targetsAxis dv:ObjectPoseAxis ;
+    dv:forObject spec:knife ;
+    dv:xMin 6.700 ; dv:xMax 6.800 ;
+    dv:yMin 3.100 ; dv:yMax 3.200 ;
+    dv:gridX 2 ; dv:gridY 2 ;
+    dv:minEpisodesPerCell 2 .
+
+spec:fork a dv:TaskObject ; dv:objectName "fork" .
+
+spec:fork_coverage a dv:CoverageRequirement ;
+    dv:targetsAxis dv:ObjectPoseAxis ;
+    dv:forObject spec:fork ;
+    dv:xMin 7.000 ; dv:xMax 7.100 ;
+    dv:yMin 3.000 ; dv:yMax 3.100 ;
+    dv:gridX 2 ; dv:gridY 2 ;
+    dv:minEpisodesPerCell 2 .
