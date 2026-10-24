@@ -55,7 +55,7 @@ class ToyBlocksCollectionSceneCfg(SingleArmFrankaTaskSceneCfg):
             mass_props=MassPropertiesCfg(mass=0.1),
         ),
         init_state=RigidObjectCfg.InitialStateCfg(
-            pos=(3.25, 0.95, 0.45),
+            pos=(3.25, 0.85, 0.45),
             rot=(0.707, 0.0, 0.0, 0.707),
         ),
     )
@@ -88,7 +88,7 @@ class ToyBlocksCollectionSceneCfg(SingleArmFrankaTaskSceneCfg):
         prim_path="{ENV_REGEX_NS}/Scene/storage_box",
         init_state=RigidObjectCfg.InitialStateCfg(
             pos=(3.0, 0.8, 0.36348),
-            rot=(1.0, 0.0, 0.0, 0.0),
+            rot=(0.707, 0.0, 0.0, 0.707),
         ),
         spawn=sim_utils.UsdFileCfg(
             usd_path=str(LIVING_OBJECTS_ROOT / "Storage_Box" / "storage_box.usd"),
