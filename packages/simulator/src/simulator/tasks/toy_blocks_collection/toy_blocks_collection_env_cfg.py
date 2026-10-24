@@ -56,7 +56,7 @@ class ToyBlocksCollectionSceneCfg(SingleArmFrankaTaskSceneCfg):
             mass_props=MassPropertiesCfg(mass=0.1),
         ),
         init_state=RigidObjectCfg.InitialStateCfg(
-            pos=(3.25, 0.95, 0.45),
+            pos=(3.25, 0.85, 0.45),
             rot=(0.707, 0.0, 0.0, 0.707),
         ),
     )
