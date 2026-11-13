@@ -301,12 +301,12 @@ Imagine having a robot assist humans with everyday tasks, such as organizing obj
 
 In recent years, many research groups have demonstrated impressive robotic capabilities, showing robots performing increasingly complex manipulation tasks. However, while much research focuses on developing new robot learning methods and demonstrating their capabilities, relatively few studies pay close attention to the quality and diversity of the training data. How demonstrations are collected, what information they contain, and how they affect the trained policy are equally important to the success of a robot learning system. Without good data and proper evaluation, a robot may perform well in a demonstration but fail when facing different objects or environmental conditions. Therefore, understanding the relationship between data collection, policy learning, and performance evaluation is an important part of developing reliable robot learning systems.
 
-To address these challenges, we introduce the course project, \textbf{EDRLP: Evaluation-Driven Robot Learning Pipeline}. The project provides hands-on experience in building and evaluating a robot learning system using NVIDIA Isaac Sim \cite{isaacsim2026}, with robot simulation and learning workflows supported by Isaac Lab \cite{isaaclab}. Using the simulated NYCU (National Yang Ming Chiao Tung University) AI \& Interaction Specialty Classroom as a controlled and repeatable test environment (Figure~\ref{fig:ED305-predefined-tasks}), students will build an end-to-end pipeline for pick-and-place tasks. This includes building data collection controller to collect robot demonstrations, training imitation-learning policies, and evaluating their performance. Students will explore how task settings, demonstration quality and diversity, and evaluation conditions affect policy performance. They will also analyze policy failures and use ontology-based data verification to identify data issues and improve their datasets through repeated experiments.
+To address these challenges, we introduce the course project, \textbf{EDRLP: Evaluation-Driven Robot Learning Pipeline}. The project provides hands-on experience in building and evaluating a robot learning system using NVIDIA Isaac Sim \cite{isaacsim2026}, with robot simulation and learning workflows supported by Isaac Lab \cite{isaaclab}. Using the simulated NYCU AI \& Interaction Specialty Classroom at National Yang Ming Chiao Tung University (NYCU) as a controlled and repeatable test environment (Figure~\ref{fig:ED305-predefined-tasks}), students will build an end-to-end pipeline for pick-and-place tasks. This includes building data collection controller to collect robot demonstrations, training imitation-learning policies, and evaluating their performance. Students will explore how task settings, demonstration quality and diversity, and evaluation conditions affect policy performance. They will also analyze policy failures and use ontology-based data verification to identify data issues and improve their datasets through repeated experiments.
 
 \begin{figure}[htbp]
 \centering
 \includegraphics[width=0.9\linewidth]{overview.png}
-\caption{Illustrations of the predefined tasks in the Simulated NYCU AI and Interactive classroom environment in NVIDIA Isaac Sim.}
+\caption{Illustrations of the predefined tasks in the simulated NYCU AI \& Interaction Specialty Classroom in NVIDIA Isaac Sim.}
 \label{fig:ED305-predefined-tasks}
 \end{figure}
 
@@ -329,7 +329,7 @@ After completing the project, students should be able to:
 % ============================================================
 \section{Course Levels}
 % ============================================================
-This course project is organized into \textbf{two levels} to accommodate different levels of experience and encourage progressive learning. The \textbf{Entry Level} provides a structured foundation for developing and evaluating a end-to-end robot learning pipeline, while the optional \textbf{Advanced Level} allows interested groups to explore more open-ended problems in robot learning and system design. This structure enables students to first establish essential development and evaluation skills before engaging in more independent and exploratory projects. Whether the Advanced Level and a leaderboard are offered differs by institution; ask the TAs at your own institution, not the NYCU TAs.
+This course project is organized into \textbf{two levels} to accommodate different levels of experience and encourage progressive learning. The \textbf{Entry Level} provides a structured foundation for developing and evaluating an end-to-end robot learning pipeline, while the optional \textbf{Advanced Level} allows interested groups to explore more open-ended problems in robot learning and system design. This structure enables students to first establish essential development and evaluation skills before engaging in more independent and exploratory projects. Whether the Advanced Level and a leaderboard are offered differs by institution; ask the TAs at your own institution, not the NYCU TAs.
 
 The main difference between the two levels lies in the scope of the tasks and the degree of student autonomy. At the Entry Level, students select from predefined manipulation tasks and work within a shared development and evaluation framework. At the Advanced Level, students are expected to define their own tasks, configure the corresponding environments, design appropriate evaluation metrics, and develop and evaluate their systems accordingly.
 
@@ -354,7 +354,7 @@ Student submissions will be evaluated through public and private leaderboards. D
     The following table summarizes the grading criteria and their respective weights used by NYCU to assess student performance.
     The Entry Level accounts for 80\% of the final grade and the Advanced Level for the remaining 20\%. The leaderboard
     bonus is added on top.
-    \paragraph{Grading Policy}
+    \paragraph{Grading Policy.}
     \begin{longtable}{L{0.5\linewidth}L{0.4\linewidth}}
     \toprule
     \textbf{Component} & \textbf{Weight (in final grade)}\\
@@ -401,7 +401,7 @@ Projects at this level are expected to approach the scope, rigor, and quality of
 \begin{tutornote}
 \label{ttn:advanced-grading}
     The following table summarizes the grading criteria and their respective weights used by NYCU to assess student performance.
-    \paragraph{Grading Policy}
+    \paragraph{Grading Policy.}
     \begin{longtable}{L{0.5\linewidth}L{0.4\linewidth}}
     \toprule
     \textbf{Component} & \textbf{Weight (in final grade)}\\
@@ -414,7 +414,7 @@ Projects at this level are expected to approach the scope, rigor, and quality of
     \end{longtable}
 \end{tutornote}
 
-\paragraph{Reproducibility Requirements}
+\paragraph{Reproducibility Requirements.}
 Because Advanced-level projects involve student-defined tasks and evaluation procedures, each group must provide sufficient documentation to enable independent reproduction of their reported results. The submission must include:
 
 \begin{itemize}
@@ -439,7 +439,7 @@ The course project follows the end-to-end robot learning pipeline. At the Entry 
 Task Configuration & Select one of the provided tasks and read its configuration: the scene, the robot, the objects and their randomization ranges, and the success condition. \\
 Data Collection & Build a controller of your own (teleoperation device or scripted policy) and record demonstrations. \\
 Policy Training and Evaluation & Train an imitation-learning policy on the collected dataset and keep the resulting checkpoint for evaluation. Then, evaluate the performance and record the success rate together with the rollout log. \\
-Data Verification & Define the coverage requirements of the task, check the dataset meets them or not, and compare the dataset coverage with the rollout results to find the regions where more demonstrations are needed. \\
+Data Verification & Define the coverage requirements of the task, check whether the dataset meets them, and compare the dataset coverage with the rollout results to find the regions where more demonstrations are needed. \\
 \bottomrule
 \end{longtable}
 
@@ -454,7 +454,7 @@ than a single pass.
 The simulation stack consists of three layers of external software, with the repository's own packages on top.
 
 \paragraph{Isaac Sim.}
-NVIDIA Isaac Sim \cite{isaacsim2026} is a high-fidelity robotics simulation platform built on NVIDIA Omniverse \cite{nvidia_omniverse_website}. It integrates GPU-accelerated PhysX physics simulation, RTX-based rendering, sensor simulation, and Universal Scene Description (USD), enabling realistic modeling of robot dynamics, environments, and sensors. In this project, Isaac Sim renders the simulated NYCU AI and Interactive classroom (Figure~\ref{fig:ED305-predefined-tasks}) and simulates the Franka robot and the task objects.
+NVIDIA Isaac Sim \cite{isaacsim2026} is a high-fidelity robotics simulation platform built on NVIDIA Omniverse \cite{nvidia_omniverse_website}. It integrates GPU-accelerated PhysX physics simulation, RTX-based rendering, sensor simulation, and Universal Scene Description (USD), enabling realistic modeling of robot dynamics, environments, and sensors. In this project, Isaac Sim renders the simulated NYCU AI \& Interaction Specialty Classroom (Figure~\ref{fig:ED305-predefined-tasks}) and simulates the Franka robot and the task objects.
 
 \paragraph{Isaac Lab.}
 Isaac Lab \cite{isaaclab,mittal2025isaaclab} is a modular framework built on top of Isaac Sim and designed for robot
@@ -467,8 +467,8 @@ LeIsaac \cite{leisaac} builds on Isaac Lab and connects it to the LeRobot ecosys
 teleoperation and automated data collection using state-machine-based scripted policies in Isaac Lab, ready-to-use scripts 
 for converting HDF5 data into the LeRobot dataset format\cite{lerobot_dataset_v3}, and support for subsequent policy training.
 
-\paragraph{Repository packages.}
-The course repository is built on top of LeIsaac and adds what this project needs. It defines the simulated classroom and the three course tasks, each with its own objects, randomization of initial conditions, and success condition, on a shared single-arm Franka setup. It provides a recorder that, in addition to what LeIsaac records, stores the starting position of every randomized object, so that each demonstration can later be traced back to the conditions it covers. It also provides tools to evaluate a trained policy in the same simulated tasks and to verify whether a dataset covers the conditions that a task requires. The repository does not provide a data-collection controller or collection script, because building them is part of the project; Section~\ref{sec:recording} lists the steps of the collection script and the repository tools it uses. For more details, see Section~\ref{sec:implementation}.
+\paragraph{Repository Packages.}
+The course repository is built on top of LeIsaac and adds what this project needs. It defines the simulated NYCU AI \& Interaction Specialty Classroom and the three course tasks, each with its own objects, randomization of initial conditions, and success condition, on a shared single-arm Franka setup. It provides a recorder that, in addition to what LeIsaac records, stores the starting position of every randomized object, so that each demonstration can later be traced back to the conditions it covers. It also provides tools to evaluate a trained policy in the same simulated tasks and to verify whether a dataset covers the conditions that a task requires. The repository does not provide a data-collection controller or collection script, because building them is part of the project; Section~\ref{sec:recording} lists the steps of the collection script and the repository tools it uses. For more details, see Section~\ref{sec:implementation}.
 
 
 \subsection{Task Configuration}
@@ -551,12 +551,12 @@ viewpoint, and object appearance (Figure~\ref{fig:star-gen-taxonomy}). The taxon
 \end{figure}
 
 
-\paragraph{Object position coverage.}
+\paragraph{Object Position Coverage.}
 \label{sec:object-position-coverage-concept}
-The repository implements one component of STAR-Gen's Object Pose axis: the initial position of each task object.  Object positions are randomized on every reset in all three tasks, and the evaluation episodes also start from randomized positions within a region of the table. Object rotation is kept fixed: a random start rotation can leave an object tipped over or make it fall off the table, so the environment has to reset and try again, which wastes simulation time and compute. 
+The repository implements one component of STAR-Gen's Object Pose axis: the initial position of each task object. Object positions are randomized on every reset in all three tasks, and the evaluation episodes also start from randomized positions within an area of the table. Object rotation is kept fixed: a random start rotation can leave an object tipped over or make it fall off the table, so the environment has to reset and try again, which wastes simulation time and compute.
 
-If a part of that region has few or no demonstrations, the policy has little to imitate there. The check divides a region of the table into a grid of cells, counts the episodes whose initial object position falls in each
-cell, and reports the cells with fewer episodes than required. The region, the cell numbers, and the minimum number of
+If a part of that region has few or no demonstrations, the policy has little to imitate there. The check divides an area of the table into a grid of cells, counts the episodes whose initial object position falls in each
+cell, and reports the cells with fewer episodes than required. The area, the cell numbers, and the minimum number of
 episodes per cell are chosen by each group because they depend on the task, the evaluation conditions, and the
 collection budget. Running the check is a required step for every dataset.
 
@@ -686,7 +686,7 @@ This repository uses two separate software environments on the same GPU machine:
 \paragraph{Docker Container.} Isaac Sim depends on specific versions of CUDA, Vulkan, and Python packages that are difficult to install consistently on every machine. The repository therefore packages Isaac Sim 5.1.0, Isaac Lab, LeIsaac, and LeRobot into a Docker image \cite{docker2026}. Docker uses this image to create an isolated container environment with its own filesystem and installed software, while sharing the host's operating-system kernel and GPU when access is granted.
 The \code{make launch-isaaclab} target starts the container. The repository directory is mounted into the container at \path{/workspace/physicalai}, so code edited on the host is immediately visible inside the container. The host's \path{datasets/} directory is also mounted as the LeRobot dataset cache, allowing recorded datasets to remain accessible on the host. The container is removed when it exits, so files written outside the mounted directories are lost. Recording and rollout run in this environment because both require the simulator.
 
-\paragraph{Host Python Environment.} The repoitory uses uv \cite{uv}, a Python package and project manager, to manage its Python environment on the host machine. Running \code{uv sync} creates a virtual environment in \path{.venv} with Python 3.11 and the package versions specified in the lock file. This ensures that all groups use consistent Python dependencies.
+\paragraph{Host Python Environment.} The repository uses uv \cite{uv}, a Python package and project manager, to manage its Python environment on the host machine. Running \code{uv sync} creates a virtual environment in \path{.venv} with Python 3.11 and the package versions specified in the lock file. This ensures that all groups use consistent Python dependencies.
 Unlike the Docker container, this environment uses the host's operating system and GPU driver directly. Training and data verification run in this environment because they do not require the simulator and can avoid the additional file-access overhead of running inside a container.
 
 
@@ -739,7 +739,7 @@ Unlike the Docker container, this environment uses the host's operating system a
 \bottomrule
 \end{longtable}
 
-\paragraph{How a task is wired.}
+\paragraph{How a Task Is Wired.}
 Each task is a configuration class that subclasses \code{SingleArmFrankaTaskEnvCfg} and fills in the Isaac Lab
 manager configurations: \code{scene} (robot, cameras, objects), \code{observations}, \code{actions},
 \code{events} (randomization on reset), \code{terminations} (\code{time_out} and \code{success}), and
@@ -761,7 +761,7 @@ env = gym.make("HCIS-CupStacking-SingleArm-v0", cfg=env_cfg).unwrapped
 robot settings that \code{rollout.py} also uses (gravity off on the robot links, arm joint stiffness 80 and damping 4, and
 the per-step gripper effort update when the task enables it). Call it in every recording script before \code{gym.make}.
 
-\paragraph{Where to run what.}
+\paragraph{Where to Run What.}
 
 \begin{longtable}{L{0.30\linewidth}L{0.25\linewidth}L{0.37\linewidth}}
 \toprule
@@ -775,8 +775,10 @@ Data Verification & Host Python environment & They read Parquet files only and n
 
 
 
-\subsection{Predefined Tasks Settings}
+\subsection{Predefined Task Settings}
 \label{sec:task-settings}
+
+Figure~\ref{fig:task-overview} shows the three predefined tasks, and the table below lists their settings.
 
 \begin{longtable}{L{0.17\linewidth}L{0.24\linewidth}L{0.24\linewidth}L{0.24\linewidth}}
 \toprule
@@ -810,12 +812,12 @@ Episode length & 20~s & 40~s & 60~s \\
         \centering
         \includegraphics[width=\textwidth]{tbc_overview.png}
         \caption{Toy Blocks Collection}
-        \label{fig:sub3}
+        \label{fig:tbc_overview}
     \end{subfigure}
     
     % 大圖的總標題與標籤
-    \caption{Entry tasks overview}
-    \label{fig:three_images}
+    \caption{Overview of the three predefined tasks.}
+    \label{fig:task-overview}
 \end{figure}
 
 
@@ -825,10 +827,10 @@ few centimetres and changes the light intensity, so your controller must read th
 (\code{env.scene[name].data.root_pos_w}) at the start of every episode instead of hard-coding them.
 
 
-\paragraph{Modifying the environment configuration.}
+\paragraph{Modifying the Environment Configuration.}
 You may modify any environment configuration for recording (task configurations, the shared template, or your own
 subclass), for example the randomization ranges, lighting, object start poses, success check, or recording episode
-length. Besides, rollout never reads the recording configuration, it builds the environment from the evaluation file in
+length. Note that rollout never reads the recording configuration, it builds the environment from the evaluation file in
 \path{eval/}, and the final ranking uses a private configuration built on the same format. 
 
 Every modification must therefore stay aligned with rollout. First, the rollout contract must not change (see Section~\ref{sec:rollout-contract} for what it covers). Second, every other difference from \path{eval/<task>_eval.py} such as object ranges and lighting is a distribution shift your policy must bridge.
@@ -842,9 +844,9 @@ held at nesting height above the pink cup.
 \label{sec:rollout-contract}
 
 The rollout contract is the set of settings that rollout and the leaderboard evaluation assume. It must not change in
-the three predefined tasks configuration for recording: the Franka robot, the action space of \code{use_joint_position_actions()} (arm joint stiffness 80, damping 4), \code{sim.dt = 1/60} (the Isaac Lab default) with \code{decimation = 1}, the 9-D joint state, exactly the \code{front} and \code{wrist} RGB cameras at $640\times480$, and \code{build_lerobot_frame}.
+the configurations of the three predefined tasks for recording: the Franka robot, the action space of \code{use_joint_position_actions()} (arm joint stiffness 80, damping 4), \code{sim.dt = 1/60} (the Isaac Lab default) with \code{decimation = 1}, the 9-D joint state, exactly the \code{front} and \code{wrist} RGB cameras at $640\times480$, and \code{build_lerobot_frame}.
 
-\paragraph{Rollout Input Features}
+\paragraph{Rollout Input Features.}
 \label{sec:rollout-inputs}
 
 You may modify the input and output features in your own experiments. However, the checkpoint submitted for leaderboard evaluation (Section~\ref{sec:leaderboard}) must be compatible with the specified rollout interface and use exactly the input and output features defined below. Ensure that your policy accepts the required observation features and produces the required action features with the expected shapes and data types. Your LeRobot dataset may contain additional metadata or fields, but the submitted policy must use only the specified input features and predict only the specified output features.
@@ -865,7 +867,7 @@ You may modify the input and output features in your own experiments. However, t
 \subsection{Data Collection}
 \label{sec:data-collection}
 
-\textbf{Each group writes its own data-collection controller with the repository’s \code{LeRobotRecorderManager} (Section~\ref{sec:recording}) and connects it to the simulator.} The goal is to generate a LeRobot v3 dataset\cite{lerobot_dataset_v3} that satisfies the Rollout Input Features (Section~\ref{sec:rollout-inputs}) and contains the \code{object_position.*} columns needed for data verification. You may use any source of demonstrations as long as the resulting frames follow the contract. This section lists the resources that the repository provides and the rules that the recorder imposes. All recording runs inside the Docker Container and requires \code{--enable_cameras}.
+\textbf{Each group writes its own data-collection controller with the repository's \code{LeRobotRecorderManager} (Section~\ref{sec:recording}) and connects it to the simulator.} The goal is to generate a LeRobot v3 dataset\cite{lerobot_dataset_v3} that satisfies the Rollout Input Features (Section~\ref{sec:rollout-inputs}) and contains the \code{object_position.*} columns needed for data verification. You may use any source of demonstrations as long as the resulting frames follow the contract. This section lists the resources that the repository provides and the rules that the recorder imposes. All recording runs inside the Docker Container and requires \code{--enable_cameras}.
 
 A recommended order of work is:
 
@@ -884,7 +886,7 @@ At every step, the controller returns one action: a \code{torch.float32} tensor 
 the current angle, and entry \code{7} is the gripper command: \code{+1.0} opens and \code{-1.0} closes.
 
 Most controllers, however, do not think in joint angles. A teleoperation device reports where the
-operator’s hand is, and a scripted policy is easiest to write as a sequence of gripper poses, such as above
+operator's hand is, and a scripted policy is easiest to write as a sequence of gripper poses, such as above
 the object, at the object, lifted, and above the target. Your controller therefore needs a step that converts a
 desired gripper pose into the seven joint targets that the action expects. This conversion is called inverse
 kinematics (IK) \cite{inverse_kinematics}. Isaac Lab provides a differential IK solver (\code{DifferentialIKController}) that you can build on. When you build this step, check the following:
@@ -1008,7 +1010,7 @@ The following recording behaviors and constraints are important for implementing
 \end{enumerate}
 
 \paragraph{Object Position Columns.}
-Import \code{LeRobotRecorderManager} from this repository, rather than from LeIsaac. It follows LeIsaac’s recording behavior and additionally records one \code{object_position.<name>} feature for every object listed in \code{tracked_object_names}, so that the dataset can be checked by the data verification tools. A \code{ValueError} is raised if \code{tracked_object_names} is empty.
+Import \code{LeRobotRecorderManager} from this repository, rather than from LeIsaac. It follows LeIsaac's recording behavior and additionally records one \code{object_position.<name>} feature for every object listed in \code{tracked_object_names}, so that the dataset can be checked by the data verification tools. A \code{ValueError} is raised if \code{tracked_object_names} is empty.
 
 \begin{lstlisting}[language=Python]
 # from leisaac.enhance.managers.lerobot_recorder_manager import LeRobotRecorderManager  # not this
@@ -1034,8 +1036,8 @@ Each tracked object gets one column:
 \end{itemize}
 
 The objects to record are listed in \code{tracked_object_names} of each task configuration, which holds exactly the
-objects whose start position is randomized: Cup Stacking records \code{blue_cup} and \code{pink_cup}; cutlery
-arrangement records \code{fork} and \code{knife}; Toy Blocks Collection records \code{green_block}, \code{blue_block},
+objects whose start position is randomized: Cup Stacking records \code{blue_cup} and \code{pink_cup}; Cutlery
+Arrangement records \code{fork} and \code{knife}; Toy Blocks Collection records \code{green_block}, \code{blue_block},
 and \code{red_block}. Objects that start at the same place in every episode (the cutlery \code{plate}, the toy
 \code{storage_box}) are listed in \code{fixed_object_names} instead: they get no column and are not verified, and
 \code{rollout.py} logs their pose once, in the log header under \code{fixed_objects}, for reference only.
@@ -1044,11 +1046,11 @@ Set \code{env_cfg.tracked_object_names} to record other randomized rigid objects
 After recording a few episodes, confirm that the columns exist; you should see one key per tracked object:
 
 \begin{lstlisting}[language=bash]
-uv run python -c "import json; f=json.load(open('datasets/<HF_USER>/<repo_id>/meta/info.json'))['features']; print([k for k in f if k.startswith('object_position.')])"
+uv run python -c "import json; f=json.load(open('datasets/${HF_USER}/<dataset_repo>/meta/info.json'))['features']; print([k for k in f if k.startswith('object_position.')])"
 \end{lstlisting}
 
  
-The three predefined tasks configuration already provides \code{env_cfg.recorders}, an Isaac Lab recorder configuration that specifies the state information to collect. One of its recording terms stores per-frame states in the states buffer. The repository’s \code{LeRobotRecorderManager} reads the object positions from this buffer and adds them to the LeRobot frame. Students should keep \code{env_cfg.recorders} unchanged and modify only its export mode, which controls whether completed episodes are saved or discarded.
+The configurations of the three predefined tasks already provide \code{env_cfg.recorders}, an Isaac Lab recorder configuration that specifies the state information to collect. One of its recording terms stores per-frame states in the states buffer. The repository's \code{LeRobotRecorderManager} reads the object positions from this buffer and adds them to the LeRobot frame. Students should keep \code{env_cfg.recorders} unchanged and modify only its export mode, which controls whether completed episodes are saved or discarded.
 
 The recorder builds each frame with \code{build_lerobot_frame} in \path{template/single_arm_franka_cfg.py}:
 \code{observation.state}, \code{action} (names \code{dim_0..dim_7}), \code{observation.images.front},
@@ -1093,7 +1095,7 @@ existing episodes.
     \begin{lstlisting}[language=Python]
     from lerobot.datasets.lerobot_dataset import LeRobotDataset
     
-    ds = LeRobotDataset("<HF_USER>/<repo_id>", root="datasets/<HF_USER>/<repo_id>")
+    ds = LeRobotDataset("<HF_USER>/<dataset_repo>", root="datasets/<HF_USER>/<dataset_repo>")
     print(ds.num_episodes, ds.num_frames, ds.fps)
     print(list(ds.features))
     \end{lstlisting}
@@ -1139,9 +1141,9 @@ Missing \code{object_position.*} features & LeIsaac's recorder was imported inst
 \subsection{How to Run an Object Position Coverage Check}
 \label{sec:coverage-howto}
 
-During evaluation, your policy may encounter object positions not seen during training. The coverage check identifies which workspace regions are represented in your dataset and whether they meet your specified coverage requirements.
+During evaluation, your policy may encounter object positions not seen during training. The coverage check identifies which areas of the table are represented in your dataset and whether they meet your specified coverage requirements.
 
-This is a required step in your workflow. You must specify the workspace region, the number of grid cells along $x$ and $y$, and the minimum number of episodes per cell. The check focuses on the position component of the Object Pose axis in STAR-Gen \cite{gao2026taxonomy}: changes in task-relevant object positions. Orientation is excluded because the initial object rotation remains fixed across all tasks (Section~\ref{sec:object-position-coverage-concept}).
+This is a required step in your workflow. You must specify the area, the number of grid cells along $x$ and $y$, and the minimum number of episodes per cell. The check focuses on the position component of the Object Pose axis in STAR-Gen \cite{gao2026taxonomy}: changes in task-relevant object positions. Orientation is excluded because the initial object rotation remains fixed across all tasks (Section~\ref{sec:object-position-coverage-concept}).
 
 The workflow is:
 
@@ -1154,17 +1156,17 @@ The check reads only \path{meta/info.json} and \path{data/**/*.parquet} from the
 
 \subsubsection{Write Your Specification}
 
-The specification is a small Turtle file \cite{w3cTurtle} that defines the required initial position coverage for each object, including the target rectangle, grid layout, and minimum number of episodes required per cell. A skeleton can be created from an existing dataset, using object names from its \code{object_position.*} columns, or from a list of object names before data collection:
+The specification is a small Turtle file \cite{w3cTurtle} that defines the required initial position coverage for each object, including the target area, grid layout, and minimum number of episodes required per cell. A skeleton can be created from an existing dataset, using object names from its \code{object_position.*} columns, or from a list of object names before data collection:
 
 \begin{lstlisting}[language=bash]
 uv run python scripts/verify_object_position_coverage.py init \
-    --dataset datasets/<HF_USER>/<repo_id> --out specs/my_coverage.ttl
+    --dataset datasets/${HF_USER}/<dataset_repo> --out specs/my_coverage.ttl
 
 uv run python scripts/verify_object_position_coverage.py init \
     --objects blue_cup,pink_cup --out specs/my_coverage.ttl
 \end{lstlisting}
 
-The \code{init} command does not overwrite existing files. The template is available at \path{packages/data_verification/src/data_verification/templates/object_position_coverage_spec.ttl}. Each object has a separate block that defines its coverage requiremen. The following example shows the template structure:
+The \code{init} command does not overwrite existing files. The template is available at \path{packages/data_verification/src/data_verification/templates/object_position_coverage_spec.ttl}. Each object has a separate block that defines its coverage requirement. The following example shows the template structure:
 
 \begin{lstlisting}[language=turtle]
 # --- BEGIN OBJECT ---
@@ -1196,19 +1198,19 @@ The fields have the following meanings:
 \textbf{Field} & \textbf{Meaning} \\
 \midrule
 \code{cp:name} & Object to check; it must match \code{object_position.<name>} in the dataset and is already filled in. \\
-\code{cp:areaXMin}, \code{cp:areaXMax}, \code{cp:areaYMin}, \code{cp:areaYMax} & Target rectangle in metres, defined in the environment-local frame. Values must be numbers without quotes, such as \code{8.80}. \\
+\code{cp:areaXMin}, \code{cp:areaXMax}, \code{cp:areaYMin}, \code{cp:areaYMax} & Target area (a rectangle) in metres, defined in the environment-local frame. Values must be numbers without quotes, such as \code{8.80}. \\
 \code{cp:numCellW}, \code{cp:numCellH} & Number of grid cells along the x-axis (width) and y-axis (height), as whole numbers of at least 1 without quotes. The cell size follows from the area, e.g.\ $(\mathit{areaXMax}-\mathit{areaXMin})/\mathit{numCellW}$. \\
 \code{cp:minEpisodesPerCell} & Minimum number of episodes required in each cell, as a whole number of at least 1 without quotes. \\
 \bottomrule
 \end{longtable}
 
-An object block can be deleted to exclude that object from checking, or copied to add another object. The \code{# Already} comment shows the current position range in the dataset for reference only; do not copy it as the target area (see \emph{Choosing the values} below).
+An object block can be deleted to exclude that object from checking, or copied to add another object. The \code{# Already} comment shows the current position range in the dataset for reference only; do not copy it as the target area (see \emph{Choosing the Values} below).
 
-\paragraph{Choosing the values.} The area, grid size, and minimum number of episodes depend on the task and collection setup. The following guidelines help define these values:
+\paragraph{Choosing the Values.} The area, grid size, and minimum number of episodes depend on the task and collection setup. The following guidelines help define these values:
 \begin{itemize}
   \item \textbf{Area.} The target area should cover the possible object starting positions during testing. The table size, robot reach, and camera views should be considered. Unreachable areas should be avoided because they waste collection time. Different objects may have different target areas.
-  \item \textbf{Grid.} The cell size is $(x_{\max} - x_{\min}) / n_x$. It should reflect how far an object can move before the grasp needs to change. More cells provide a more detailed view of coverage but require more episodes. At least $n_x \cdot n_y \cdot m$ episodes are needed per object, where $m$ s the minimum number of episodes per cell.
-  \item \textbf{Minimum per cell.} A value of 1 only requires at least one episode in each cell. For example, a $3 \times 3$ gird with 3 episodes per cell requires at least 27 evenly distributed episodes. Random sampling usually requires more episodes to fill every cell.
+  \item \textbf{Grid.} The cell size is $(x_{\max} - x_{\min}) / n_x$. It should reflect how far an object can move before the grasp needs to change. More cells provide a more detailed view of coverage but require more episodes. At least $n_x \cdot n_y \cdot m$ episodes are needed per object, where $m$ is the minimum number of episodes per cell.
+  \item \textbf{Minimum per cell.} A value of 1 only requires at least one episode in each cell. For example, a $3 \times 3$ grid with 3 episodes per cell requires at least 27 evenly distributed episodes. Random sampling usually requires more episodes to fill every cell.
   \item \textbf{Avoid copying the existing dataset range.} The target area should reflect the desired coverage, not just the positions already collected. Otherwise, gaps in the intended coverage may remain undetected.
 \end{itemize}
 
@@ -1217,14 +1219,14 @@ An object block can be deleted to exclude that object from checking, or copied t
 
 \begin{lstlisting}[language=bash]
 uv run python scripts/verify_object_position_coverage.py check \
-    --dataset datasets/<HF_USER>/<repo_id> \
+    --dataset datasets/${HF_USER}/<dataset_repo> \
     --spec specs/my_coverage.ttl
 \end{lstlisting}
 
 Example output:
 
 \begin{lstlisting}
-Dataset : datasets/<HF_USER>/<repo_id>
+Dataset : datasets/<HF_USER>/<dataset_repo>
 Spec    : specs/my_coverage.ttl
 Episodes: 31
 
@@ -1235,10 +1237,10 @@ Episodes: 31
         x0  x1  x2
 
 VIOLATION 'blue_cup' cell (i=0, j=2) x=[8.8, 8.9] y=[6.49, 6.59] has 0 episode(s); needs at least 2  [blue_cup_grid/cell/6]
-WARNING   Episode 30: initial position of 'blue_cup' at (9.5, 6.4) is outside the required area; it does not count toward coverage  [<repo_id>]
+WARNING   Episode 30: initial position of 'blue_cup' at (9.5, 6.4) is outside the required area; it does not count toward coverage  [<dataset_repo>]
 
 RESULT: coverage spec NOT met
-Graph written to outputs/object_position_coverage/<repo_id>.ttl
+Graph written to outputs/object_position_coverage/<dataset_repo>.ttl
 \end{lstlisting}
 
 \begin{itemize}
@@ -1531,7 +1533,7 @@ lerobot-train \
 
 \begin{itemize}
   \item \code{--dataset.repo_id} downloads the dataset from the Hugging Face Hub. To train on a local copy, also pass
-        \code{--dataset.root=datasets/<HF_USER>/<dataset_repo>}.
+        \code{--dataset.root=datasets/${HF_USER}/<dataset_repo>}.
   \item \code{--policy.type} selects the policy, e.g.\ \code{diffusion} or \code{act}. The \code{--policy.*} options after
         it are policy-specific; the line above uses Diffusion Policy options. For ACT, use options such as
         \code{--policy.chunk_size} and \code{--policy.n_action_steps}.
@@ -1539,8 +1541,12 @@ lerobot-train \
         each lasting one 1/60~s step. \code{rollout.py} uses the value stored in the checkpoint unless you pass
         \code{--policy_action_horizon}.
   \item Reduce \code{--batch_size} if you run out of GPU memory.
-  \item For several GPUs, use \code{accelerate launch --multi_gpu --num_processes=N $(which lerobot-train) <args>}.
+  \item For several GPUs, launch the same command through \code{accelerate}, with \code{N} the number of GPUs:
 \end{itemize}
+
+\begin{lstlisting}[language=bash]
+accelerate launch --multi_gpu --num_processes=N $(which lerobot-train) <args>
+\end{lstlisting}
 
 Checkpoints are written to \path{<output_dir>/checkpoints/<step>/pretrained_model}, and \path{checkpoints/last} points to
 the latest one. Each checkpoint contains \code{config.json}, \code{model.safetensors}, and the pre- and post-processor files
@@ -1586,7 +1592,7 @@ python scripts/rollout.py \
 
 An episode ends as soon as the \code{success} term of the evaluation file becomes true, or at the timeout. The script
 prints the episode length and action horizon in use at start, the success rate after every round, and the final
-success rate at the end. On an invalid flag value it prints the error and exits with a non-zero code.
+success rate at the end.
 
 
 \subsection{Compare Your Dataset with a Rollout}
@@ -1595,22 +1601,24 @@ success rate at the end. On an invalid flag value it prints the error and exits 
 \code{check} tests a dataset against your coverage requirements. After you evaluate a policy, \code{compare} tests whether that dataset covers the initial object positions of the rollout. It reads where each rollout episode (run) started and whether it succeeded, shows the runs that started where your dataset is thin, and lists the cells to record next.
 
 
-\paragraph{1. Run the rollout.} Each run of \code{rollout.py} (Section~\ref{sec:rollout}) automatically saves a \path{outputs/rollout/<timestamp>.jsonl} file. For each episode, the file records the position of each randomized object immediately after the reset, using the environment-local frame as in the dataset, along with the episode outcome. The header line records the poses of the objects that remain fixed throughout the run, including \code{robot_base} and \code{fixed_objects} (\code{fixed_object_names}). Each pose contains a \code{pos} value and a quaternion \code{rot} in 
+\begin{enumerate}
+  \item \textbf{Run the rollout.} Each run of \code{rollout.py} (Section~\ref{sec:rollout}) automatically saves a \path{outputs/rollout/<timestamp>.jsonl} file. For each episode, the file records the position of each randomized object immediately after the reset, using the environment-local frame as in the dataset, along with the episode outcome. The header line records the poses of the objects that remain fixed throughout the run, including \code{robot_base} and \code{fixed_objects} (\code{fixed_object_names}). Each pose contains a \code{pos} value and a quaternion \code{rot} in 
 $(w,x,y,z)$ order. These fixed objects are excluded from the comparison. The dataset stores each position at the first recorded frame, after the 5 skipped steps (Section~\ref{sec:recording}), when the object has settled. Therefore $x$ and $y$ agree with the rollout log to well within a cell, while $z$ can differ by a few centimetres (about 0.967 in the dataset and 1.0 in the log for a cup). The comparison uses only $x$ and $y$. Episodes ended by a manual reset are marked as \code{aborted}. They remain in the file but are excluded from the count.
 
 
-\paragraph{2. Compare.} Pass the dataset the evaluated policy was trained on. \code{compare} warns when the checkpoint named in the log has a \code{train_config.json} that specifies a different dataset. Like \code{check}, it writes its data graph, to \path{outputs/object_position_coverage/<dataset>__rollout_<timestamp>.ttl}; pass \code{--no-graph-out} to write no file.
+  \item \textbf{Compare.} Pass the dataset the evaluated policy was trained on. \code{compare} warns when the checkpoint named in the log has a \code{train_config.json} that specifies a different dataset. Like \code{check}, it writes its data graph, to \path{outputs/object_position_coverage/<dataset>__rollout_<timestamp>.ttl}; pass \code{--no-graph-out} to write no file.
 
 \begin{lstlisting}[language=bash]
 uv run python scripts/verify_object_position_coverage.py compare \
-    --dataset datasets/<hf_user>/<repo_id> \
+    --dataset datasets/${HF_USER}/<dataset_repo> \
     --spec specs/my_coverage.ttl \
     --rollout-log outputs/rollout/<timestamp>.jsonl
 \end{lstlisting}
+\end{enumerate}
 
 For each object, every run is assigned to a cell in the specified grid based on its initial position, with the same
-rule as the \code{check}.  Runs that start outside the defined workspace are assigned to cells of the same size outside the workspace, following the same grid. For example, a run may be assigned to column $i=-1$.
-A run is \emph{covered} when it started inside the workspace , in a cell with at least \code{minEpisodesPerCell} episodes. Only cells that contain runs are evaluated. A run is \emph{in distribution} if it is covered by every requirement (Section~\ref{sec:coverage-dl}, \emph{Rollout Comparison}).
+rule as the \code{check}. Runs that start outside the area are assigned to cells of the same size outside it, following the same grid. For example, a run may be assigned to column $i=-1$.
+A run is \emph{covered} when it started inside the area, in a cell with at least \code{minEpisodesPerCell} episodes. Only cells that contain runs are evaluated. A run is \emph{in distribution} if it is covered by every requirement (Section~\ref{sec:coverage-dl}, \emph{Rollout Comparison}).
 
 \paragraph{Example.} The Cup Stacking evaluation file randomizes \code{blue_cup} over $x$ 8.8--9.0, $y$ 6.38--6.58
 and \code{pink_cup} over $x$ 9.0--9.2, $y$ 6.38--6.58. The specification gives \code{blue_cup} the area $x$
@@ -1620,7 +1628,7 @@ episodes in each of its \(2\times2\) cells. A rollout with 20 episodes gives (th
 covered, is left out):
 
 \begin{lstlisting}
-Dataset : datasets/<HF_USER>/<repo_id>
+Dataset : datasets/<HF_USER>/<dataset_repo>
 Spec    : specs/my_coverage.ttl
 Rollout : outputs/rollout/<timestamp>.jsonl  (eval/cup_stacking_eval.py, seed 42)
 Runs    : 20 finished, 8 succeeded
@@ -1792,12 +1800,12 @@ Record one short episode and inspect the raw output before you touch any RDF cod
 this separates recording failures from verifier failures:
 
 \begin{lstlisting}[language=bash]
-uv run python -c "import json; print(json.load(open('datasets/<HF_USER>/<repo_id>/meta/info.json'))['features']['factor.light_intensity'])"
+uv run python -c "import json; print(json.load(open('datasets/${HF_USER}/<dataset_repo>/meta/info.json'))['features']['factor.light_intensity'])"
 
 uv run python - <<'PY'
 import pyarrow.parquet as pq
 table = pq.read_table(
-    "datasets/<HF_USER>/<repo_id>/data/chunk-000/file-000.parquet",
+    "datasets/<HF_USER>/<dataset_repo>/data/chunk-000/file-000.parquet",
     columns=["episode_index", "frame_index", "factor.light_intensity"],
 )
 print(table.slice(0, 5))
@@ -1920,10 +1928,10 @@ Follow \path{scripts/verify_object_position_coverage.py}, but give each factor i
 
 \begin{lstlisting}[language=bash]
 uv run python scripts/verify_lighting_coverage.py init \
-    --dataset datasets/<hf_user>/<repo_id> --out specs/lighting.ttl
+    --dataset datasets/${HF_USER}/<dataset_repo> --out specs/lighting.ttl
 
 uv run python scripts/verify_lighting_coverage.py check \
-    --dataset datasets/<hf_user>/<repo_id> --spec specs/lighting.ttl
+    --dataset datasets/${HF_USER}/<dataset_repo> --spec specs/lighting.ttl
 \end{lstlisting}
 
 Keep the same conventions: exit with code 0 when the requirements are met and 1 otherwise; display counts per bin,
@@ -2005,7 +2013,7 @@ The following table provides NYCU's format requirement as a reference. Grading d
 \toprule
 \textbf{Criterion} & \textbf{Indicators} \\
 \midrule
-Performance & The group that has best success rate of the policy on private leaderboard. \\
+Performance & The group that has the best success rate of the policy on private leaderboard. \\
 Report & Must include the task description, data collection pipeline, policy training, experimental results, evaluations conducted and resulting improvements, and key learning, discussion, and insights. \\
 Poster Presentation & In English, and must include the task description, pipeline and method modifications, evaluations conducted and resulting improvements, and key learning and insights. \\
 \bottomrule
@@ -2033,10 +2041,5 @@ Poster Presentation & In English, and must include the task description, pipelin
 \end{enumerate}
 
 
-% ============================================================
-\section{References}
-% ============================================================
-
-
-\printbibliography
+\printbibliography[heading=bibintoc]
 \end{document}
