@@ -1,0 +1,13 @@
+# Rollout runs per lattice cell (outside the area too), with successes and whether the dataset covers the cell.
+SELECT ?rollout ?spec ?object ?i ?j ?covered (COUNT(?run) AS ?runs) (SUM(?ok) AS ?successes) WHERE {
+    ?c a cp:Comparison ; cp:ofRollout ?r ; cp:ofSpec ?s ; cp:hasPlacement ?pl .
+    ?r cp:name ?rollout .
+    ?s cp:name ?spec .
+    ?pl cp:ofRun ?run ; cp:ofRequirement ?req ; cp:cellI ?i ; cp:cellJ ?j ; cp:covered ?covered .
+    ?req cp:hasTaskObject ?o .
+    ?o cp:name ?object .
+    ?run cp:status ?status .
+    BIND (IF(?status = "succeeded", 1, 0) AS ?ok)
+}
+GROUP BY ?rollout ?spec ?object ?i ?j ?covered
+ORDER BY ?rollout ?spec ?object ?j ?i

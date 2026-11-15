@@ -35,7 +35,7 @@ diagnosis) and links to the detailed guides below.
 | [Getting Started](docs/getting_started.md) | End-to-end walkthrough, key terms, setup, repository layout |
 | [How to Record Episodes](docs/how_to_record.md) | Task configurations, controller, recorder, collection-script template |
 | [LeRobot Dataset Visualizer](docs/lerobot_dataset_visualizer.md) | Inspecting recorded episodes |
-| [Object Position Coverage](docs/object_position_coverage.md) | Writing a coverage requirement and running the check |
+| [Object Position Coverage](docs/object_position_coverage.md) | The verification store: writing a coverage requirement, verifying, comparing rollouts, querying with SPARQL |
 | [LeRobot Training](docs/lerobot_training.md) | Training flags, multi-GPU, checkpoint layout |
 | [Rollout](docs/rollout.md) | Rollout flags, eval files, policy input and output contract |
 | [Adding a New Task](docs/adding_new_task.md) | Advanced Level: writing and registering an own task |

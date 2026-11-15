@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import json
 import math
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 
 import numpy as np
@@ -46,6 +46,7 @@ class DatasetPlacements:
     object_names: list[str]
     placements: list[InitialPlacement]
     first_frame_index: dict[int, int]
+    frame_counts: dict[int, int] = field(default_factory=dict)
 
 
 def read_initial_placements(dataset_root: str | Path) -> DatasetPlacements:
@@ -81,7 +82,7 @@ def read_initial_placements(dataset_root: str | Path) -> DatasetPlacements:
     episodes = table.column("episode_index").to_numpy()
     frames = table.column("frame_index").to_numpy()
     order = np.lexsort((frames, episodes))
-    episode_ids, first = np.unique(episodes[order], return_index=True)
+    episode_ids, first, counts = np.unique(episodes[order], return_index=True, return_counts=True)
     first_rows = table.take(pa.array(order[first])).to_pydict()
 
     object_names = [key[len(OBJECT_POSITION_KEY_PREFIX) :] for key in position_keys]
@@ -103,4 +104,5 @@ def read_initial_placements(dataset_root: str | Path) -> DatasetPlacements:
         object_names=object_names,
         placements=placements,
         first_frame_index={int(e): int(f) for e, f in zip(first_rows["episode_index"], first_rows["frame_index"])},
+        frame_counts={int(e): int(n) for e, n in zip(episode_ids, counts)},
     )

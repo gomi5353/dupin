@@ -1,0 +1,8 @@
+# Every finding stored by verify: of the dataset check (Verification) or of a rollout comparison (Comparison).
+SELECT ?spec ?rollout ?severity ?verifier ?message WHERE {
+    ?result cp:ofSpec ?s ; cp:hasFinding ?f .
+    ?s cp:name ?spec .
+    OPTIONAL { ?result cp:ofRollout ?r . ?r cp:name ?rollout . }
+    ?f cp:severity ?severity ; cp:verifier ?verifier ; cp:message ?message .
+}
+ORDER BY ?spec ?rollout ?severity ?message

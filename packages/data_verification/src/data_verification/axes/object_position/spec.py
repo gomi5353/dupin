@@ -1,32 +1,25 @@
-"""Create a coverage spec skeleton from the packaged template."""
+"""Object position spec: skeleton from the template, and the checks that stop ``attach``."""
 
 from __future__ import annotations
 
 from decimal import Decimal
-from importlib.resources import files
-from pathlib import Path
 
-from .dataset import DatasetPlacements
-from .graph import CP
+from ...graph import CP
 
 BEGIN = "# --- BEGIN OBJECT ---\n"
 END = "# --- END OBJECT ---\n"
 PLACEHOLDER = "OBJECT_NAME"
 
 
-def template_text() -> str:
-    return files("data_verification").joinpath("templates", "object_position_coverage_spec.ttl").read_text()
-
-
-def render_spec(object_names: list[str], observed: DatasetPlacements | None = None, dataset_label: str = "") -> str:
+def render_spec(template: str, object_names: list[str], observed: dict[str, list[tuple[float, float]]] | None = None, dataset_label: str = "") -> str:
     """Template with one object block per name, values still "TODO".
 
-    With ``observed``, each block starts with a comment giving the range of
-    initial placements already in the dataset. That comment is information
-    only; the requirement values stay for the user to choose.
+    With ``observed`` (object name -> initial x, y per episode), each block
+    starts with a comment giving the range of initial placements already in the
+    dataset. That comment is information only; the requirement values stay for
+    the user to choose.
     """
-    text = template_text()
-    head, rest = text.split(BEGIN, 1)
+    head, rest = template.split(BEGIN, 1)
     block, tail = rest.split(END, 1)
     blocks = []
     for name in object_names:
@@ -35,20 +28,11 @@ def render_spec(object_names: list[str], observed: DatasetPlacements | None = No
     return head + "\n".join(blocks) + tail
 
 
-def write_spec(path: str | Path, object_names: list[str], observed: DatasetPlacements | None = None, dataset_label: str = "") -> Path:
-    path = Path(path)
-    if path.exists():
-        raise FileExistsError(f"{path} already exists; not overwriting")
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(render_spec(object_names, observed, dataset_label))
-    return path
-
-
-def _observed_note(name: str, observed: DatasetPlacements, dataset_label: str) -> str:
-    points = [p for p in observed.placements if p.object_name == name and p.is_finite]
+def _observed_note(name: str, observed: dict[str, list[tuple[float, float]]], dataset_label: str) -> str:
+    points = observed.get(name, [])
     if not points:
         return f"# Not recorded in {dataset_label or 'the dataset'} (no object_position.{name} values).\n"
-    xs, ys = [p.x for p in points], [p.y for p in points]
+    xs, ys = [p[0] for p in points], [p[1] for p in points]
     return (
         f"# Already in {dataset_label or 'the dataset'}: {len(points)} episode(s), initial "
         f"x {min(xs):.3f}..{max(xs):.3f}, y {min(ys):.3f}..{max(ys):.3f}. For reference only.\n"

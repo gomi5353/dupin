@@ -75,7 +75,7 @@ What the repository provides, and what students do with it:
 | Shared robot, camera, and action settings | `packages/simulator/src/simulator/tasks/template/single_arm_franka_cfg.py` | Read; may modify, aligned with rollout ([section 2.1](#21-modifying-the-environment-configuration)) |
 | LeRobot recorder | `packages/simulator/src/simulator/utils/lerobot_recorder.py` | Import and use; extend to record further verification factors ([Adding a Coverage Factor §4](adding_coverage_factor.md#4-record-the-factor-in-lerobot-v3)) |
 | Evaluation files and rollout | `eval/`, `scripts/rollout.py` | Use later for evaluation |
-| Coverage check | `scripts/verify_object_position_coverage.py` | Run on every dataset |
+| Verification store (coverage check) | `scripts/store.py` | Run on every dataset |
 | Controller | none | **Implement** |
 | Collection entry point with the recording loop | none (steps and tools in [section 5.3](#53-the-collection-entry-point)) | **Implement** |
 
@@ -665,14 +665,17 @@ existing episodes from a failed session.
 3. **Run the object-position coverage check** on every dataset:
 
    ```bash
-   uv run python scripts/verify_object_position_coverage.py init \
-       --dataset datasets/<hf_user>/cup-stacking-demos \
+   uv run python scripts/store.py ingest --dataset datasets/${HF_USER}/cup-stacking-demos
+   uv run python scripts/store.py init --store stores/cup-stacking-demos \
        --out specs/cup_stacking_coverage.ttl
    # Fill the TODO values in the generated Turtle file, then:
-   uv run python scripts/verify_object_position_coverage.py check \
-       --dataset datasets/<hf_user>/cup-stacking-demos \
+   uv run python scripts/store.py attach --store stores/cup-stacking-demos \
        --spec specs/cup_stacking_coverage.ttl
+   uv run python scripts/store.py verify --store stores/cup-stacking-demos
    ```
+
+   After recording more episodes into the same dataset, run `ingest` and
+   `verify` again.
 
    These commands run on the host, from the repository root: `datasets/` on
    the host is the container's `~/.cache/huggingface/lerobot/`.

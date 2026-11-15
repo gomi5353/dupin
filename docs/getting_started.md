@@ -240,7 +240,7 @@ Other `make` targets:
 |---|---|---|
 | Recording, rollout | Isaac Lab container | Both start the simulator, which needs the pinned GPU and rendering stack. |
 | Training | Host `uv` environment | The container adds file-access and GPU pass-through overhead. |
-| Coverage check, dataset inspection, tests | Host `uv` environment | They only read files and never start the simulator. |
+| Verification store (coverage check, queries), dataset inspection, tests | Host `uv` environment | They only read files and never start the simulator. |
 
 ### 3.7 Repository layout
 
@@ -249,14 +249,15 @@ Other `make` targets:
 | Path | Content |
 |---|---|
 | `packages/simulator/` | Task configurations, the shared Franka template, randomization events, assets, and the LeRobot recorder (`simulator.utils.lerobot_recorder`). |
-| `packages/data_verification/` | The coverage checker (dataset reader, RDF graph builder, OWL ontology, SHACL rules, specification template). |
+| `packages/data_verification/` | The verification store: dataset and rollout-log readers, OWL ontology, SHACL rules, and one verifier per generalization axis (object position), registered in `registry.py`. |
 | `eval/` | Public evaluation task files, one per task, used by rollout. |
 | `scripts/rollout.py` | Runs a trained policy in the simulator and reports the success rate. |
-| `scripts/verify_object_position_coverage.py` | Command-line interface of the coverage check. |
+| `scripts/store.py` | Command-line interface of the verification store (`ingest`, `init`, `attach`, `verify`, `explore`, `query`). |
+| `queries/` | Example SPARQL queries over a store. |
 | `tests/` | Host-side tests (`make test`). |
 | `dependencies/IsaacLab/` | Isaac Lab as a Git submodule. Not edited. |
 | `Dockerfile`, `Makefile` | The container image and the commands that build and launch it. |
-| `datasets/`, `outputs/`, `checkpoints/` | Recorded datasets and training outputs; not tracked by Git. |
+| `datasets/`, `outputs/`, `checkpoints/`, `stores/` | Recorded datasets, training and rollout outputs, verification stores; not tracked by Git. |
 
 The repository provides no data collection script: building one is step 2.
 
@@ -327,21 +328,24 @@ Before training, every dataset is checked in two ways, on the host:
 1. **Visual inspection.** A few episodes are watched with the
    [LeRobot Dataset Visualizer](lerobot_dataset_visualizer.md), to confirm
    that the camera views, the motion, and the episode boundaries are correct.
-2. **Object-position coverage check.** The group writes a short requirement file
-   that states which region of the table the initial object positions must
-   cover, how finely to divide it, and how many episodes each cell needs. The
-   check then reports the cells with too few episodes:
+2. **Object-position coverage check.** The dataset is put into a verification
+   store (RDF files under `stores/<dataset_repo>/`). The group writes a short
+   requirement file that states which region of the table the initial object
+   positions must cover, how finely to divide it, and how many episodes each
+   cell needs, and attaches it to the store. `verify` then reports the cells
+   with too few episodes and keeps the results in the store, where they can be
+   queried with SPARQL:
 
    ```bash
-   uv run python scripts/verify_object_position_coverage.py init \
-       --dataset datasets/${HF_USER}/cup-stacking-demos --out specs/cup_stacking.ttl
+   uv run python scripts/store.py ingest --dataset datasets/${HF_USER}/cup-stacking-demos
+   uv run python scripts/store.py init --store stores/cup-stacking-demos --out specs/cup_stacking.ttl
    # fill in the TODO values, then:
-   uv run python scripts/verify_object_position_coverage.py check \
-       --dataset datasets/${HF_USER}/cup-stacking-demos --spec specs/cup_stacking.ttl
+   uv run python scripts/store.py attach --store stores/cup-stacking-demos --spec specs/cup_stacking.ttl
+   uv run python scripts/store.py verify --store stores/cup-stacking-demos
    ```
 
    [Object Position Coverage](object_position_coverage.md) explains how to choose the
-   values and how to read the report.
+   values, how to read the report, and how to query the store.
 
 Running the check is required for every dataset. Its values are the group's
 own decision, and the report is evidence for the group's analysis, not a grade.

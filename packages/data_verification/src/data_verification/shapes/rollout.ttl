@@ -1,14 +1,14 @@
-# SHACL rules for the rollout side of the rollout-vs-dataset comparison.
+# SHACL rules for the rollout side of the store, independent of any axis.
 #
-# Run by the compare subcommand; the dataset itself is checked by the check
-# subcommand. The comparison starts from the cp:Rollout: its training dataset
+# Run by verify on each ingested rollout with the dataset and one attached
+# spec. The comparison starts from the cp:Rollout: its training dataset
 # (cp:hasDataset) gives the requirements, its runs (cp:hasRun) the positions.
+# Each axis adds its own rules (data_verification/axes/<axis>/rollout_shapes.ttl).
 # Severity:
 #   sh:Violation - the rollout is malformed; the comparison stops
 #   sh:Warning   - reported, does not fail unless --strict
 #
-# Queries use plain triple patterns, not property paths (see
-# object_position_coverage.ttl).
+# Queries use plain triple patterns, not property paths (see dataset.ttl).
 
 @prefix cp:   <http://taica.course/cp/ontology#> .
 @prefix sh:   <http://www.w3.org/ns/shacl#> .
@@ -70,25 +70,6 @@ cp:RolloutShape a sh:NodeShape ;
             }
             GROUP BY $this ?success
             HAVING (COUNT(DISTINCT ?run) != ?success)
-        """ ;
-    ] ;
-    sh:sparql [
-        sh:message "Finished run {?index} has no initial position for '{?name}', which the training dataset's spec requires" ;
-        sh:prefixes cp: ;
-        sh:select """
-            SELECT $this ?index ?name WHERE {
-                $this cp:hasDataset ?dataset ; cp:hasRun ?run .
-                ?run cp:index ?index .
-                ?run cp:status ?s . FILTER (?s IN ("succeeded", "failed"))
-                ?dataset cp:hasGeneralizationAxis ?axis .
-                ?axis cp:hasRequirement ?req .
-                ?req a cp:ObjectPositionAxisRequirement ; cp:hasTaskObject ?reqObj .
-                ?reqObj cp:name ?name .
-                FILTER NOT EXISTS {
-                    ?run cp:hasTaskObject ?obj .
-                    ?obj cp:name ?name ; cp:hasPosition ?p .
-                }
-            }
         """ ;
     ] .
 

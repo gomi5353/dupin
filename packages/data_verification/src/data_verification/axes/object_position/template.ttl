@@ -1,10 +1,13 @@
 # Object position coverage spec (template).
 #
 # You decide what "enough coverage" means for your dataset. Fill in every
-# "TODO" below, then run:
+# "TODO" below, then attach it to your dataset's store and verify:
 #
-#   uv run python scripts/verify_object_position_coverage.py check \
-#       --dataset <your dataset> --spec <this file>
+#   uv run python scripts/store.py attach --store stores/<dataset_repo> --spec <this file>
+#   uv run python scripts/store.py verify --store stores/<dataset_repo>
+#
+# attach renames the individuals below (spec:...) under the store's IRI for
+# this spec, so several specs written from this template can share one store.
 #
 # Guide: docs/object_position_coverage.md
 #
