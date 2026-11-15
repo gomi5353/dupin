@@ -26,7 +26,8 @@ requirement.
 
 For example, "light intensity must be finite" is a rule. "Each of three
 lighting ranges must contain at least five episodes" is a coverage requirement.
-A rule alone needs no code: it is a SHACL file passed with `--extra-shapes`
+A rule alone needs no code: it is a SHACL file passed with
+`scripts/store.py verify --extra-shapes`
 ([Object Position Coverage §7](object_position_coverage.md#7-how-it-works-rdf-owl-shacl)).
 The rest of this guide is about coverage factors.
 
@@ -70,24 +71,52 @@ input, because LeRobot exposes `observation.*` features to the policy.
 
 **Background**
 
+A coverage factor is a new **generalization axis** with its own **verifier**.
+The store, the commands (`ingest`, `attach`, `verify`, `query`) and the core
+vocabulary stay as they are; the factor plugs into them:
+
 ```text
-recording script (generate.py or teleop.py)
-   │ records factor.<name>
-   ▼
-LeRobot v3 metadata and Parquet
-   │ reader selects/aggregates one value per episode
-   ▼
-Python data model
-   │ graph builder creates facts
-   ▼
-RDF data + OWL vocabulary + Turtle requirement
-   │ SHACL validates and counts bins
-   ▼
-coverage report
+collection script ── records factor.<name> ──▶ LeRobot v3 dataset ─┐
+rollout.py ── logs factors.<name> per run ──▶ rollout JSONL log ───┤
+                                                                   │ ingest  (+ the verifier's ingest steps)
+group's spec (.ttl, from the verifier's template) ── attach ───────┤
+                                                                   ▼
+                                   stores/<dataset_repo>/  (RDF: facts, specs, results)
+                                                                   │ verify  (core SHACL + every verifier's
+                                                                   │          SHACL rules and Python steps)
+                                                                   ▼
+                                   findings/  ──▶ report, explore, SPARQL query
 ```
 
-OWL describes what the facts mean, while SHACL validates them. Neither can
-recover a factor that was never recorded in the dataset.
+A verifier lives in its own package and is registered in one list:
+
+```text
+packages/data_verification/src/data_verification/
+├── verifier.py                  the Verifier base class (every step optional)
+├── registry.py                  VERIFIERS = [ObjectPositionVerifier(), LightingVerifier(), ...]
+└── axes/
+    ├── object_position/         the complete worked example
+    └── lighting/                the new factor
+        ├── __init__.py          class LightingVerifier(Verifier)
+        ├── ontology.ttl         axis and requirement classes, properties   (section 6)
+        ├── template.ttl         spec skeleton for `init --axis lighting`   (section 8)
+        ├── shapes.ttl           SHACL rules on the dataset                 (section 9)
+        └── rollout_shapes.ttl   SHACL rules on a rollout                   (section 11)
+```
+
+| `Verifier` member | Used by | Needed for |
+|---|---|---|
+| `name`, `axis_class`, `package` | every command | always |
+| `ontology.ttl` | `attach`, `verify`, `query --with-ontology` | always: the axis class must subclass `cp:GeneralizationAxis` |
+| `ingest_dataset()`, `ingest_rollout()` | `ingest` | adding the factor's values to episodes and runs (section 7) |
+| `template.ttl`, `render_spec()` | `init` | a spec skeleton |
+| `spec_errors()`, `derive_spec()` | `attach` | refusing unfilled specs; generating bins (section 9) |
+| `shapes.ttl`, `dataset_errors()`, `check()` | `verify` (dataset) | the coverage rule; counts and tables |
+| `rollout_shapes.ttl`, `compare()` | `verify` (rollouts) | the rollout comparison (section 11) |
+
+A verifier that only needs SHACL rules leaves every Python step at its
+default. OWL describes what the facts mean, while SHACL validates them.
+Neither can recover a factor that was never recorded in the dataset.
 
 ## 4. Record the factor in LeRobot v3
 
@@ -125,13 +154,13 @@ next to the new factor.
 One short episode is recorded and its raw output inspected before any RDF work:
 
 ```bash
-jq '.features["factor.light_intensity"]' datasets/<repo_id>/meta/info.json
+uv run python -c "import json; print(json.load(open('datasets/${HF_USER}/<dataset_repo>/meta/info.json'))['features'].get('factor.light_intensity'))"
 
 uv run python - <<'PY'
 import pyarrow.parquet as pq
 
 table = pq.read_table(
-    "datasets/<repo_id>/data/chunk-000/file-000.parquet",
+    "datasets/<HF_USER>/<dataset_repo>/data/chunk-000/file-000.parquet",
     columns=["episode_index", "frame_index", "factor.light_intensity"],
 )
 print(table.slice(0, 5))
@@ -145,8 +174,8 @@ This separates recording failures from verifier failures.
 **Required**
 
 [`dataset.py`](../packages/data_verification/src/data_verification/dataset.py)
-is the example. The extension adds a data class and a reader for the factor.
-The reader:
+is the example. The extension adds a reader for the factor, inside its axis
+package, called from the verifier's `ingest_dataset()` (section 7). The reader:
 
 1. Verifies the feature declaration in `meta/info.json`.
 2. Verifies that the column exists in every Parquet shard.
@@ -161,16 +190,15 @@ Parquet row order is not guaranteed. The object-position reader sorts by
 
 **Required**
 
-A clearly named ontology goes under
-`packages/data_verification/src/data_verification/ontology/`, such as
-`lighting.ttl`. A new factor is a new generalization axis: its axis class
-subclasses `cp:GeneralizationAxis` and its requirement class subclasses
-`cp:AxisRequirement`, so it reuses `cp:hasRequirement` and
-`cp:hasGeneralizationAxis` from `object_position.ttl`: the dataset has every axis
-of the specification. Episodes (with their `cp:index`), runs, and the dataset are
-shared with the object-position factor. Each class is described by what its
-members have (`rdfs:subClassOf` an `owl:Restriction`), as in
-`object_position.ttl`. A minimal vocabulary:
+The axis's vocabulary goes in `axes/<axis>/ontology.ttl`. A new factor is a
+new generalization axis: its axis class subclasses `cp:GeneralizationAxis` and
+its requirement class subclasses `cp:AxisRequirement`, so it reuses
+`cp:hasRequirement` and `cp:hasGeneralizationAxis` from `ontology/core.ttl`:
+`attach` links the dataset to every axis of the specification. Episodes (with
+their `cp:index`), runs, the dataset, specs and findings are shared with the
+object-position axis. Each class is described by what its members have
+(`rdfs:subClassOf` an `owl:Restriction`), as in
+`axes/object_position/ontology.ttl`. A minimal vocabulary:
 
 ```turtle
 @prefix cp:   <http://taica.course/cp/ontology#> .
@@ -199,32 +227,48 @@ cp:minEpisodesPerBin a owl:DatatypeProperty ; rdfs:range xsd:positiveInteger .
 OWL defines the concepts and relationships; executable constraints belong in
 SHACL.
 
-## 7. Map dataset values into the RDF graph
+## 7. Add the values to the store at ingest
 
 **Required**
 
-[`graph.py`](../packages/data_verification/src/data_verification/graph.py) is the
-example. The graph builder adds the factor's value to every episode, for
-example:
+`ingest --dataset` writes the dataset and its episodes, then calls
+`ingest_dataset(root, graph, dataset)` of every registered verifier. The
+verifier reads its column (section 5) and adds the value to each episode,
+whose IRI is `<dataset>/episode/<episode_index>`:
+
+```python
+class LightingVerifier(Verifier):
+    name = "lighting"
+    axis_class = CP.LightingAxis
+    package = __name__
+
+    def ingest_dataset(self, root, graph, dataset):
+        values, errors = read_light_intensity(root)          # section 5: {episode_index: lux}
+        for episode, lux in values.items():
+            graph.add((URIRef(f"{dataset}/episode/{episode}"), CP.lightIntensityLux, decimal_literal(lux)))
+        return errors                                          # non-empty: ingest stops
+```
+
+The result in `stores/<dataset_repo>/dataset.ttl`:
 
 ```turtle
-data:my_dataset cp:hasGeneralizationAxis spec:object_position_axis , spec:lighting_axis ;
-    cp:hasEpisode data:my_dataset/episode/7 .
-
-data:my_dataset/episode/7 a cp:Episode ;
+ds:episode/7 a cp:Episode ;
     cp:index 7 ;
     cp:lightIntensityLux 612.0 .
 ```
 
-Extraction stays in Python and validation in RDF/SHACL, so the generated graph
-can be inspected without starting Isaac Sim.
+`ingest_rollout(log, graph, rollout)` does the same for each run of a rollout
+log (section 11). Extraction stays in Python and validation in RDF/SHACL, so
+the store can be inspected and queried without starting Isaac Sim. Ingest only
+records facts: no counting, no judgment.
 
 ## 8. Create a requirement template
 
 **Required**
 
-A template goes under
-`packages/data_verification/src/data_verification/templates/`:
+The template is `axes/<axis>/template.ttl`; `init --axis lighting` writes a
+copy (override `render_spec()` to fill in more, as the object-position
+verifier does):
 
 ```turtle
 @prefix cp:   <http://taica.course/cp/ontology#> .
@@ -245,24 +289,32 @@ limitations, and the collection budget. Copying the minimum and maximum
 already found in the dataset would hide the missing region that the check is
 meant to detect.
 
+A store can hold this specification next to the object-position one, or both
+axes can be written in one file. `attach` renames every `spec:` node under the
+store, so templates never clash. `spec_errors()` returns the problems that
+should stop `attach` (a `TODO` left, a quoted number); `axes/object_position/spec.py`
+is the example.
+
 ## 9. Add bins and SHACL constraints
 
 **Required**
 
 `expand_cells()` in
-[`graph.py`](../packages/data_verification/src/data_verification/graph.py) adds
-`numCellW × numCellH` cells to each object-position grid; each cell stores only
-its row-major `cp:index`, and the SHACL rule computes its bounds from the area.
-Only the episodes of the dataset that has the requirement's axis count
+[`axes/object_position/coverage.py`](../packages/data_verification/src/data_verification/axes/object_position/coverage.py)
+is called from the verifier's `derive_spec()` at `attach`. It adds
+`numCellW × numCellH` cells to each grid, with their row-major `cp:index` and
+their bounds; the SHACL rule computes the bounds again from the area. Only the
+episodes of the dataset that has the requirement's axis count
 (`?dataset cp:hasGeneralizationAxis ?axis ; cp:hasEpisode ?episode`).
-The extension adds an equivalent expansion function:
+The extension adds an equivalent expansion in its own `derive_spec()`:
 
 - numeric factor: intervals;
 - two-dimensional factor: cells;
 - categorical factor: one bin per required category.
 
-Shapes go under `packages/data_verification/src/data_verification/shapes/`. They
-check:
+Shapes go in `axes/<axis>/shapes.ttl`; `verify` runs them together with the
+core shapes (`shapes/dataset.ttl`) and every finding names the verifier whose
+shape produced it. They check:
 
 - required specification fields and datatypes;
 - valid minimum, maximum, bin count, and episode minimum;
@@ -270,32 +322,49 @@ check:
 - at least the required number of episodes in every bin;
 - values outside the required domain.
 
-[`object_position_coverage.ttl`](../packages/data_verification/src/data_verification/shapes/object_position_coverage.ttl)
+[`axes/object_position/shapes.ttl`](../packages/data_verification/src/data_verification/axes/object_position/shapes.ttl)
 is the SPARQL counting example. Numeric bins use `[min, max)` and include the
 upper edge only in the final bin; otherwise one episode may be counted twice.
 
-## 10. Add a report and command
+Counting in SPARQL can be slow on large datasets. `check()` may count in Python
+instead and return an `AxisCheck` with its findings, the lines to print, and
+derived triples to store (the object-position verifier stores
+`cp:episodeCount` on each cell); `check_coverage()` is the example.
+
+## 10. Register the verifier
 
 **Required**
 
-[`verify_object_position_coverage.py`](../scripts/verify_object_position_coverage.py) is
-the example; a distinct factor gets its own command:
+Append an instance to `VERIFIERS` in
+[`registry.py`](../packages/data_verification/src/data_verification/registry.py):
 
-```bash
-uv run python scripts/verify_lighting_coverage.py init \
-    --dataset datasets/<repo_id> --out specs/lighting.ttl
+```python
+from .axes.lighting import LightingVerifier
+from .axes.object_position import ObjectPositionVerifier
 
-uv run python scripts/verify_lighting_coverage.py check \
-    --dataset datasets/<repo_id> --spec specs/lighting.ttl
+VERIFIERS: list[Verifier] = [
+    ObjectPositionVerifier(),
+    LightingVerifier(),
+]
 ```
 
-Conventions:
+No new command is needed: the same commands now cover the factor.
 
-- exit `0` when the requirements are met and `1` otherwise;
-- display counts per bin, not only pass or fail;
-- identify malformed and out-of-range episodes;
-- support JSON output for plots or automation;
-- never modify the input dataset.
+```bash
+uv run python scripts/store.py ingest --dataset datasets/${HF_USER}/<dataset_repo>   # adds lux to each episode
+uv run python scripts/store.py init --store stores/<dataset_repo> --axis lighting --out specs/lighting.ttl
+uv run python scripts/store.py attach --store stores/<dataset_repo> --spec specs/lighting.ttl
+uv run python scripts/store.py verify --store stores/<dataset_repo>
+```
+
+`attach` refuses a specification whose axis class no registered verifier
+checks. Conventions for what a verifier reports:
+
+- a `Violation` when a requirement is not met, so `verify` exits `1`;
+- counts per bin in `AxisCheck.lines()`, not only pass or fail;
+- malformed and out-of-range episodes named in the findings;
+- derived results stored as triples, so that they can be queried;
+- the input dataset never modified.
 
 If two factors later share substantial behavior, common binning code is
 refactored after both are tested. Different factors often have different
@@ -305,10 +374,9 @@ units, aggregations, and boundary semantics.
 
 **Required**
 
-The `compare` subcommand of
-[`verify_object_position_coverage.py`](../scripts/verify_object_position_coverage.py)
-checks, after a rollout, whether the dataset covers the conditions the rollout
-actually ran ([Object Position Coverage §8](object_position_coverage.md#8-compare-the-dataset-with-a-rollout)).
+After a rollout is ingested, `verify` checks whether the dataset covers the
+conditions the rollout actually ran
+([Object Position Coverage §8](object_position_coverage.md#8-compare-the-dataset-with-a-rollout)).
 The comparison starts from the `cp:Rollout`: it has the dataset the policy was
 trained on (`cp:hasDataset`), whose axes give the requirements, and its runs
 (`cp:hasRun`), each with a `cp:status` and the values it started with. A run
@@ -326,16 +394,18 @@ ones. No eval file is read: the runs' own values show what the rollout used.
 
    The format is described in
    [`rollout_log.py`](../packages/simulator/src/simulator/utils/rollout_log.py);
-   extend `add_rollout()` in `graph.py` to add the value to each `cp:Run`, and
-   require it on every finished run in a SHACL shape targeting `cp:Rollout`.
-2. **Axis comparer.** A function `(graph, rollout, result, requirements) ->
-   AxisComparison` appended to `ROLLOUT_AXES` in
-   [`rollout_comparison.py`](../packages/data_verification/src/data_verification/rollout_comparison.py).
-   It places each finished run into a bin of the student's own binning (a value
-   outside the student's domain falls into a bin of the same width outside
-   it), marks the run covered when its bin is inside the domain and has at
-   least the minimum number of dataset episodes, and returns, for each run,
-   whether it is covered. `compare_object_position()` is the example.
+   the verifier's `ingest_rollout()` adds the value to each `cp:Run`
+   (`<rollout>/run/<index>`), and `axes/<axis>/rollout_shapes.ttl` requires it
+   on every finished run in a shape targeting `cp:Rollout`.
+2. **`compare(graph, rollout, dataset, comparison)`.** It places each finished
+   run into a bin of the student's own binning (a value outside the student's
+   domain falls into a bin of the same width outside it), marks the run covered
+   when its bin is inside the domain and has at least the minimum number of
+   dataset episodes, and returns an `AxisComparison` with, for each run,
+   whether it is covered. Placements are stored as triples hanging off
+   `comparison`; suggestions for the next round go in `hint_lines()` and are
+   stored as `Info` findings. `compare_object_position()` in
+   `axes/object_position/compare.py` is the example.
 
 Runs have no minimum: they only record where the rollout ran and whether it
 succeeded. The minimum belongs to the dataset's bins.
@@ -344,9 +414,12 @@ succeeded. The minimum belongs to the dataset's bins.
 
 **Required**
 
-Tests use synthetic LeRobot v3 fixtures as in
-[`test_object_position_coverage.py`](../tests/test_object_position_coverage.py) and cover
-at least:
+Tests use synthetic LeRobot v3 fixtures and the store functions
+(`ingest_dataset`, `attach_spec`, `ingest_rollout`, `verify_store`) as in
+[`test_object_position_coverage.py`](../tests/test_object_position_coverage.py);
+`test_every_axis_must_cover_a_run` in
+[`test_rollout_comparison.py`](../tests/test_rollout_comparison.py) registers a
+second verifier for a test. They cover at least:
 
 1. Every bin meets the minimum.
 2. One bin is empty.
@@ -357,7 +430,8 @@ at least:
 7. A value is null, `NaN`, or infinite.
 8. Episodes and frames are out of order.
 9. The Turtle requirement contains missing or invalid values.
-10. CLI exit codes and JSON output are correct.
+10. `verify` exit codes and JSON output are correct.
+11. The stored results answer a SPARQL query about the factor.
 
 One small simulator collection is also run. Synthetic data proves the checker,
 but not that the recorder reads the intended simulator quantity.
@@ -372,8 +446,8 @@ Another student can:
 - collect it in a LeRobot v3 dataset;
 - inspect the raw Parquet values;
 - write a coverage requirement;
-- run one documented command;
-- see actionable coverage gaps;
+- run the same `ingest`, `attach` and `verify` commands;
+- see actionable coverage gaps, and query them from the store;
 - compare the dataset with a rollout on the factor;
 - reproduce passing and failing tests;
 - train normally without the verification metadata becoming a policy input.

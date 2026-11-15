@@ -1,0 +1,13 @@
+# Failed rollout runs that started in a cell the dataset does not cover, with the start position.
+SELECT ?rollout ?spec ?run ?object ?x ?y ?i ?j WHERE {
+    ?c a cp:Comparison ; cp:ofRollout ?r ; cp:ofSpec ?s ; cp:hasPlacement ?pl .
+    ?r cp:name ?rollout .
+    ?s cp:name ?spec .
+    ?pl cp:ofRun ?rn ; cp:ofRequirement ?req ; cp:cellI ?i ; cp:cellJ ?j ; cp:covered false .
+    ?rn cp:index ?run ; cp:status "failed" ; cp:hasTaskObject ?o .
+    ?req cp:hasTaskObject ?reqObj .
+    ?reqObj cp:name ?object .
+    ?o cp:name ?object ; cp:hasPosition ?p .
+    ?p cp:positionX ?x ; cp:positionY ?y .
+}
+ORDER BY ?rollout ?spec ?run ?object

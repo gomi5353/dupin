@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "data-verification"
 version = "0.1.0"
-description = "Offline RDF/OWL + SHACL verification of LeRobot datasets (object position coverage)."
+description = "Verification store for LeRobot datasets: RDF/OWL facts, SHACL + Python verifiers, SPARQL queries."
 requires-python = ">=3.10"
 dependencies = [
     "numpy",
@@ -21,4 +21,4 @@ package-dir = {"" = "src"}
 where = ["src"]
 
 [tool.setuptools.package-data]
-data_verification = ["ontology/*.ttl", "shapes/*.ttl", "templates/*.ttl"]
+data_verification = ["ontology/*.ttl", "shapes/*.ttl", "axes/*/*.ttl"]

@@ -528,7 +528,7 @@ def _repo_relative(path: str) -> str:
 
 
 def open_rollout_log(env_cfg, task_id: str, env) -> RolloutLogWriter:
-    """Start the per-episode log outputs/rollout/<timestamp>.jsonl, read by `verify_object_position_coverage.py compare`.
+    """Start the per-episode log outputs/rollout/<timestamp>.jsonl, read by `store.py ingest --rollout-log`.
 
     Call after the first reset: the header records the robot base and fixed object poses, which never change.
     It also records the eval file path and its SHA-256, so a log can be traced back to the exact eval settings.
@@ -705,9 +705,9 @@ def main():
 
     rollout_log.close()
     print(
-        f"[rollout] per-episode log written to {rollout_log.path}; compare it with your dataset:"
-        " uv run python scripts/verify_object_position_coverage.py compare --dataset <dataset> --spec <spec>"
-        f" --rollout-log {rollout_log.path}",
+        f"[rollout] per-episode log written to {rollout_log.path}; put it into your dataset's store, then verify:"
+        f" uv run python scripts/store.py ingest --store stores/<dataset_repo> --rollout-log {rollout_log.path}"
+        " && uv run python scripts/store.py verify --store stores/<dataset_repo>",
         flush=True,
     )
 
