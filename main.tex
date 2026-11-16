@@ -297,16 +297,16 @@
 \section{Introduction}
 % ============================================================
 
-Imagine having a robot assist humans with everyday tasks, such as organizing objects, preparing meals, or cleaning a workspace, to reduce manual labor. Traditionally, engineers program robots with specific instructions to complete predefined tasks. For example, a robot can be programmed to pick up an object and place it at a designated location by defining its movements and actions. However, when the object, environment, or task changes, the original program may no longer work as expected. Engineers may need to modify the program for each new situation, making it difficult to handle different objects and tasks. This limitation motivates the use of robot learning, which allows robots to learn how to perform tasks from demonstrations and experience instead of relying entirely on manually written programs.
+Many robotic systems rely on manually specified behaviors for tasks such as organizing objects or clearing a table. Although this approach can work well in known settings, it may require substantial modification when the objects, environment, or task conditions change. Robot learning instead trains a policy from demonstrations, allowing robots to learn task behaviors without manually programming every possible situation.
 
-In recent years, many research groups have demonstrated impressive robotic capabilities, showing robots performing increasingly complex manipulation tasks. However, while much research focuses on developing new robot learning methods and demonstrating their capabilities, relatively few studies pay close attention to the quality and diversity of the training data. How demonstrations are collected, what information they contain, and how they affect the trained policy are equally important to the success of a robot learning system. Without good data and proper evaluation, a robot may perform well in a demonstration but fail when facing different objects or environmental conditions. Therefore, understanding the relationship between data collection, policy learning, and performance evaluation is an important part of developing reliable robot learning systems.
+The success of a robot learning system depends not only on how it learns, but also on the quality and variety of the data it uses. A robot may perform well in situations it has encountered during training but struggle when faced with different object positions or task settings. Therefore, collecting diverse data and evaluating robot performance under different conditions are important parts of building reliable robot learning systems.
 
-To address these challenges, we introduce the course project, \textbf{EDRLP: Evaluation-Driven Robot Learning Pipeline}. The project provides hands-on experience in building and evaluating a robot learning system using NVIDIA Isaac Sim \cite{isaacsim2026}, with robot simulation and learning workflows supported by Isaac Lab \cite{isaaclab}. Using the simulated NYCU AI \& Interaction Specialty Classroom at National Yang Ming Chiao Tung University (NYCU) as a controlled and repeatable test environment (Figure~\ref{fig:ED305-predefined-tasks}), students will not only build an end-to-end pipeline for the predefined pick-and-place tasks but also verify their collected data and iteratively improve its quality. Specifically, this includes developing a data collection controller, training policies to perform the tasks, and evaluating their performance. Students will also use an ontology-based tool to check whether the collected dataset covers a wanted range of object starting positions and extend the tool with additional factors of their own design. Finally, they will analyze policy failures, identify data issues, and improve their datasets through repeated experiments.
+This course project, \textbf{EDRLP: Evaluation-Driven Robot Learning Pipeline}, introduces students to an end-to-end process of building and evaluating a robot learning system. Using a simulated NYCU AI & Interaction Specialty Classroom built with NVIDIA Isaac Sim \cite{isaacsim2026} and Isaac Lab \cite{isaaclab} (Figure~\ref{fig:ED305-predefined-tasks}), students will develop a data-collection controller, train and test a robotic arm to perform predefined pick-and-place tasks, and use an ontology-based tool to check whether their data covers the required task conditions. They will also analyze task failures and use the results to improve their data through repeated experiments.
 
 \begin{figure}[htbp]
 \centering
 \includegraphics[width=0.9\linewidth]{overview.png}
-\caption{Illustrations of the predefined tasks in the simulated NYCU AI \& Interaction Specialty Classroom in NVIDIA Isaac Sim.}
+\caption{Overview of the three predefined robot manipulation tasks used in this repository.}
 \label{fig:ED305-predefined-tasks}
 \end{figure}
 
@@ -314,9 +314,9 @@ Simulation provides a safe and repeatable environment for testing different obje
 
 After completing the project, students should be able to:
 \begin{enumerate}
-  \item Understand the complete robot learning pipeline, from demonstration collection and policy training to evaluation and iterative improvement.
+  \item Understand and implement an end-to-end robot learning pipeline, from data collection and policy training to evaluation and iterative improvement.
   \item Analyze policy failures, identify possible causes, and iteratively improve the collected dataset through evidence-based adjustments and repeated experiments.
-  \item Understand how demonstration quality, diversity, and dataset representation affect policy learning and generalization.
+  \item Investigate how demonstration quality, diversity, and task conditions affect policy performance and generalization through systematic experiments and data verification.
 \end{enumerate}
 
 
@@ -477,8 +477,7 @@ Students at the Advanced Level may refer to the three predefined tasks as exampl
 \subsection{Data Collection}
 \label{sec:data-collection-concept}
 
-Data collection is a critical foundation of imitation learning \cite{wiki_imitation_learning}, because the collected 
-demonstrations are the only examples from which the policy learns. Two common approaches can be used to collect demonstrations:
+Data collection is a critical foundation of imitation learning \cite{wiki_imitation_learning}, because the collected demonstrations are the only examples from which the policy learns. Two common approaches can be used to collect demonstrations:
 
 \begin{itemize}
 \item \textbf{Teleoperation:} A human operator directly controls the robot to demonstrate how a task should be performed.
