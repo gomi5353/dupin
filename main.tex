@@ -301,7 +301,7 @@ Imagine having a robot assist humans with everyday tasks, such as organizing obj
 
 In recent years, many research groups have demonstrated impressive robotic capabilities, showing robots performing increasingly complex manipulation tasks. However, while much research focuses on developing new robot learning methods and demonstrating their capabilities, relatively few studies pay close attention to the quality and diversity of the training data. How demonstrations are collected, what information they contain, and how they affect the trained policy are equally important to the success of a robot learning system. Without good data and proper evaluation, a robot may perform well in a demonstration but fail when facing different objects or environmental conditions. Therefore, understanding the relationship between data collection, policy learning, and performance evaluation is an important part of developing reliable robot learning systems.
 
-To address these challenges, we introduce the course project, \textbf{EDRLP: Evaluation-Driven Robot Learning Pipeline}. The project provides hands-on experience in building and evaluating a robot learning system using NVIDIA Isaac Sim \cite{isaacsim2026}, with robot simulation and learning workflows supported by Isaac Lab \cite{isaaclab}. Using the simulated NYCU AI \& Interaction Specialty Classroom at National Yang Ming Chiao Tung University (NYCU) as a controlled and repeatable test environment (Figure~\ref{fig:ED305-predefined-tasks}), students will build an end-to-end pipeline for pick-and-place tasks. This includes building data collection controller to collect robot demonstrations, training imitation-learning policies, and evaluating their performance. Students will explore how task settings, demonstration quality and diversity, and evaluation conditions affect policy performance. They will also analyze policy failures and use ontology-based data verification to identify data issues and improve their datasets through repeated experiments.
+To address these challenges, we introduce the course project, \textbf{EDRLP: Evaluation-Driven Robot Learning Pipeline}. The project provides hands-on experience in building and evaluating a robot learning system using NVIDIA Isaac Sim \cite{isaacsim2026}, with robot simulation and learning workflows supported by Isaac Lab \cite{isaaclab}. Using the simulated NYCU AI \& Interaction Specialty Classroom at National Yang Ming Chiao Tung University (NYCU) as a controlled and repeatable test environment (Figure~\ref{fig:ED305-predefined-tasks}), students will not only build an end-to-end pipeline for the predefined pick-and-place tasks but also verify their collected data and iteratively improve its quality. Specifically, this includes developing a data collection controller, training policies to perform the tasks, and evaluating their performance. Students will also use an ontology-based tool to check whether the collected dataset covers a wanted range of object starting positions and extend the tool with additional factors of their own design. Finally, they will analyze policy failures, identify data issues, and improve their datasets through repeated experiments.
 
 \begin{figure}[htbp]
 \centering
@@ -315,13 +315,8 @@ Simulation provides a safe and repeatable environment for testing different obje
 After completing the project, students should be able to:
 \begin{enumerate}
   \item Understand the complete robot learning pipeline, from demonstration collection and policy training to evaluation and iterative improvement.
-  \item Configure a simulated robot manipulation task using Isaac Sim and Isaac Lab \cite{isaacsim2026,isaaclab}.
-  \item Develop a data collection workflow to acquire robot demonstrations for learning-based manipulation.
+  \item Analyze policy failures, identify possible causes, and iteratively improve the collected dataset through evidence-based adjustments and repeated experiments.
   \item Understand how demonstration quality, diversity, and dataset representation affect policy learning and generalization.
-  \item Formulate data-coverage requirements for a task and use ontology-based verification to relate dataset coverage to policy failures.
-  \item Train and configure an imitation-learning \cite{wiki_imitation_learning} policy for a simulated pick-and-place task.
-  \item Evaluate robot policies under different simulation conditions using systematic experiments.
-  \item Analyze policy failures, identify possible causes, and propose evidence-based improvements to the robot learning system. 
 \end{enumerate}
 
 
