@@ -460,10 +460,10 @@ actions, events such as randomization on reset, termination conditions, and reco
 \paragraph{LeIsaac.}
 LeIsaac \cite{leisaac} builds on Isaac Lab and connects it to the LeRobot ecosystem \cite{cadene2024lerobot}. It provides 
 teleoperation and automated data collection using state-machine-based scripted policies in Isaac Lab, ready-to-use scripts 
-for converting HDF5 data into the LeRobot dataset format\cite{lerobot_dataset_v3}, and support for subsequent policy training.
+for converting HDF5 data into the LeRobot dataset format \cite{lerobot_dataset_v3}, and support for subsequent policy training.
 
 \paragraph{Repository Packages.}
-The course repository is built on top of LeIsaac and adds what this project needs. It defines the simulated NYCU AI \& Interaction Specialty Classroom and the three course tasks, each with its own objects, randomization of initial conditions, and success condition, on a shared single-arm Franka setup. It provides a recorder that, in addition to what LeIsaac records, stores the starting position of every randomized object, so that each demonstration can later be traced back to the conditions it covers. It also provides tools to evaluate a trained policy in the same simulated tasks and to verify whether a dataset covers the conditions that a task requires. The repository does not provide a data-collection controller or collection script, because building them is part of the project; Section~\ref{sec:recording} lists the steps of the collection script and the repository tools it uses. For more details, see Section~\ref{sec:implementation}.
+The course repository builds its tasks on Isaac Lab and uses LeIsaac as a library for LeRobot recording, randomization utilities, and policy rollout, adding what this project needs. It defines the three course tasks in the simulated NYCU AI \& Interaction Specialty Classroom (Figure~\ref{fig:ED305-predefined-tasks}), each with its own objects, randomization of initial conditions, and success condition, on a shared single-arm Franka setup. It also provides a recorder that, in addition to what LeIsaac records, stores the starting position of every randomized object, so that each demonstration can later be traced back to the conditions it covers. Last but not least, it provides tools to evaluate a trained policy in the same simulated tasks and to verify whether a dataset covers the conditions that a task requires. However, the repository does not provide a data-collection controller or collection script, because building them is part of the project; Section~\ref{sec:recording} lists the steps of the collection script and the repository tools it uses. For more details, see Section~\ref{sec:implementation}.
 
 
 \subsection{Task Configuration}
@@ -477,7 +477,7 @@ Students at the Advanced Level may refer to the three predefined tasks as exampl
 \subsection{Data Collection}
 \label{sec:data-collection-concept}
 
-Data collection is a critical foundation of imitation learning\cite{wiki_imitation_learning}, because the collected 
+Data collection is a critical foundation of imitation learning \cite{wiki_imitation_learning}, because the collected 
 demonstrations are the only examples from which the policy learns. Two common approaches can be used to collect demonstrations:
 
 \begin{itemize}
@@ -490,13 +490,9 @@ demonstrations are the only examples from which the policy learns. Two common ap
       improve scalability and reduce human effort, but may produce less behavioral diversity.
 \end{itemize}
 
-In this document, the term \textbf{data-collection controller} (hereafter referred to as the \textbf{controller}) refers to the component that determines the 8-D action sent to \code{env.step()} at each simulation step during demonstration collection. It may be a scripted state machine, keyboard teleoperation, a motion planner, or another method, and acts as the expert that the policy learns to imitate. It does not refer to the robot's low-level joint controller (Isaac Lab's proportional-derivative (PD) actuators, with fixed gains: stiffness 80 and damping 4 for the arm joints), nor to an inverse kinematics (IK) solver that it may use internally.
+How many episodes to collect, and which conditions they must cover (Section ~\ref{sec:coverage-concept}), is a decision that each group makes and justifies. Section~\ref{sec:data-collection} describes the action format, the controller interface, and the recorder.
 
-An important property of the collected data is \textbf{diversity}. Many nearly identical demonstrations may yield a
-policy that performs well only under a narrow set of conditions. Varying the initial states, object configurations,
-and task conditions provides broader coverage of the task and helps the learned policy generalize to unseen
-situations. How many episodes to collect, and which conditions they must cover, is a decision that each group makes
-and justifies. Section~\ref{sec:data-collection} describes the action format, the controller interface, and the recorder.
+In this document, the term \textbf{data-collection controller} (hereafter referred to as the \textbf{controller}) refers to the component that determines the 8-D action sent to \code{env.step()} at each simulation step during demonstration collection. It may be a scripted state machine, keyboard teleoperation, a motion planner, or another method, and acts as the expert that the policy learns to imitate. It does not refer to the robot's low-level joint controller (Isaac Lab's proportional-derivative (PD) actuators, with fixed gains: stiffness 80 and damping 4 for the arm joints), nor to an inverse kinematics (IK) solver that it may use internally.
 
 
 \subsection{Policy Training and Evaluation}
@@ -516,7 +512,12 @@ and justifies. Section~\ref{sec:data-collection} describes the action format, th
 % demonstrations, which is the motivation for data verification
 % (Section~\ref{sec:coverage-concept}).
 
-Two mainstream imitation-learning\cite{wiki_imitation_learning} policies are recommended for this project. The first is \textbf{Diffusion Policy} \cite{chi2023diffusionpolicy}, which formulates action generation as a conditional diffusion process. This allows the policy to model complex, multimodal action distributions and to generate smooth, temporally consistent behavior. The second is the \textbf{Action Chunking Transformer (ACT)} \cite{zhao2023act}, which predicts sequences of actions, or action chunks, rather than individual actions. By combining a Transformer architecture with action chunking, ACT captures long-horizon dependencies while reducing the compounding errors of step-by-step action prediction. Together, the two approaches represent complementary paradigms, generative and sequence-based, and provide a useful basis for comparison. Other policies supported by LeRobot are listed in the official LeRobot repository \cite{cadene2024lerobot}.
+Using the dataset collected in the previous step, students train policies to map observations to robot actions. This repository leverages a suite of robot learning algorithms provided by the LeRobot ecosystem \cite{lerobot_ecosystem}. \textbf{Diffusion Policy} \cite{chi2023diffusionpolicy}, a state-of-the-art imitation learning \cite{wiki_imitation_learning} approach for visuomotor control, is recommended as a starting point. Given visual observations and robot states, the policy learns to predict action sequences (i.e., robot trajectories). Students are encouraged to:
+\begin{itemize}
+  \item Explore alternative policy architectures within or beyond the provided framework.
+  \item Tune training strategies (e.g., data augmentation, normalization, horizon length, etc.) and analyze the relationship between dataset quality and policy performance.
+\end{itemize}
+This step emphasizes learning-based control, bridging perception and action through a scalable policy learning framework.
 
 After training, the learned policy is executed in the simulator. It receives observations from the simulated environment and predicts actions to control the robot at each simulation step. The resulting execution is recorded and used to evaluate the policy's task performance and generalization ability under different initial conditions. This provides a way to assess whether the learned policy can successfully perform the task beyond the training demonstrations.
 
@@ -548,7 +549,7 @@ viewpoint, and object appearance (Figure~\ref{fig:star-gen-taxonomy}). The taxon
 
 \paragraph{Object Position Coverage.}
 \label{sec:object-position-coverage-concept}
-The repository implements one component of STAR-Gen's Object Pose axis: the initial position of each task object. Object positions are randomized on every reset in all three tasks, and the evaluation episodes also start from randomized positions within an area of the table. Object rotation is kept fixed: a random start rotation can leave an object tipped over or make it fall off the table, so the environment has to reset and try again, which wastes simulation time and compute.
+As an example, the repository includes a coverage check inspired by STAR-Gen's Object Poses (VB-POSE) axis, focusing specifically on the initial positions of task-relevant objects. Object positions are randomized on every reset in all three tasks, and the evaluation episodes also start from randomized positions within an area of the table. Object rotation is kept fixed: a random start rotation can leave an object tipped over or make it fall off the table, so the environment has to reset and try again, which wastes simulation time and compute.
 
 If a part of that region has few or no demonstrations, the policy has little to imitate there. The check divides an area of the table into a grid of cells, counts the episodes whose initial object position falls in each
 cell, and reports the cells with fewer episodes than required. The area, the cell numbers, and the minimum number of
@@ -558,10 +559,8 @@ collection budget. Running the check is a required step for every dataset.
 The check is built from four knowledge-representation tools:
 
 \begin{itemize}
-  \item \textbf{Ontology (OWL) and Description Logic.} An ontology in the Web Ontology Language (OWL) formally represents the domain concepts relevant
-        to coverage verification, including generalization axes, datasets, episodes, task objects, their initial
-        positions, and coverage requirements, together with the relationships and constraints among them. OWL grounds these concepts in
-        Description Logic semantics.
+  \item \textbf{Ontology.} An ontology \cite{guarino2009ontology} provides a formal representation of knowledge in a specific domain by defining its shared concepts and the relationships among them. In this repository, the ontology describes the concepts relevant to dataset coverage verification, including generalization axes, datasets, episodes, task objects, initial object positions, and coverage requirements.
+  \item \textbf{Web Ontology Language (OWL)} OWL \cite{w3c2012owl} is a standard language for representing ontologies. It provides formal semantics based on Description Logic (DL), allowing domain knowledge and constraints to be expressed in a machine-interpretable form.
   \item \textbf{RDF knowledge graph in Turtle.} The recorded dataset, the group's coverage requirement, each rollout,
         and every verification result are expressed as Resource Description Framework (RDF) facts over this vocabulary
         and kept in one \emph{verification store} per dataset, a directory of Turtle files \cite{w3cTurtle}. The
@@ -613,7 +612,7 @@ nvidia-smi
 
 \subsection{GlowsAI}
 
-Each group receives 10 GlowsAI credits for the course project. Follow the GlowsAI setup guide
+Each group receives 30 GlowsAI credits for the course project. Follow the GlowsAI setup guide
 (\url{https://docs.google.com/presentation/d/1xPHm3gNNvLbX7aOWnY_xW5dfVLEa9XiBuskMbRsgxI8/edit?usp=sharing})
 to create a GPU instance. When you use the terminal of the Virtual Network Computing (VNC) desktop on GlowsAI, switch to the \code{glows} user first:
 
@@ -877,7 +876,7 @@ You may modify the input and output features in your own experiments. However, t
 \subsection{Data Collection}
 \label{sec:data-collection}
 
-\textbf{Each group writes its own data-collection controller with the repository's \code{LeRobotRecorderManager} (Section~\ref{sec:recording}) and connects it to the simulator.} The goal is to generate a LeRobot v3 dataset\cite{lerobot_dataset_v3} that satisfies the Rollout Input Features (Section~\ref{sec:rollout-inputs}) and contains the \code{object_position.*} columns needed for data verification. You may use any source of demonstrations as long as the resulting frames follow the contract. This section lists the resources that the repository provides and the rules that the recorder imposes. All recording runs inside the Docker Container and requires \code{--enable_cameras}.
+\textbf{Each group writes its own data-collection controller with the repository's \code{LeRobotRecorderManager} (Section~\ref{sec:recording}) and connects it to the simulator.} The goal is to generate a LeRobot v3 dataset \cite{lerobot_dataset_v3} that satisfies the Rollout Input Features (Section~\ref{sec:rollout-inputs}) and contains the \code{object_position.*} columns needed for data verification. You may use any source of demonstrations as long as the resulting frames follow the contract. This section lists the resources that the repository provides and the rules that the recorder imposes. All recording runs inside the Docker Container and requires \code{--enable_cameras}.
 
 A recommended order of work is:
 
@@ -1009,9 +1008,7 @@ The following recording behaviors and constraints are important for implementing
 
 \begin{enumerate}
   \item \textbf{One frame per \code{env.step()}.} If you do not step, nothing is recorded.
-  \item \textbf{The first 5 steps after every reset are skipped} to avoid recording unstable initial states. Camera
-        images from before the reset may still appear there, so hold the arm still during those steps
-        \cite{leisaac_recorder}.
+  \item \textbf{The first 5 steps after every reset are skipped} to avoid recording unstable initial states. Camera images from before the reset may still appear there, so hold the arm still during those steps \cite{leisaac_recorder}.
   \item \textbf{Keeping or dropping an episode is decided at the next reset} by the \code{success} term. Any call to
         \code{env.reset()} ends the current episode.
   \item \textbf{Only environment 0 is recorded.} Always use \code{num_envs=1}.
@@ -1088,7 +1085,7 @@ timestamps match simulation time, and keep it identical across all recording ses
 
 \subsubsection{Recording over Several Sessions}
 
-The repository recorder extends the LeRobot recorder of LeIsaac\cite{leisaac}, which accepts only two export modes: \code{EXPORT_SUCCEEDED_ONLY} and \code{EXPORT_SUCCEEDED_ONLY_RESUME}. Both keep successful episodes only. The recorder buffers the frames of the current episode and writes them to the dataset when the episode ends with success; otherwise, the frames are discarded. A failed attempt therefore never appears in your dataset, and any other export mode stops the recorder at start-up. The two modes differ only in where the episodes go: \code{EXPORT_SUCCEEDED_ONLY} starts a new dataset, while \code{EXPORT_SUCCEEDED_ONLY_RESUME} appends to an existing one.
+The repository recorder extends the LeRobot recorder of LeIsaac \cite{leisaac}, which accepts only two export modes: \code{EXPORT_SUCCEEDED_ONLY} and \code{EXPORT_SUCCEEDED_ONLY_RESUME}. Both keep successful episodes only. The recorder buffers the frames of the current episode and writes them to the dataset when the episode ends with success; otherwise, the frames are discarded. A failed attempt therefore never appears in your dataset, and any other export mode stops the recorder at start-up. The two modes differ only in where the episodes go: \code{EXPORT_SUCCEEDED_ONLY} starts a new dataset, while \code{EXPORT_SUCCEEDED_ONLY_RESUME} appends to an existing one.
 
 To add episodes to a finalized dataset, set the export mode to \code{EXPORT_SUCCEEDED_ONLY_RESUME} instead of
 \code{EXPORT_SUCCEEDED_ONLY}. Use the same task, dataset ID, \code{tracked_object_names}, and \code{fps} as in the
