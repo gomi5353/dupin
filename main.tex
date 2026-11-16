@@ -560,19 +560,29 @@ cell, and reports the cells with fewer episodes than required. The area, the cel
 episodes per cell are chosen by each group because they depend on the task, the evaluation conditions, and the
 collection budget. Running the check is a required step for every dataset.
 
-The check is built from three knowledge-representation tools:
+The check is built from four knowledge-representation tools:
 
 \begin{itemize}
   \item \textbf{Ontology (OWL) and Description Logic.} An ontology in the Web Ontology Language (OWL) formally represents the domain concepts relevant
         to coverage verification, including generalization axes, datasets, episodes, task objects, their initial
         positions, and coverage requirements, together with the relationships and constraints among them. OWL grounds these concepts in
         Description Logic semantics.
-  \item \textbf{RDF knowledge graph in Turtle.} The recorded dataset and the group's coverage requirement are both
-        expressed as Resource Description Framework (RDF) facts over this vocabulary. The requirement is written as a small Turtle file \cite{w3cTurtle}.
+  \item \textbf{RDF knowledge graph in Turtle.} The recorded dataset, the group's coverage requirement, each rollout,
+        and every verification result are expressed as Resource Description Framework (RDF) facts over this vocabulary
+        and kept in one \emph{verification store} per dataset, a directory of Turtle files \cite{w3cTurtle}. The
+        requirement itself is written as a small Turtle file and attached to the store.
   \item \textbf{SHACL validation.} Shapes Constraint Language (SHACL) shapes \cite{w3cShacl} turn the requirement into executable constraints: they
         compare positions against cell bounds, count episodes per cell, and report violations. This step is needed
         because Description Logic alone does not perform numeric interval comparison or counting.
+  \item \textbf{SPARQL queries.} The store records what was recorded, what was required, and what verification found,
+        so students can ask their own questions of it with SPARQL instead of relying only on the
+        printed report.
 \end{itemize}
+
+The store separates raw capture from interpretation. The LeRobot dataset and the rollout log stay the sources: the
+dataset is still uploaded and trained on as before, and the rollout log is written line by line inside the container,
+so an interrupted rollout still leaves a readable log. Both enter the store afterwards, on the host, with their path and a
+content hash, so the tools can tell when a source has changed since it entered the store.
 
 Coverage is a diagnostic, not a proof of the cause of a failure. An uncovered evaluation region is evidence of a
 possible gap in the data distribution, while complete coverage does not guarantee that a policy will succeed. Failures
@@ -715,16 +725,21 @@ Unlike the Docker container, this environment uses the host's operating system a
 \path{packages/simulator/assets/}
   & USD scenes and object assets. \\
 \path{packages/data_verification/}
-  & Dataset verifier: dataset reader (\code{dataset.py}), RDF graph builder (\code{graph.py}),
-    coverage check (\code{coverage.py}), specification template and its checks (\code{templates/}, \code{spec_template.py}),
-    rollout log reader and comparison (\code{rollout_log.py}, \code{rollout_comparison.py}),
-    OWL vocabulary (\code{ontology/}), and SHACL rules (\code{shapes/}). \\
+  & Verification store: dataset and rollout log readers (\code{dataset.py}, \code{rollout_log.py}), store files and
+    ingest (\code{store.py}, \code{graph.py}), \code{verify} and its reports (\code{verify.py}), SPARQL (\code{query.py}),
+    core OWL vocabulary (\code{ontology/core.ttl}) and SHACL rules (\code{shapes/}), the verifier interface
+    (\code{verifier.py}) and the list of registered verifiers (\code{registry.py}). Each generalization axis is a
+    package under \code{axes/}; \code{axes/object_position/} holds the object position ontology, SHACL rules,
+    specification template, coverage counting, and rollout comparison. \\
 \path{eval/}
   & Evaluation configuration for each task. Pass them to \code{rollout.py} with \code{--task}. \\
 \path{scripts/rollout.py}
   & Runs a trained LeRobot checkpoint in the simulator and reports the success rate. \\
-\path{scripts/verify_object_position_coverage.py}
-  & Command-line interface of the object position coverage check (\code{init}, \code{check}, and \code{compare}). \\
+\path{scripts/store.py}
+  & Command-line interface of the verification store (\code{ingest}, \code{init}, \code{attach}, \code{detach},
+    \code{verify}, \code{explore}, and \code{query}). \\
+\path{queries/}
+  & Example SPARQL queries over a store. \\
 \path{docs/}
   & Markdown guides. This document summarizes them. \\
 \path{tests/}
@@ -1145,28 +1160,37 @@ During evaluation, your policy may encounter object positions not seen during tr
 
 This is a required step in your workflow. You must specify the area, the number of grid cells along $x$ and $y$, and the minimum number of episodes per cell. The check focuses on the position component of the Object Pose axis in STAR-Gen \cite{gao2026taxonomy}: changes in task-relevant object positions. Orientation is excluded because the initial object rotation remains fixed across all tasks (Section~\ref{sec:object-position-coverage-concept}).
 
+Everything goes through one verification store per dataset, a directory \path{stores/<dataset_repo>/} of Turtle
+files that you can query with SPARQL. All commands are subcommands of \path{scripts/store.py} and run on the host.
 The workflow is:
 
 \begin{lstlisting}
-initialize requirement template -> specify workspace bounds -> set number of cells and minimum episodes per cell -> check dataset coverage result
+ingest the dataset -> initialize the specification -> specify the area, cells, and minimum episodes per cell
+  -> attach the specification -> verify -> read the report, explore and query the store
 \end{lstlisting}
 
-The check reads only \path{meta/info.json} and \path{data/**/*.parquet} from the LeRobot dataset. It does not start the simulator or decode videos, so it completes in seconds.
+The store reads only \path{meta/info.json}, \path{meta/tasks.parquet}, and \path{data/**/*.parquet} from the LeRobot dataset. It does not start the simulator or decode videos, so every step completes in seconds. The dataset itself is not changed.
 
 
 \subsubsection{Write Your Specification}
 
-The specification is a small Turtle file \cite{w3cTurtle} that defines the required initial position coverage for each object, including the target area, grid layout, and minimum number of episodes required per cell. A skeleton can be created from an existing dataset, using object names from its \code{object_position.*} columns, or from a list of object names before data collection:
+First put the dataset into a new store. \code{ingest} writes \path{stores/<dataset_repo>/dataset.ttl}: the dataset,
+each episode with its frame count, and each tracked object's initial position, together with the dataset path, a
+fingerprint of its files, and the time of the ingest. \code{--task} optionally records the Gym ID the dataset was
+recorded with. Run \code{ingest} again after recording more episodes; it removes the previous verification results,
+which described the old episodes.
 
 \begin{lstlisting}[language=bash]
-uv run python scripts/verify_object_position_coverage.py init \
-    --dataset datasets/${HF_USER}/<dataset_repo> --out specs/my_coverage.ttl
-
-uv run python scripts/verify_object_position_coverage.py init \
-    --objects blue_cup,pink_cup --out specs/my_coverage.ttl
+uv run python scripts/store.py ingest --dataset datasets/${HF_USER}/<dataset_repo> --task <task_id>
 \end{lstlisting}
 
-The \code{init} command does not overwrite existing files. The template is available at \path{packages/data_verification/src/data_verification/templates/object_position_coverage_spec.ttl}. Each object has a separate block that defines its coverage requirement. The following example shows the template structure:
+The specification is a small Turtle file \cite{w3cTurtle} that defines the required initial position coverage for each object, including the target area, grid layout, and minimum number of episodes required per cell. Create a skeleton with object names from the dataset's \code{object_position.*} columns (\code{--objects blue_cup,pink_cup} names them instead):
+
+\begin{lstlisting}[language=bash]
+uv run python scripts/store.py init --store stores/<dataset_repo> --out specs/my_coverage.ttl
+\end{lstlisting}
+
+The \code{init} command does not overwrite existing files. The template is available at \path{packages/data_verification/src/data_verification/axes/object_position/template.ttl}. Each object has a separate block that defines its coverage requirement. The following example shows the template structure:
 
 \begin{lstlisting}[language=turtle]
 # --- BEGIN OBJECT ---
@@ -1204,7 +1228,7 @@ The fields have the following meanings:
 \bottomrule
 \end{longtable}
 
-An object block can be deleted to exclude that object from checking, or copied to add another object. The \code{# Already} comment shows the current position range in the dataset for reference only; do not copy it as the target area (see \emph{Choosing the Values} below).
+An object block can be deleted to exclude that object from checking, or copied to add another object. The \code{# Already} comment shows the current position range in the dataset for reference only; do not copy it as the target area (see \emph{Choosing the Values} below). A store can hold several specifications, for example a coarse and a fine grid; each is attached under its own name and verified separately.
 
 \paragraph{Choosing the Values.} The area, grid size, and minimum number of episodes depend on the task and collection setup. The following guidelines help define these values:
 \begin{itemize}
@@ -1217,17 +1241,26 @@ An object block can be deleted to exclude that object from checking, or copied t
 
 \subsubsection{Run the Check and Read the Report}
 
+Attach the filled-in specification to the store, then verify:
+
 \begin{lstlisting}[language=bash]
-uv run python scripts/verify_object_position_coverage.py check \
-    --dataset datasets/${HF_USER}/<dataset_repo> \
-    --spec specs/my_coverage.ttl
+uv run python scripts/store.py attach --store stores/<dataset_repo> --spec specs/my_coverage.ttl
+uv run python scripts/store.py verify --store stores/<dataset_repo>
 \end{lstlisting}
 
-Example output:
+\code{attach} first checks the specification (no \code{TODO} left, numbers without quotes, non-empty areas, an axis
+with a registered verifier) and refuses it with an \code{ERROR} line otherwise. It then copies it to
+\path{stores/<dataset_repo>/specs/my_coverage.ttl}, renaming its nodes under the store (\code{spec:blue_cup_grid}
+becomes \code{.../spec/my_coverage/blue_cup_grid}) so that several specifications can share the store, and adds the
+grid cells with their bounds. Attach the specification again after editing it: \code{verify} refuses a dataset or
+specification whose file changed after it entered the store.
+
+\code{verify} checks the dataset against every attached specification, prints one report per specification, and
+writes the results to \path{stores/<dataset_repo>/findings/}. Example output:
 
 \begin{lstlisting}
-Dataset : datasets/<HF_USER>/<dataset_repo>
-Spec    : specs/my_coverage.ttl
+Store   : stores/<dataset_repo>
+Spec    : my_coverage  (specs/my_coverage.ttl)
 Episodes: 31
 
 [blue_cup] x=8.800..9.100  y=6.290..6.590  covered 6/9 cells (>= 2 each)
@@ -1236,32 +1269,43 @@ Episodes: 31
   y0    5   5   7
         x0  x1  x2
 
-VIOLATION 'blue_cup' cell (i=0, j=2) x=[8.8, 8.9] y=[6.49, 6.59] has 0 episode(s); needs at least 2  [blue_cup_grid/cell/6]
+VIOLATION 'blue_cup' cell (i=0, j=2) x=[8.8, 8.9] y=[6.49, 6.59] has 0 episode(s); needs at least 2  [spec/my_coverage/blue_cup_grid/cell/6]
 WARNING   Episode 30: initial position of 'blue_cup' at (9.5, 6.4) is outside the required area; it does not count toward coverage  [<dataset_repo>]
 
 RESULT: coverage spec NOT met
-Graph written to outputs/object_position_coverage/<dataset_repo>.ttl
+
+Findings written to stores/<dataset_repo>/findings/
 \end{lstlisting}
 
 \begin{itemize}
   \item \textbf{Grid}: each number is the count of episodes whose object started in that cell; \code{!} marks a count below
         your minimum. Columns are x (\code{x0} is the \code{areaXMin} side) and rows are y, with $+y$ at the top.
   \item \textbf{VIOLATION}: a requirement is not met. Each line gives the exact bounds of a thin cell; collect there next.
-        The node at the end (\code{blue_cup_grid/cell/6}) is the cell's row-major index $k = j \cdot n_x + i$.
+        The node at the end (\code{spec/my_coverage/blue_cup_grid/cell/6}) is the cell's row-major index $k = j \cdot n_x + i$.
   \item \textbf{WARNING}: allowed, but worth knowing. An initial position outside the area counts toward no cell. The line names the episode; the node at the end is the dataset.
-  \item \textbf{ERROR}: the check could not run, e.g.\ a missing column or a \code{TODO} left in the specification.
+  \item \textbf{ERROR}: the check could not run, e.g.\ a missing column, or the dataset or specification changed after it entered the store.
   \item \textbf{Only saved episodes count.} The repository recorder writes only successful episodes and discards failed attempts (Section~\ref{sec:recording}), so the check counts the starting positions of successful demonstrations only.
 \end{itemize}
+
+Every line of the report is also stored as a finding, together with each cell's episode count, so the results can
+be queried later (Section~\ref{sec:store-query}). \code{explore --store stores/<dataset_repo>} prints a summary of the
+store: the dataset, the attached specifications with their latest results, and the ingested rollouts. Options of
+\code{verify}: \code{--spec <name>} verifies only that specification, \code{--no-rollouts} skips the rollout
+comparison (Section~\ref{sec:rollout-compare}), \code{--json} also writes the result as JSON, \code{--strict} fails on
+warnings, and \code{--extra-shapes} runs your own SHACL rules. The exit code is 0 when every specification is met and 1
+otherwise. \code{detach} removes a specification and its results from the store.
 
 
 \subsubsection{How the Check Works}
 \label{sec:coverage-dl}
 
-The object-position checker models a LeRobot dataset as episodes whose task
-objects have initial positions, checked against the generalization axes it has, and a rollout as runs of a policy
-trained on that dataset. The ontology is defined in
-\code{packages/data_verification/src/data_verification/ontology/object_position.ttl}. The following Description
-Logic (DL) notation describes it class by class: each class is given by what its members have. Datatypes are
+The store models a LeRobot dataset as episodes whose task objects have initial positions, checked against the
+generalization axes of its attached specifications; a rollout as runs of a policy trained on that dataset; and each
+verification result as a node that points at the facts it is about. The ontology is split into a core and one file per
+axis, both under \path{packages/data_verification/src/data_verification/}: \code{ontology/core.ttl} (dataset, episode,
+rollout, run, task object, position, specification, generalization axis, axis requirement, and the result classes) and
+\code{axes/object_position/ontology.ttl} (the object position axis). The following Description Logic (DL) notation
+describes them class by class: each class is given by what its members have. Datatypes are
 abbreviated \(\mathbb{N}\) (non-negative integer), \(\mathbb{N}^{+}\) (positive integer), \(\mathbb{D}\) (decimal),
 and \(\mathbb{S}\) (string).
 
@@ -1286,26 +1330,37 @@ and \(\mathbb{S}\) (string).
   per cell; a subclass of \(\mathsf{AxisRequirement}\). \\
 \(\mathsf{AreaConfiguration}\) & The rectangle in which initial positions are considered for coverage. \\
 \(\mathsf{CoverageGrid}\) & The grid that splits an area into \(\mathsf{numCellW}\times\mathsf{numCellH}\) cells. \\
-\(\mathsf{Cell}\) & One generated grid cell, identified only by its index. \\
+\(\mathsf{Cell}\) & One grid cell generated at \code{attach}, identified by its index; its column, row, and bounds are
+  stored with it, and \code{verify} adds its episode count. \\
+\(\mathsf{Spec}\) & A specification file attached to the store; it declares its axes. \\
+\(\mathsf{Verification}\) & One check of the dataset against one specification, with its findings. \\
+\(\mathsf{Comparison}\) & One comparison of a rollout's runs with the dataset's coverage under one specification. \\
+\(\mathsf{RunPlacement}\) & Where a finished run started for one requirement, and whether that cell is covered. \\
+\(\mathsf{Finding}\) & One result line: an error, a violation, a warning, or an informational suggestion. \\
 \bottomrule
 \end{longtable}
 
 {\sloppy The roles are \(\mathsf{hasGeneralizationAxis}\), \(\mathsf{hasRequirement}\), \(\mathsf{hasDataset}\),
 \(\mathsf{hasEpisode}\), \(\mathsf{hasRun}\), \(\mathsf{hasTaskObject}\), \(\mathsf{hasPosition}\),
-\(\mathsf{hasAreaConfiguration}\), \(\mathsf{hasCoverageGrid}\), and \(\mathsf{hasCell}\). The data properties are
+\(\mathsf{hasAreaConfiguration}\), \(\mathsf{hasCoverageGrid}\), \(\mathsf{hasCell}\), \(\mathsf{declaresAxis}\),
+\(\mathsf{ofSpec}\), \(\mathsf{onDataset}\), \(\mathsf{ofRollout}\), \(\mathsf{hasFinding}\), \(\mathsf{hasPlacement}\),
+\(\mathsf{ofRun}\), \(\mathsf{ofRequirement}\), \(\mathsf{inCell}\), and \(\mathsf{inDistributionRun}\). The data properties are
 \(\mathsf{name}\) (\(\mathbb{S}\)), \(\mathsf{index}\) (\(\mathbb{N}\)), \(\mathsf{status}\) (one of
 \code{"succeeded"}, \code{"failed"}, \code{"aborted"}), \(\mathsf{positionX}\), \(\mathsf{positionY}\), \(\mathsf{positionZ}\),
 \(\mathsf{areaXMin}\), \(\mathsf{areaXMax}\), \(\mathsf{areaYMin}\), \(\mathsf{areaYMax}\) (\(\mathbb{D}\)),
 \(\mathsf{numCellW}\), \(\mathsf{numCellH}\), \(\mathsf{minEpisodesPerCell}\) (\(\mathbb{N}^{+}\)), and
-\(\mathsf{successEpisodes}\), \(\mathsf{totalEpisodes}\) (\(\mathbb{N}\)). \(r^{-}\) is the inverse of role \(r\).\par}
+\(\mathsf{successEpisodes}\), \(\mathsf{totalEpisodes}\), \(\mathsf{episodeCount}\) (\(\mathbb{N}\)), \(\mathsf{passed}\),
+\(\mathsf{covered}\) (Boolean), and \(\mathsf{severity}\) (one of \code{"Error"}, \code{"Violation"}, \code{"Warning"},
+\code{"Info"}). Every ingested or attached source also has \(\mathsf{sourcePath}\), \(\mathsf{sourceSha256}\), and
+\(\mathsf{ingestedAt}\). \(r^{-}\) is the inverse of role \(r\).\par}
 
 \paragraph{Class Descriptions.}
 
 \[
 \begin{aligned}
-&\mathsf{Dataset} \sqsubseteq \exists\mathsf{hasGeneralizationAxis}.\mathsf{GeneralizationAxis}\\
-  &\qquad \sqcap \forall\mathsf{hasGeneralizationAxis}.\mathsf{GeneralizationAxis}\\
-  &\qquad \sqcap \exists\mathsf{hasEpisode}.\mathsf{Episode} \sqcap \forall\mathsf{hasEpisode}.\mathsf{Episode}\\
+&\mathsf{Dataset} \sqsubseteq \forall\mathsf{hasGeneralizationAxis}.\mathsf{GeneralizationAxis}\\
+  &\qquad \sqcap \exists\mathsf{hasEpisode}.\mathsf{Episode} \sqcap \forall\mathsf{hasEpisode}.\mathsf{Episode}
+  \sqcap ({=}1\,\mathsf{name}.\mathbb{S})\\
 &\mathsf{Rollout} \sqsubseteq ({=}1\,\mathsf{hasDataset}.\mathsf{Dataset}) \sqcap \exists\mathsf{hasRun}.\mathsf{FinishedRun}\\
   &\qquad \sqcap \forall\mathsf{hasRun}.\mathsf{Run}\\
   &\qquad \sqcap ({=}1\,\mathsf{successEpisodes}.\mathbb{N}) \sqcap ({=}1\,\mathsf{totalEpisodes}.\mathbb{N})\\
@@ -1329,9 +1384,22 @@ and \(\mathbb{S}\) (string).
   &\qquad \sqcap ({=}1\,\mathsf{hasAreaConfiguration}^{-}.\mathsf{ObjectPositionAxisRequirement})\\
 &\mathsf{CoverageGrid} \sqsubseteq ({=}1\,\mathsf{numCellW}.\mathbb{N}^{+}) \sqcap ({=}1\,\mathsf{numCellH}.\mathbb{N}^{+})\\
   &\qquad \sqcap \forall\mathsf{hasCell}.\mathsf{Cell} \sqcap ({=}1\,\mathsf{hasCoverageGrid}^{-}.\mathsf{AreaConfiguration})\\
-&\mathsf{Cell} \sqsubseteq ({=}1\,\mathsf{index}.\mathbb{N}) \sqcap ({=}1\,\mathsf{hasCell}^{-}.\mathsf{CoverageGrid})
+&\mathsf{Cell} \sqsubseteq ({=}1\,\mathsf{index}.\mathbb{N}) \sqcap ({=}1\,\mathsf{hasCell}^{-}.\mathsf{CoverageGrid})\\
+&\mathsf{Spec} \sqsubseteq \exists\mathsf{declaresAxis}.\mathsf{GeneralizationAxis}\\
+  &\qquad \sqcap \forall\mathsf{declaresAxis}.\mathsf{GeneralizationAxis}\\
+&\mathsf{Verification} \sqsubseteq ({=}1\,\mathsf{ofSpec}.\mathsf{Spec}) \sqcap ({=}1\,\mathsf{onDataset}.\mathsf{Dataset})\\
+  &\qquad \sqcap ({=}1\,\mathsf{passed}) \sqcap \forall\mathsf{hasFinding}.\mathsf{Finding}\\
+&\mathsf{Comparison} \sqsubseteq ({=}1\,\mathsf{ofSpec}.\mathsf{Spec}) \sqcap ({=}1\,\mathsf{ofRollout}.\mathsf{Rollout})\\
+  &\qquad \sqcap \forall\mathsf{hasFinding}.\mathsf{Finding} \sqcap \forall\mathsf{inDistributionRun}.\mathsf{Run}\\
+&\mathsf{RunPlacement} \sqsubseteq ({=}1\,\mathsf{ofRun}.\mathsf{Run})
+  \sqcap ({=}1\,\mathsf{ofRequirement}.\mathsf{ObjectPositionAxisRequirement})\\
+  &\qquad \sqcap ({\leq}1\,\mathsf{inCell}.\mathsf{Cell}) \sqcap ({=}1\,\mathsf{covered})\\
+&\mathsf{Finding} \sqsubseteq ({=}1\,\mathsf{severity}) \sqcap ({=}1\,\mathsf{message}.\mathbb{S})
 \end{aligned}
 \]
+
+A dataset enters the store before any specification is attached, so the ontology does not require it to have an axis;
+the SHACL rules require at least one when \code{verify} runs.
 
 Here \(\mathsf{FinishedRun}\) is a run whose status is \code{"succeeded"} or \code{"failed"}. A dataset must have
 at least one episode, and \(\mathsf{minEpisodesPerCell}\geq 1\), so a requirement is never met by an empty dataset.
@@ -1340,7 +1408,7 @@ restrictions count fillers, not equal values, so the checker also tests keys wit
 within a dataset, run indices within a rollout, cell indices within a grid (and below
 \(\mathsf{numCellW}\cdot\mathsf{numCellH}\)), and task object names within an episode or run.
 
-The named classes are pairwise disjoint apart from the two subclass links; in particular
+The named classes are pairwise disjoint apart from the subclass links; in particular
 \(\mathsf{Episode}\sqcap\mathsf{Run}\sqsubseteq\bot\), so a rollout run never counts as dataset coverage. Dataset
 episodes have no status: the recorder keeps successful episodes only. The status partitions the runs into
 succeeded, failed, and aborted ones; the finished runs are the succeeded and failed ones.
@@ -1360,9 +1428,10 @@ of the specification is:
 \end{aligned}
 \]
 
-The checker adds the dataset \(D\) under verification with \(\mathsf{hasGeneralizationAxis}(D,x)\) for every axis of
-the specification, its episodes \(\mathsf{hasEpisode}(D,e)\) with their task objects and positions, and \(n_x n_y\)
-cells to the grid: \(\mathsf{hasCell}(G,C_k)\), \(\mathsf{index}(C_k)=k\) for \(0\leq k<n_x n_y\). The index is
+\code{ingest} asserts the dataset \(D\) with its episodes \(\mathsf{hasEpisode}(D,e)\) and their task objects and
+positions. \code{attach} renames the specification's individuals under the store, asserts
+\(\mathsf{hasGeneralizationAxis}(D,x)\) for every axis of the specification, and adds \(n_x n_y\) cells to the grid:
+\(\mathsf{hasCell}(G,C_k)\), \(\mathsf{index}(C_k)=k\) for \(0\leq k<n_x n_y\). The index is
 row-major, so cell \(C_k\) is column \(i=k \bmod n_x\) and row \(j=\lfloor k/n_x\rfloor\). With
 
 \[
@@ -1410,8 +1479,9 @@ distinct episodes of \(D\):
 Pure OWL/DL describes the classes, properties, and datatypes, but it does not
 perform the required numeric interval comparison and per-cell aggregation.
 The repository therefore uses SHACL SPARQL in
-\code{shapes/object_position_coverage.ttl} for the executable condition above.
-The Python function \code{expand_cells} creates the cell individuals, while
+\code{axes/object_position/shapes.ttl} for the executable condition above; the axis-independent rules (episodes,
+positions, unique indices) are in \code{shapes/dataset.ttl}.
+The Python function \code{expand_cells} creates the cell individuals at \code{attach}, while
 \code{CellCoverageShape} computes each cell's bounds, counts the distinct episodes of the dataset that has the
 requirement's axis, and reports a violation when the count is below \(m\). Further shapes check that
 the grid has exactly \(n_x n_y\) cells, that every requirement is linked from
@@ -1432,7 +1502,7 @@ was trained on. The rollout \(R\) is asserted as
 \end{aligned}
 \]
 
-where \(D\) is the same dataset individual as in the check, \(n_t\) counts the finished runs and \(n_s\) the succeeded
+where \(D\) is the store's dataset individual, \(n_t\) counts the finished runs and \(n_s\) the succeeded
 ones; aborted runs are kept but counted in neither. A finished run \(e\) is placed into the cell of the same lattice
 as \(r\)'s grid,
 
@@ -1450,35 +1520,66 @@ area \(A\). With \(n_D(C)\) the episodes of \(D\) in cell \(C\),
 }
 \]
 
-A run is \emph{in distribution} when it is covered for every requirement of every axis of \(D\). The SHACL shapes in \code{shapes/rollout_comparison.ttl} check the rollout side (exactly one training dataset, one status per run, counts that match the runs, a position for every required object), and \code{rollout_comparison.py} places the runs and computes the guidance.
+A run is \emph{in distribution} when it is covered for every requirement of every axis of the specification.
+\code{verify} stores this as one \(\mathsf{RunPlacement}\) per finished run and requirement (its column, row, cell, and
+\(\mathsf{covered}\)) and \(\mathsf{inDistributionRun}(K,e)\) on the comparison \(K\). The SHACL shapes in
+\code{shapes/rollout.ttl} check the rollout side (exactly one training dataset, one status per run, counts that match
+the runs), \code{axes/object_position/rollout_shapes.ttl} requires a position for every required object, and
+\code{axes/object_position/compare.py} places the runs and computes the guidance.
 
-\paragraph{Inspecting the Graph.}
-Every \code{check} writes the data graph that SHACL validates to \path{outputs/object_position_coverage/<dataset>.ttl}, overwriting the previous one; pass \code{--no-graph-out} to write no file. The graph contains your specification, the generated cells, the dataset with the axes it has, and per recorded episode one \(\mathsf{Episode}\) with its \(\mathsf{index}\) and one \(\mathsf{TaskObject}\) with its \(\mathsf{name}\) and \(\mathsf{Position}\) per object. Positions are decimals rounded to 6 places (micrometres).
-The ontology and shapes are not included; they are packaged with the verifier. An excerpt:
+\paragraph{Inspecting the Store.}
+\label{sec:store-query}
+The store is one directory per dataset. Each file is rewritten as a whole, so an interrupted command never leaves half
+a file:
+
+\begin{lstlisting}
+stores/<dataset_repo>/
+  dataset.ttl                       ingest --dataset
+  specs/<spec>.ttl                  attach
+  rollouts/<timestamp>.ttl          ingest --rollout-log
+  findings/<spec>.ttl               verify: the dataset against the specification
+  findings/<spec>__<timestamp>.ttl  verify: the rollout against the specification
+  queries/                          your own SPARQL queries
+\end{lstlisting}
+
+What enters the store is never derived: \code{ingest} and \code{attach} record facts and your declarations, and
+\code{verify} adds result nodes that point at them, replacing the previous results. Positions are decimals rounded to 6
+places (micrometres). An excerpt of \path{dataset.ttl} and a stored finding:
 
 \begin{lstlisting}[language=turtle]
 <http://taica.course/cp/data/cs> a cp:Dataset ;
-    cp:hasGeneralizationAxis <http://taica.course/cp/spec/mine#object_position_axis> ;
+    cp:name "cs" ; cp:recordedObject "blue_cup", "pink_cup" ;
+    cp:sourcePath "/home/<user>/nb/datasets/<HF_USER>/cs" ;
     cp:hasEpisode <http://taica.course/cp/data/cs/episode/0> .
 
 <http://taica.course/cp/data/cs/episode/0> a cp:Episode ;
-    cp:index "0"^^xsd:nonNegativeInteger ;
+    cp:index "0"^^xsd:nonNegativeInteger ; cp:frameCount "595"^^xsd:nonNegativeInteger ;
     cp:hasTaskObject <http://taica.course/cp/data/cs/episode/0/object/blue_cup> .
 
-<http://taica.course/cp/data/cs/episode/0/object/blue_cup> a cp:TaskObject ;
-    cp:name "blue_cup" ;
-    cp:hasPosition <http://taica.course/cp/data/cs/episode/0/object/blue_cup/position> .
-
 <http://taica.course/cp/data/cs/episode/0/object/blue_cup/position> a cp:Position ;
-    cp:positionX 8.843489 ;
-    cp:positionY 6.589184 ;
-    cp:positionZ 0.966626 .
+    cp:positionX 8.843489 ; cp:positionY 6.589184 ; cp:positionZ 0.966626 .
 
-<http://taica.course/cp/spec/mine#blue_cup_grid/cell/0> a cp:Cell ;
-    cp:index "0"^^xsd:nonNegativeInteger .
+<http://taica.course/cp/data/cs/spec/my_coverage/verification/finding/0> a cp:Finding ;
+    cp:severity "Violation" ; cp:verifier "object_position" ;
+    cp:focusNode <http://taica.course/cp/data/cs/spec/my_coverage/blue_cup_grid/cell/6> ;
+    cp:message "'blue_cup' cell (i=0, j=2) x=[8.8, 8.9] y=[6.49, 6.59] has 0 episode(s); needs at least 2" .
 \end{lstlisting}
 
-These are the assertions of the DL model above, written as RDF triples. Use the file to see which node IRIs and properties your \code{--extra-shapes} rules can target, or load it with \code{rdflib} and query it with SPARQL. The file is a snapshot: regenerate it after you record more episodes or change the specification.
+These are the assertions of the DL model above, written as RDF triples. Ask the store with SPARQL, locally with
+\code{rdflib}: \code{SELECT} prints a table (\code{--format csv} or \code{json} for files), \code{ASK} prints
+\code{true} or \code{false}, and \code{CONSTRUCT} prints Turtle. The prefixes \code{cp:}, \code{rdf:}, \code{rdfs:},
+\code{owl:}, and \code{xsd:} are predefined. The repository's \path{queries/} directory has examples: episodes and their
+initial positions, episode counts per cell, uncovered cells, rollout outcomes per cell, failed runs in uncovered cells,
+and all findings.
+
+\begin{lstlisting}[language=bash]
+uv run python scripts/store.py query --store stores/<dataset_repo> --query-file queries/uncovered_cells.rq
+uv run python scripts/store.py query --store stores/<dataset_repo> \
+    --query-text 'SELECT (COUNT(?e) AS ?n) WHERE { ?e a cp:Episode }'
+\end{lstlisting}
+
+Compare numbers with \code{FILTER}: \code{?e cp:index ?i . FILTER (?i = 2)} finds episode 2, while \code{?e cp:index 2}
+finds nothing, because indices are stored as \code{xsd:nonNegativeInteger} and \code{2} is an \code{xsd:integer}.
 
 \paragraph{What Is Checked and What Is Not.}
 
@@ -1493,6 +1594,10 @@ The current DL/SHACL model does not check orientation, height, object-object pos
 \textbf{Message} & \textbf{Cause} & \textbf{Fix} \\
 \midrule
 \endhead
+\code{is not a store (no dataset.ttl)} & \code{--store} points to a directory without an ingested dataset. & Run \code{ingest --dataset} first, or fix the path. \\
+\code{The dataset ... changed after it entered the store} & Episodes were recorded or files changed after the last \code{ingest}. & Run the printed \code{ingest} command, then \code{verify}. \\
+\code{The spec ... changed after it entered the store} & The specification was edited after \code{attach}. & Run the printed \code{attach} command, then \code{verify}. \\
+\code{Spec declares no generalization axis with a registered verifier} & The axis line of the template is missing or names another class. & Restore it from the template. \\
 \code{meta/info.json declares no 'object_position.<name>' features} & Dataset recorded with LeIsaac's recorder instead of the repository's. & Record again with the repository recorder. \\
 \code{Dataset has no 'object_position.<name>' column, which the spec requires} & Specification block for an object that was not recorded, or a typo in \code{cp:name}. & Fix the name, delete the block, or add the object to \code{tracked_object_names}. \\
 \code{Spec still has TODO values} & Unfilled fields. & Fill them in. \\
@@ -1598,26 +1703,31 @@ success rate at the end.
 \subsection{Compare Your Dataset with a Rollout}
 \label{sec:rollout-compare}
 
-\code{check} tests a dataset against your coverage requirements. After you evaluate a policy, \code{compare} tests whether that dataset covers the initial object positions of the rollout. It reads where each rollout episode (run) started and whether it succeeded, shows the runs that started where your dataset is thin, and lists the cells to record next.
+The dataset check tests a dataset against your coverage requirements. After you evaluate a policy, the comparison tests whether that dataset covers the initial object positions of the rollout. It reads where each rollout episode (run) started and whether it succeeded, shows the runs that started where your dataset is thin, and lists the cells to record next.
 
 
 \begin{enumerate}
-  \item \textbf{Run the rollout.} Each run of \code{rollout.py} (Section~\ref{sec:rollout}) automatically saves a \path{outputs/rollout/<timestamp>.jsonl} file. For each episode, the file records the position of each randomized object immediately after the reset, using the environment-local frame as in the dataset, along with the episode outcome. The header line records the poses of the objects that remain fixed throughout the run, including \code{robot_base} and \code{fixed_objects} (\code{fixed_object_names}). Each pose contains a \code{pos} value and a quaternion \code{rot} in 
-$(w,x,y,z)$ order. These fixed objects are excluded from the comparison. The dataset stores each position at the first recorded frame, after the 5 skipped steps (Section~\ref{sec:recording}), when the object has settled. Therefore $x$ and $y$ agree with the rollout log to well within a cell, while $z$ can differ by a few centimetres (about 0.967 in the dataset and 1.0 in the log for a cup). The comparison uses only $x$ and $y$. Episodes ended by a manual reset are marked as \code{aborted}. They remain in the file but are excluded from the count.
+  \item \textbf{Run the rollout.} Each run of \code{rollout.py} (Section~\ref{sec:rollout}) automatically saves a \path{outputs/rollout/<timestamp>.jsonl} file. For each episode, the file records the position of each randomized object immediately after the reset, using the environment-local frame as in the dataset, along with the episode outcome. The header line records the poses of the objects that remain fixed throughout the run, including \code{robot_base} and \code{fixed_objects} (\code{fixed_object_names}). Each pose contains a \code{pos} value and a quaternion \code{rot} in $(w,x,y,z)$ order. The store keeps the fixed objects' positions but excludes them from the comparison. The dataset stores each position at the first recorded frame, after the 5 skipped steps (Section~\ref{sec:recording}), when the object has settled. Therefore $x$ and $y$ agree with the rollout log to well within a cell, while $z$ can differ by a few centimetres (about 0.967 in the dataset and 1.0 in the log for a cup). The comparison uses only $x$ and $y$. Episodes ended by a manual reset are marked as \code{aborted}. They remain in the file but are excluded from the count. The log is written line by line, so a rollout stopped with
+Ctrl+C still leaves a readable log; put it into the store after the rollout has ended.
 
 
-  \item \textbf{Compare.} Pass the dataset the evaluated policy was trained on. \code{compare} warns when the checkpoint named in the log has a \code{train_config.json} that specifies a different dataset. Like \code{check}, it writes its data graph, to \path{outputs/object_position_coverage/<dataset>__rollout_<timestamp>.ttl}; pass \code{--no-graph-out} to write no file.
+  \item \textbf{Compare.} Put the log into the store of the dataset the evaluated policy was trained on, then verify.
+        \code{ingest --rollout-log} writes \path{stores/<dataset_repo>/rollouts/<timestamp>.ttl}: the rollout with its
+        evaluation file, seed, and checkpoint, and every run with its status and initial positions. The comparison
+        warns when the checkpoint named in the log has a \code{train_config.json} that specifies a different dataset.
+        \code{verify} checks the dataset and then compares every ingested rollout with every attached specification,
+        writing each comparison to \path{findings/<spec>__<timestamp>.ttl}; \code{--rollout <timestamp>} compares only
+        that rollout.
 
 \begin{lstlisting}[language=bash]
-uv run python scripts/verify_object_position_coverage.py compare \
-    --dataset datasets/${HF_USER}/<dataset_repo> \
-    --spec specs/my_coverage.ttl \
+uv run python scripts/store.py ingest --store stores/<dataset_repo> \
     --rollout-log outputs/rollout/<timestamp>.jsonl
+uv run python scripts/store.py verify --store stores/<dataset_repo>
 \end{lstlisting}
 \end{enumerate}
 
 For each object, every run is assigned to a cell in the specified grid based on its initial position, with the same
-rule as the \code{check}. Runs that start outside the area are assigned to cells of the same size outside it, following the same grid. For example, a run may be assigned to column $i=-1$.
+rule as the dataset check. Runs that start outside the area are assigned to cells of the same size outside it, following the same grid. For example, a run may be assigned to column $i=-1$.
 A run is \emph{covered} when it started inside the area, in a cell with at least \code{minEpisodesPerCell} episodes. Only cells that contain runs are evaluated. A run is \emph{in distribution} if it is covered by every requirement (Section~\ref{sec:coverage-dl}, \emph{Rollout Comparison}).
 
 \paragraph{Example.} The Cup Stacking evaluation file randomizes \code{blue_cup} over $x$ 8.8--9.0, $y$ 6.38--6.58
@@ -1628,9 +1738,9 @@ episodes in each of its \(2\times2\) cells. A rollout with 20 episodes gives (th
 covered, is left out):
 
 \begin{lstlisting}
-Dataset : datasets/<HF_USER>/<dataset_repo>
-Spec    : specs/my_coverage.ttl
-Rollout : outputs/rollout/<timestamp>.jsonl  (eval/cup_stacking_eval.py, seed 42)
+Store   : stores/<dataset_repo>
+Spec    : my_coverage
+Rollout : <timestamp>  (eval/cup_stacking_eval.py, seed 42)
 Runs    : 20 finished, 8 succeeded
 
 [blue_cup] your area x=8.800..9.000 y=6.400..6.600, cell 0.1 x 0.1, 2x2 cells, >= 3 episodes each
@@ -1697,7 +1807,7 @@ small?} (the rollout placed objects outside it; enlarge it first).
   runs, then missing episodes. \code{N more} sums the \code{needs}. & Your (1,1) has 1, minimum 3: needs 2;
   5 runs started there, 4 failed. \\
 \textbf{Grow your area} & Runs outside your area; the area grows by whole cells, so the cell size and the cells
-  already recorded stay. Run \code{check} afterwards for the new cells to fill. & Row $j=-1$ ($y$ 6.3--6.4):
+  already recorded stay. Attach the edited specification and verify again for the new cells to fill. & Row $j=-1$ ($y$ 6.3--6.4):
   \code{areaYMin} $6.4-0.1 = 6.3$, \code{numCellH} $2+1 = 3$. \\
 \textbf{WARNING} & One line per object with uncovered cells, named $(i, j)$. & $(1,1)$, $(0,-1)$, $(1,-1)$:
   $5+4+6 = 15$ runs, 11 failed. \\
@@ -1705,8 +1815,15 @@ small?} (the rollout placed objects outside it; enlarge it first).
 \bottomrule
 \end{longtable}
 
-The exit code is 0 when the comparison ran, and 1 on an error (for example an unreadable log) or, with
-\code{--strict}, when some run is not covered. \code{--json comparison.json} writes all cells, runs, and suggestions.
+The two suggestion blocks, \emph{Record more episodes here} and \emph{Grow your area}, are one way to read the
+comparison, computed by the object position verifier. \code{--no-hints} leaves them out of the printed report; they
+are still stored as \code{Info} findings. The stored run placements let you draw your own conclusions with SPARQL
+(Section~\ref{sec:store-query}), for example the success rate per cell or the failed runs that started in uncovered
+cells.
+
+A comparison alone does not fail \code{verify}: uncovered runs are warnings. An error (for example a log that changed
+after it entered the store) does, and so do warnings with \code{--strict}. \code{--json result.json} writes all cells,
+runs, and suggestions.
 The comparison uses the public evaluation file only; the final ranking uses different positions, so covering the
 public range is necessary but not sufficient.
 
@@ -1734,7 +1851,7 @@ Do I have enough episodes across several ranges or categories? & A coverage fact
 A validation rule checks individual facts. A coverage factor defines bins or categories, counts the episodes in
 each one, and compares those counts with a requirement. For example, ``light intensity must be finite'' is a rule,
 while ``each of three lighting ranges must contain at least five episodes'' is a coverage requirement.
-A rule only needs a SHACL file passed with \code{--extra-shapes}; the remaining steps describe a coverage factor.
+A rule only needs a SHACL file passed with \code{verify --extra-shapes}; the remaining steps describe a coverage factor.
 
 \subsubsection{Write a Factor Contract}
 
@@ -1764,24 +1881,41 @@ which rollout cannot provide.
 
 \subsubsection{Understand the Extension Path}
 
+A coverage factor is a new generalization axis with its own \emph{verifier}. The store, its commands
+(\code{ingest}, \code{attach}, \code{verify}, \code{query}), and the core vocabulary stay as they are; the factor plugs
+into them:
+
 \begin{lstlisting}
-collector
-   | records factor.<name>
-   v
-LeRobot v3 metadata and Parquet
-   | reader selects or aggregates one value per episode
-   v
-Python data model
-   | graph builder creates facts
-   v
-RDF data + OWL vocabulary + Turtle requirement
-   | SHACL validates and counts bins
-   v
-coverage report
+collector   -- records factor.<name> -->  LeRobot v3 dataset --+
+rollout.py  -- logs factors.<name> -->    rollout log (JSONL) -+-- ingest (+ the verifier's ingest steps)
+your spec (from the verifier's template) -- attach ------------+
+                                                               v
+                                     stores/<dataset_repo>/ (facts, specs, results)
+                                                               | verify (core SHACL + every verifier's
+                                                               v         SHACL rules and Python steps)
+                                     findings -> report, explore, SPARQL query
 \end{lstlisting}
 
+A verifier is a subclass of \code{Verifier} (\code{verifier.py}) in its own package under \path{axes/}, with up to four
+Turtle files next to it, and is registered by appending an instance to \code{VERIFIERS} in \code{registry.py}. Every
+member is optional apart from the name, the axis class, and the ontology:
+
+\begin{longtable}{L{0.40\linewidth}L{0.20\linewidth}L{0.32\linewidth}}
+\toprule
+\textbf{Member} & \textbf{Used by} & \textbf{Purpose} \\
+\midrule
+\code{name}, \code{axis_class}, \code{package}, \code{ontology.ttl} & every command & The axis class subclasses \(\mathsf{GeneralizationAxis}\). \\
+\code{ingest_dataset()}, \code{ingest_rollout()} & \code{ingest} & Add the factor's value to episodes and runs. \\
+\code{template.ttl}, \code{render_spec()} & \code{init} & Specification skeleton. \\
+\code{spec_errors()}, \code{derive_spec()} & \code{attach} & Refuse unfilled specifications; generate bins. \\
+\code{shapes.ttl}, \code{dataset_errors()}, \code{check()} & \code{verify} (dataset) & Coverage rule; counts and tables. \\
+\code{rollout_shapes.ttl}, \code{compare()} & \code{verify} (rollouts) & Rollout comparison. \\
+\bottomrule
+\end{longtable}
+
 OWL describes what the facts mean, and SHACL \cite{w3cShacl} validates them. Neither can recover a factor that was
-never recorded. All files below are under \path{packages/data_verification/src/data_verification/} unless stated otherwise.
+never recorded. All files below are under \path{packages/data_verification/src/data_verification/} unless stated
+otherwise; \path{axes/object_position/} is the complete worked example.
 
 \subsubsection{Record the Factor in LeRobot}
 
@@ -1814,7 +1948,8 @@ PY
 
 \subsubsection{Read and Aggregate the Column}
 
-Use \code{dataset.py} as the example and add a data class and a reader for your factor. The reader should verify the
+Use \code{dataset.py} as the example and add a reader for your factor in its axis package, called from the
+verifier's \code{ingest_dataset()}. The reader should verify the
 feature declaration in \path{meta/info.json}; verify that the column exists in every Parquet shard; group rows by
 \code{episode_index}; apply the aggregation from your contract; and report missing, null, NaN, or infinite values
 with their episode numbers. Do not assume that Parquet rows are ordered: the object position reader sorts by
@@ -1822,7 +1957,7 @@ with their episode numbers. Do not assume that Parquet rows are ordered: the obj
 
 \subsubsection{Describe the Factor with OWL}
 
-Create a clearly named ontology under \path{ontology/}, such as \code{lighting.ttl}. Use OWL to describe each class
+Put the axis's vocabulary in \path{axes/<axis>/ontology.ttl}, such as \path{axes/lighting/ontology.ttl}. Use OWL to describe each class
 by what its members have (Section~\ref{sec:coverage-dl}), and put executable constraints in SHACL. The new axis
 subclasses \(\mathsf{GeneralizationAxis}\) and its requirement subclasses \(\mathsf{AxisRequirement}\), so a dataset
 has it through \(\mathsf{hasGeneralizationAxis}\) like the object-position axis; the factor's value is a data property
@@ -1862,26 +1997,40 @@ needs it on every finished run:
 \end{aligned}
 \]
 
-\subsubsection{Map Dataset Values into the RDF Graph}
+\subsubsection{Add the Values to the Store at Ingest}
 
-Follow \code{graph.py} and add the factor's value to every episode. For example, an episode with
-\code{factor.light_intensity = [1212.0]} becomes:
+\code{ingest --dataset} writes the dataset and its episodes, then calls \code{ingest_dataset(root, graph, dataset)} of
+every registered verifier. Read your column there and add the value to each episode, whose IRI is
+\code{<dataset>/episode/<episode_index>}; returned messages stop the ingest:
+
+\begin{lstlisting}[language=Python]
+class LightingVerifier(Verifier):
+    name = "lighting"
+    axis_class = CP.LightingAxis
+    package = __name__
+
+    def ingest_dataset(self, root, graph, dataset):
+        values, errors = read_light_intensity(root)    # {episode_index: intensity}
+        for episode, value in values.items():
+            graph.add((URIRef(f"{dataset}/episode/{episode}"), CP.lightIntensity, decimal_literal(value)))
+        return errors
+\end{lstlisting}
+
+An episode with \code{factor.light_intensity = [1212.0]} then appears in \path{dataset.ttl} as:
 
 \begin{lstlisting}[language=turtle]
-data:my_dataset cp:hasGeneralizationAxis spec:object_position_axis , spec:lighting_axis ;
-    cp:hasEpisode data:my_dataset/episode/7 .
-
-data:my_dataset/episode/7 a cp:Episode ;
-    cp:index 7 ;
+<http://taica.course/cp/data/my_dataset/episode/7> a cp:Episode ;
+    cp:index "7"^^xsd:nonNegativeInteger ;
     cp:lightIntensity 1212.0 .
 \end{lstlisting}
 
-Keep extraction in Python and validation in RDF and SHACL. This lets you inspect the generated graph without
-starting Isaac Sim.
+\code{ingest_rollout(log, graph, rollout)} does the same for each run of a rollout log. Keep extraction in Python and
+validation in RDF and SHACL; ingest only records facts. This lets you inspect and query the store without starting
+Isaac Sim.
 
 \subsubsection{Create a Requirement Template}
 
-Add a specification template under \path{templates/}:
+Add the specification template as \path{axes/<axis>/template.ttl}; \code{init --axis lighting} writes a copy:
 
 \begin{lstlisting}[language=turtle]
 @prefix cp:   <http://taica.course/cp/ontology#> .
@@ -1899,15 +2048,19 @@ spec:lighting a cp:LightingAxisRequirement ;
 
 Choose the requirement from the expected evaluation conditions, the robot's limitations, and your collection budget.
 Do not simply use the minimum and maximum already found in the dataset, because that can hide the missing region
-you are trying to detect.
+you are trying to detect. \code{attach} renames every \code{spec:} node under the store, so this specification can
+share the store with the object position one, or both axes can be written in one file. Return the problems that
+should stop \code{attach} (a \code{TODO} left, a quoted number) from \code{spec_errors()}, as
+\code{axes/object_position/spec.py} does.
 
 \subsubsection{Add Bins and SHACL Constraints}
 
-\code{expand_cells()} in \code{graph.py} adds $n_x n_y$ cells to each object-position grid; each cell stores only its
-row-major \code{cp:index}, and the SHACL rule computes its bounds from the area and counts only the episodes of the
-dataset that has the requirement's axis. Add an equivalent
-expansion function: intervals for a numeric factor, cells for a two-dimensional factor, and one bin per required
-category for a categorical factor. Then add shapes under \path{shapes/} that check:
+\code{expand_cells()} in \code{axes/object_position/coverage.py}, called from the verifier's \code{derive_spec()} at
+\code{attach}, adds $n_x n_y$ cells to each object-position grid with their row-major \code{cp:index} and bounds; the
+SHACL rule computes the bounds again from the area and counts only the episodes of the dataset that has the
+requirement's axis. Add an equivalent expansion in your \code{derive_spec()}: intervals for a numeric factor, cells
+for a two-dimensional factor, and one bin per required category for a categorical factor. Then add shapes in
+\path{axes/<axis>/shapes.ttl}, which \code{verify} runs with the core shapes and attributes to your verifier, that check:
 
 \begin{itemize}
   \item the required specification fields and their datatypes;
@@ -1917,44 +2070,54 @@ category for a categorical factor. Then add shapes under \path{shapes/} that che
   \item values outside the required domain.
 \end{itemize}
 
-Use \code{shapes/object_position_coverage.ttl} as the example of SPARQL-based counting. For numeric boundaries, use
+Use \code{axes/object_position/shapes.ttl} as the example of SPARQL-based counting. For numeric boundaries, use
 $[\mathrm{min}, \mathrm{max})$ and include the upper edge only in the final bin; otherwise, one episode may be
 counted twice. With a range of 1000--1600 and three equal-width bins, the intervals are
-$[1000,1200)$, $[1200,1400)$, and $[1400,1600]$, so the value $1212.0$ above falls into the second bin.
+$[1000,1200)$, $[1200,1400)$, and $[1400,1600]$, so the value $1212.0$ above falls into the second bin. Counting in
+SPARQL can be slow on large datasets; \code{check()} may count in Python instead and return an \code{AxisCheck} with
+its findings, report lines, and derived triples to store, as \code{check_coverage()} does with each cell's
+\code{cp:episodeCount}.
 
-\subsubsection{Add a Verification Command}
+\subsubsection{Register the Verifier}
 
-Follow \path{scripts/verify_object_position_coverage.py}, but give each factor its own command:
+Append an instance to \code{VERIFIERS} in \code{registry.py}. No new command is needed; the same commands now cover the
+factor, and \code{attach} refuses a specification whose axis class no registered verifier checks:
 
 \begin{lstlisting}[language=bash]
-uv run python scripts/verify_lighting_coverage.py init \
-    --dataset datasets/${HF_USER}/<dataset_repo> --out specs/lighting.ttl
-
-uv run python scripts/verify_lighting_coverage.py check \
-    --dataset datasets/${HF_USER}/<dataset_repo> --spec specs/lighting.ttl
+uv run python scripts/store.py ingest --dataset datasets/${HF_USER}/<dataset_repo>    # adds the factor to episodes
+uv run python scripts/store.py init --store stores/<dataset_repo> --axis lighting --out specs/lighting.ttl
+uv run python scripts/store.py attach --store stores/<dataset_repo> --spec specs/lighting.ttl
+uv run python scripts/store.py verify --store stores/<dataset_repo>
 \end{lstlisting}
 
-Keep the same conventions: exit with code 0 when the requirements are met and 1 otherwise; display counts per bin,
-not only pass or fail; identify malformed and out-of-range episodes; support JSON output for plots and automation;
-and never modify the input dataset. If two factors later share substantial behavior, refactor the common binning
-code only after both are tested, because different factors often differ in units, aggregation, and boundary semantics.
+Keep the same conventions: report a violation when a requirement is not met, so that \code{verify} exits with code 1;
+display counts per bin, not only pass or fail; identify malformed and out-of-range episodes; store derived results as
+triples so that they can be queried; and never modify the input dataset. If two factors later share substantial
+behavior, refactor the common binning code only after both are tested, because different factors often differ in
+units, aggregation, and boundary semantics.
 
 \subsubsection{Compare the Factor with a Rollout}
 
-\code{compare} (Section~\ref{sec:rollout-compare}) starts from the \(\mathsf{Rollout}\): its training dataset gives
+The comparison (Section~\ref{sec:rollout-compare}) starts from the \(\mathsf{Rollout}\): its training dataset gives
 the requirements, and its runs give the values the rollout used. A run counts as in distribution only when it is
 covered on \emph{every} axis, so a new factor joins with two additions next to the object-position ones:
 (1) the sampled value of each run in the rollout log, under the factor's own key next to \code{object_position}
-(format in \path{packages/simulator/src/simulator/utils/rollout_log.py}), added to each \(\mathsf{Run}\) by
-\code{add_rollout()} in \code{graph.py}; and (2) an axis comparer appended to \code{ROLLOUT_AXES} in
-\path{rollout_comparison.py}, which places each run into a bin of your own binning (a value outside your domain
-falls into a bin of the same width outside it) and marks the run covered when its bin is inside the domain and has
-at least the minimum number of dataset episodes. No evaluation file is read. Runs have no minimum; the minimum
+(format in \path{packages/simulator/src/simulator/utils/rollout_log.py}), added to each \(\mathsf{Run}\) by your
+verifier's \code{ingest_rollout()} and required on every finished run by \path{axes/<axis>/rollout_shapes.ttl}; and
+(2) your verifier's \code{compare(graph, rollout, dataset, comparison)}, which places each run into a bin of your own
+binning (a value outside your domain falls into a bin of the same width outside it), marks the run covered when its
+bin is inside the domain and has at least the minimum number of dataset episodes, and returns an
+\code{AxisComparison} with, for each run, whether it is covered. Store placements as triples hanging off
+\code{comparison} and put suggestions in \code{hint_lines()}; \code{axes/object_position/compare.py} is the example.
+No evaluation file is read. Runs have no minimum; the minimum
 belongs to the dataset's bins.
 
 \subsubsection{Test the Extension}
 
-Use synthetic LeRobot v3 fixtures, as in \path{tests/test_object_position_coverage.py}. Test at least the following cases:
+Use synthetic LeRobot v3 fixtures and the store functions (\code{ingest_dataset}, \code{attach_spec},
+\code{ingest_rollout}, \code{verify_store}), as in \path{tests/test_object_position_coverage.py};
+\code{test_every_axis_must_cover_a_run} in \path{tests/test_rollout_comparison.py} registers a second verifier for a
+test. Test at least the following cases:
 
 \begin{enumerate}
   \item Every bin meets the minimum.
@@ -1966,7 +2129,8 @@ Use synthetic LeRobot v3 fixtures, as in \path{tests/test_object_position_covera
   \item A value is null, NaN, or infinite.
   \item Episodes and frames are out of order.
   \item The Turtle requirement contains missing or invalid values.
-  \item The command's exit codes and JSON output are correct.
+  \item The exit codes and JSON output of \code{verify} are correct.
+  \item The stored results answer a SPARQL query about the factor.
 \end{enumerate}
 
 Also run one small simulator collection. Synthetic data tests the checker, but it does not prove that the recorder
@@ -1975,8 +2139,8 @@ reads the intended simulator quantity.
 \subsubsection{Definition of Done}
 
 Another student should be able to understand the factor, its unit, sampling, and aggregation; collect it in a
-LeRobot v3 dataset; inspect the raw Parquet values; write a coverage requirement; run one documented command; see
-actionable coverage gaps; reproduce the passing and failing tests; and train normally without accidentally making
+LeRobot v3 dataset; inspect the raw Parquet values; write a coverage requirement; run the same \code{ingest}, \code{attach}, and \code{verify} commands; see
+actionable coverage gaps and query them from the store; reproduce the passing and failing tests; and train normally without accidentally making
 the verification metadata a policy input.
 
 \begin{quote}
