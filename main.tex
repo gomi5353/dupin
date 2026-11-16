@@ -324,9 +324,9 @@ After completing the project, students should be able to:
 % ============================================================
 \section{Course Levels}
 % ============================================================
-This course project is organized into \textbf{two levels} to accommodate different levels of experience and encourage progressive learning. The \textbf{Entry Level} provides a structured foundation for developing and evaluating an end-to-end robot learning pipeline, while the optional \textbf{Advanced Level} allows interested groups to explore more open-ended problems in robot learning and system design. This structure enables students to first establish essential development and evaluation skills before engaging in more independent and exploratory projects. Whether the Advanced Level and a leaderboard are offered differs by institution; ask the TAs at your own institution, not the NYCU TAs.
+This course project is organized into \textbf{two levels} to accommodate students with different backgrounds, learning goals, and levels of ambition. The \textbf{Entry Level} provides a structured foundation for developing and evaluating an end-to-end robot learning pipeline, while the optional \textbf{Advanced Level} offers opportunities for interested groups to explore more challenging and open-ended problems in robot learning and system design. This structure allows students to engage with the project at different levels of technical depth while progressively developing their practical skills and exploring more advanced topics. Please note that whether the Advanced Level and a leaderboard are offered differs by institution; ask the TAs at your own institution, not the NYCU TAs.
 
-The main difference between the two levels lies in the scope of the tasks and the degree of student autonomy. At the Entry Level, students select from predefined manipulation tasks and work within a shared development and evaluation framework. At the Advanced Level, students are expected to define their own tasks, configure the corresponding environments, design appropriate evaluation metrics, and develop and evaluate their systems accordingly.
+The two levels differ primarily in their learning activities, task complexity, and expected outcomes. At the Entry Level, students select from predefined manipulation tasks and work within a shared development and evaluation framework to establish essential robot learning skills. At the Advanced Level, groups take on more challenging and open-ended projects by defining their own tasks, configuring the corresponding environments, designing appropriate evaluation metrics, and developing and evaluating their systems accordingly.
 
 
 \subsection{Entry Level (Mandatory)}
@@ -335,14 +335,14 @@ At this level, students will gain hands-on experience with the core robot learni
 The course provides the following resources:
 \begin{itemize}
   \item A base simulation environment built on NVIDIA Isaac Sim \cite{isaacsim2026}.
-  \item Predefined pick-and-place tasks.
+   \item Three predefined pick-and-place tasks (Cup Stacking, Cutlery Arrangement, and Toy Blocks Collection), each provided as a ready-to-use simulation environment with its scene, objects, randomized object start positions, success check, and evaluation configuration (Section~\ref{sec:task-settings}).
   \item Reference policies and learning tools from the LeRobot ecosystem \cite{cadene2024lerobot}.
   \item Standardized evaluation protocols and metrics, such as task success rate.
 \end{itemize}
 
 These resources establish a common starting point while allowing students to focus on understanding and developing the robot learning pipeline. Each group must select and complete one of the three predefined tasks described in Section~\ref{sec:task-settings}. Task selection will be conducted on a first-come, first-served basis through a shared sign-up sheet. 
 
-Student submissions will be evaluated through public and private leaderboards. During the development phase, a public validation configuration will be available to help students monitor policy performance and guide iterative improvements. Final rankings will be determined using a separate private test configuration to ensure model generalization and integrity. Further details regarding leaderboard access, the evaluation procedure, and checkpoint submission will be announced at a later date (Section~\ref{sec:leaderboard}).
+Student submissions will be evaluated through public and private leaderboards (Section~\ref{sec:leaderboard}). During the development phase, a public validation configuration will be available to help students monitor policy performance and guide iterative improvements. Final rankings will be determined using a separate private test configuration to ensure model generalization and integrity. Further details regarding leaderboard access, the evaluation procedure, and checkpoint submission will be announced at a later date.
 
 \begin{tutornote}
 \label{ttn:entry-grading}
