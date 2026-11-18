@@ -483,7 +483,7 @@ Data collection is a critical foundation of imitation learning \cite{wiki_imitat
 
 How many episodes to collect, and which conditions they must cover (Section ~\ref{sec:coverage-concept}), is a decision that each group makes and justifies. Section~\ref{sec:data-collection} describes the action format, the controller interface, and the recorder.
 
-In this document, the term \textbf{data-collection controller} (hereafter referred to as the \textbf{controller}) refers to the component that determines the 8-D action sent to \code{env.step()} at each simulation step during demonstration collection. It may be a scripted state machine, keyboard teleoperation, a motion planner, or another method, and acts as the expert that the policy learns to imitate. It does not refer to the robot's low-level joint controller (Isaac Lab's proportional-derivative (PD) actuators, with fixed gains: stiffness 80 and damping 4 for the arm joints), nor to an inverse kinematics (IK) solver that it may use internally.
+In this document, the term \textbf{data-collection controller} (hereafter referred to as the \textbf{controller}) refers to the component that decides how the robot moves at each simulation step during demonstration collection. It may be a scripted state machine, keyboard teleoperation, a motion planner, or another method, and acts as the expert that the policy learns to imitate.
 
 
 \subsection{Policy Training and Evaluation}
@@ -859,7 +859,7 @@ You may modify the input and output features in your own experiments. However, t
 \code{action}  & float32 & \code{(8,)} & \code{[0:7]} absolute joint position targets in rad; \code{[7]} gripper: $< 0$ closes, $\geq 0$ opens. Use $\pm 1$. \\
 \code{observation.images.front}  & image/video & \code{(480, 640, 3)} & RGB uint8, height $\times$ width $\times$ channels (HWC), from the fixed front camera. \\
 \code{observation.images.wrist}  & image/video & \code{(480, 640, 3)} & RGB uint8, HWC, from the wrist camera. \\
-\code{task_index} & int64 & \code{(1,)} & Index into the task vocabulary in \code{meta/tasks.parquet}. The task string must equal the \code{task_description} of the task configuration. \\
+\code{task_index} & int64 & \code{(1,)} & Index of the task string in \code{meta/tasks.parquet} (Section~\ref{sec:recording}). The string must equal the \code{task_description} of the task configuration. \\
 \bottomrule
 \end{longtable}
 
@@ -883,7 +883,10 @@ A recommended order of work is:
 
 At every step, the controller returns one action: a \code{torch.float32} tensor of shape \code{(num_envs, 8)} on
 \code{env.device}. Entries \code{0:7} are \textbf{absolute} target angles for \code{panda_joint1..7}, not changes from
-the current angle, and entry \code{7} is the gripper command: \code{+1.0} opens and \code{-1.0} closes.
+the current angle, and entry \code{7} is the gripper command: \code{+1.0} opens and \code{-1.0} closes (Section~\ref{sec:rollout-inputs}).
+The simulator does not jump to these angles: Isaac Lab's proportional-derivative (PD) actuators drive each arm joint
+toward its target with fixed gains (Section~\ref{sec:rollout-contract}). These actuators are the robot's low-level
+joint controller and are not part of your controller.
 
 Most controllers, however, do not think in joint angles. A teleoperation device reports where the
 operator's hand is, and a scripted policy is easiest to write as a sequence of gripper poses, such as above
@@ -1052,7 +1055,7 @@ The configurations of the three predefined tasks already provide \code{env_cfg.r
 
 The recorder builds each frame with \code{build_lerobot_frame} in \path{template/single_arm_franka_cfg.py}:
 \code{observation.state}, \code{action} (names \code{dim_0..dim_7}), \code{observation.images.front},
-\code{observation.images.wrist}, the task text, and the \code{object_position.*} columns. Every camera in the scene becomes a dataset feature, so do not add cameras, change the image size, or change the action space.
+\code{observation.images.wrist}, the task text, and the \code{object_position.*} columns. Every camera in the scene becomes a dataset feature, so keep the cameras, image size, and action space defined by the rollout contract (Section~\ref{sec:rollout-contract}).
 
 The task text is the \code{task_description} of the task configuration. LeRobot stores each distinct sentence once in
 \path{meta/tasks.parquet} with its index and writes only that index in the \code{task_index} column of \path{data/};
