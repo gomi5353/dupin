@@ -61,7 +61,7 @@
 \newcommand{\InstructorName}{Human-centered Intelligent System Lab}
 \newcommand{\InstructorEmail}{National Yang Ming Chiao Tung University}
 
-\newcommand{\AssignmentTitle}{Course Project}
+\newcommand{\AssignmentTitle}{Course Project: Evaluation-Driven Robot Learning Pipeline}
 \newcommand{\Semester}{Fall 2026}
 
 % ============================================================
@@ -301,7 +301,7 @@ Many robotic systems rely on manually specified behaviors for tasks such as orga
 
 The success of a robot learning system depends not only on how it learns, but also on the quality and variety of the data it uses. A robot may perform well in situations it has encountered during training but struggle when faced with different object positions or task settings. Therefore, collecting diverse data and evaluating robot performance under different conditions are important parts of building reliable robot learning systems.
 
-This course project, \textbf{EDRLP: Evaluation-Driven Robot Learning Pipeline}, introduces students to an end-to-end process of building and evaluating a robot learning system. Using a simulated NYCU AI & Interaction Specialty Classroom built with NVIDIA Isaac Sim \cite{isaacsim2026} and Isaac Lab \cite{isaaclab} (Figure~\ref{fig:ED305-predefined-tasks}), students will develop a data-collection controller, train and test a robotic arm to perform predefined pick-and-place tasks, and use an ontology-based tool to check whether their data covers the required task conditions. They will also analyze task failures and use the results to improve their data through repeated experiments.
+This course project, \textbf{Evaluation-Driven Robot Learning Pipeline}, introduces students to an end-to-end process of building and evaluating a robot learning system. Using a simulated NYCU AI \& Interaction Specialty Classroom built with NVIDIA Isaac Sim \cite{isaacsim2026} and Isaac Lab \cite{isaaclab} (Figure~\ref{fig:ED305-predefined-tasks}), students will develop a data-collection controller, train and test a robotic arm to perform predefined pick-and-place tasks, and use an ontology-based tool to check whether their data covers the required task conditions. They will also analyze task failures and use the results to improve their data through repeated experiments.
 
 \begin{figure}[htbp]
 \centering
@@ -310,7 +310,7 @@ This course project, \textbf{EDRLP: Evaluation-Driven Robot Learning Pipeline}, 
 \label{fig:ED305-predefined-tasks}
 \end{figure}
 
-Simulation provides a safe and repeatable environment for testing different objects, task settings, and robot behaviors. Through this project, students will learn not only how to train a robot to perform a task, but also how to collect good data, evaluate the trained policy, and improve the overall learning process.
+% Simulation provides a safe and repeatable environment for testing different objects, task settings, and robot behaviors. Through this project, students will learn not only how to train a robot to perform a task, but also how to collect good data, evaluate the trained policy, and improve the overall learning process.
 
 After completing the project, students should be able to:
 \begin{enumerate}
@@ -324,13 +324,11 @@ After completing the project, students should be able to:
 % ============================================================
 \section{Course Levels}
 % ============================================================
-This course project is organized into \textbf{two levels} to accommodate students with different backgrounds, learning goals, and levels of ambition. The \textbf{Entry Level} provides a structured foundation for developing and evaluating an end-to-end robot learning pipeline, while the optional \textbf{Advanced Level} offers opportunities for interested groups to explore more challenging and open-ended problems in robot learning and system design. This structure allows students to engage with the project at different levels of technical depth while progressively developing their practical skills and exploring more advanced topics. Please note that whether the Advanced Level and a leaderboard are offered differs by institution; ask the TAs at your own institution, not the NYCU TAs.
-
-The two levels differ primarily in their learning activities, task complexity, and expected outcomes. At the Entry Level, students select from predefined manipulation tasks and work within a shared development and evaluation framework to establish essential robot learning skills. At the Advanced Level, groups take on more challenging and open-ended projects by defining their own tasks, configuring the corresponding environments, designing appropriate evaluation metrics, and developing and evaluating their systems accordingly.
+This course project is organized into \textbf{two levels} to accommodate students with different backgrounds, learning goals, and levels of ambition. The mandatory \textbf{Entry Level} provides a structured foundation, where students select one of the predefined manipulation tasks and develop and evaluate an end-to-end robot learning pipeline within a shared development and evaluation framework. The optional \textbf{Advanced Level} allows interested groups to explore more challenging and open-ended problems by defining their own tasks, environments, and evaluation metrics. \textbf{The availability of the Advanced Level and a leaderboard depends on your institution}. Please consult the TAs at your own institution for details, rather than contacting the NYCU TAs.
 
 
 \subsection{Entry Level (Mandatory)}
-At this level, students will gain hands-on experience with the core robot learning pipeline, including task configuration, demonstration collection, policy training, and systematic evaluation. To support hands-on learning without requiring access to physical robotic hardware, the course uses a physics-based simulation environment in which students can develop and evaluate robot manipulation policies under controlled and reproducible conditions. This setup allows students to investigate the perception-action loop, policy learning, and task performance while analyzing system behavior and identifying opportunities for improvement. 
+At this level, students gain hands-on experience with the core robot learning pipeline, including task configuration, demonstration collection, policy training, and systematic evaluation. To support this without physical robotic hardware, the course uses a physics-based simulation environment in which students can develop and evaluate manipulation policies under controlled and reproducible conditions. This setup allows students to investigate the perception-action loop, policy learning, and task performance, and to identify opportunities for improvement.
 
 The course provides the following resources:
 \begin{itemize}
@@ -340,9 +338,7 @@ The course provides the following resources:
   \item Standardized evaluation protocols and metrics, such as task success rate.
 \end{itemize}
 
-These resources establish a common starting point while allowing students to focus on understanding and developing the robot learning pipeline. Each group must select and complete one of the three predefined tasks described in Section~\ref{sec:task-settings}. Task selection will be conducted on a first-come, first-served basis through a shared sign-up sheet. 
-
-Student submissions will be evaluated through public and private leaderboards (Section~\ref{sec:leaderboard}). During the development phase, a public validation configuration will be available to help students monitor policy performance and guide iterative improvements. Final rankings will be determined using a separate private test configuration to ensure model generalization and integrity. Further details regarding leaderboard access, the evaluation procedure, and checkpoint submission will be announced at a later date.
+These resources establish a common starting point, allowing students to focus on understanding and developing the robot learning pipeline. Each group is required to select and complete one of the three predefined tasks. Task selection will be conducted on a first-come, first-served basis through a shared sign-up sheet. Where a leaderboard is offered, submitted policies are also ranked on it (Section~\ref{sec:leaderboard}).
 
 \begin{tutornote}
 \label{ttn:entry-grading}
@@ -359,7 +355,7 @@ Student submissions will be evaluated through public and private leaderboards (S
     \midrule
     Entry Level total & 80\% \\
     \midrule
-    Best private leaderboard success rate in each task (Cup Stacking, Cutlery Arrangement, and Toy Blocks Collection) & +5\% (for the top group of each task) \\
+    Best private leaderboard success rate in each of the three predefined tasks & +5\% (for the top group of each task) \\
     \bottomrule
     \end{longtable}
 \end{tutornote}
@@ -367,7 +363,7 @@ Student submissions will be evaluated through public and private leaderboards (S
 \subsection{Leaderboard}
 \label{sec:leaderboard}
 
-Some universities may have a leaderboard where groups compete with their peers on the performance of the three predefined tasks. Ask the TAs at your own university for details, not the NYCU TAs.
+If a leaderboard is available, groups will compete based on the success rates of their policies across the three predefined tasks. A public validation configuration is provided for evaluating policy performance, while final rankings are determined using a separate private test configuration to assess how well the policies generalize to unseen scenarios and to ensure a fair comparison. Further details about leaderboard access, evaluation procedures, and checkpoint submission will be announced later.
 
 \begin{tutornote}
 The link (\url{https://github.com/asddzxcc1856/aicapstone-worker}) describes how to set up leaderboard. Refer to it if needed.
@@ -376,9 +372,7 @@ The link (\url{https://github.com/asddzxcc1856/aicapstone-worker}) describes how
 
 \subsection{Advanced Level (Optional)} 
 
-\textbf{Not all universities has this part. Please ask your TAs.}
-
-Advanced Level provides an opportunity for interested groups to build on the skills developed at the Entry Level and pursue more open-ended robot learning projects. Rather than selecting only from predefined tasks, students will define their own manipulation tasks, configure the associated task setups within the Isaac Sim and Isaac Lab frameworks, and design suitable evaluation metrics. This level emphasizes independent problem formulation, engineering decisions, and evidence-based evaluation.
+The Advanced Level allows interested groups to build on the skills developed at the Entry Level through more open-ended robot learning projects. Groups define their own manipulation tasks, configure the corresponding environments in Isaac Sim and Isaac Lab, and design suitable evaluation metrics.
 
 Students may draw on publicly available resources, including 3D assets and related implementations from X-Humanoid \cite{artvip_articulated_objects}, Synthesis \cite{synthesis}, and the USD Assets Working Group \cite{usd_assets_working_group} to support their project extensions. \textbf{All Advanced Level work must be conducted in simulation, and students must complete the Entry Level before proceeding to the Advanced Level.}
 
@@ -467,9 +461,7 @@ The course repository builds its tasks on Isaac Lab and uses LeIsaac as a librar
 
 
 \subsection{Task Configuration}
-Each task is a configuration class that subclasses the shared Franka template and fills in the Isaac Lab managers: the
-scene objects, the randomization of their initial positions and of the lighting, and a \code{success} termination term.
-Each class is registered under a Gym ID so that recording scripts, training, and rollout all build the same environment. The three predefined tasks are \textbf{Cup Stacking}, \textbf{Cutlery Arrangement}, and \textbf{Toy Blocks Collection} (Figure~\ref{fig:ED305-predefined-tasks}). Section~\ref{sec:repo-overview} lists the repository paths and how a task is wired, and Section~\ref{sec:task-settings} describes the objects, randomization ranges, and success conditions of each task.
+Each task is defined by a configuration class that subclasses the shared Franka template, configures the Isaac Lab managers (including the scene objects, randomization of their initial positions and lighting, and a \code{success} termination term), and is registered under a Gym ID. The recording script uses this Gym ID to create the corresponding environment. Section~\ref{sec:repo-overview} lists the repository paths and how a task is wired, and Section~\ref{sec:task-settings} describes the objects, randomization ranges, and success conditions of each task.
 
 Students at the Advanced Level may refer to the three predefined tasks as examples and starting points when developing their custom tasks.
 
@@ -624,7 +616,7 @@ su - glows
 
 You cannot push to the course repository, so your changes would stay on one machine. First fork the course
 repository on GitHub (one member forks, the others are added as collaborators), then clone the \emph{fork} and add the
-course repository as \code{upstream} to receive later updates (\code{git fetch upstream \&\& git merge upstream/main}).
+course repository as \code{upstream} to receive later updates (\code{git fetch upstream && git merge upstream/main}).
 A fork of a public repository is public; for a private copy, create a private repository and push a mirror
 (\code{git clone --bare} the course repository, then \code{git push --mirror} to yours). Datasets and checkpoints are
 shared through the Hugging Face Hub, not Git. On the host:
@@ -2168,7 +2160,6 @@ The following table provides NYCU's format requirement as a reference. Grading d
 \toprule
 \textbf{Criterion} & \textbf{Indicators} \\
 \midrule
-Performance & The group that has the best success rate of the policy on private leaderboard. \\
 Report & Must include the task description, data collection pipeline, policy training, experimental results, evaluations conducted and resulting improvements, and key learning, discussion, and insights. \\
 Poster Presentation & In English, and must include the task description, pipeline and method modifications, evaluations conducted and resulting improvements, and key learning and insights. \\
 \bottomrule
