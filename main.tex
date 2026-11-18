@@ -613,6 +613,7 @@ su - glows
 
 
 \subsection{Environment Setup}
+\label{sec:env-setup}
 
 You cannot push to the course repository, so your changes would stay on one machine. First fork the course
 repository on GitHub (one member forks, the others are added as collaborators), then clone the \emph{fork} and add the
@@ -648,9 +649,8 @@ find the GPU, and \code{make test} on the host to confirm that the Python enviro
 
 \subsection{Hugging Face Upload and Download}
 
-Before uploading or downloading, make sure that you are logged in:
+Before uploading or downloading, make sure you are logged in to Hugging Face; if not, run \code{hf auth login}. The login status can be verified using:
 \begin{lstlisting}[language=bash]
-hf auth login    # log in if needed
 hf auth whoami   # shows the logged-in user
 \end{lstlisting}
 
@@ -676,13 +676,26 @@ and checkpoint that you report, so that your results can be reproduced.
 % ============================================================
 
 \subsection{Execution Environments}
-This repository uses two separate software environments on the same GPU machine: a Docker container and a host Python environment managed by \code{uv} \cite{uv}. Both environments use the same host machine and GPU, but maintain separate software installations and do not share installed packages. The choice of environment depends on the requirements of each stage of the pipeline.
+\label{sec:exec-env}
+This repository uses two separate software environments on the same GPU machine: a Docker container and a host Python environment managed by \code{uv} \cite{uv}. Both environments use the same host machine and GPU, but maintain separate software installations and do not share installed packages. The choice of environment depends on the requirements of each stage of the pipeline, as summarized in the table at the end of this section.
 
 \paragraph{Docker Container.} Isaac Sim depends on specific versions of CUDA, Vulkan, and Python packages that are difficult to install consistently on every machine. The repository therefore packages Isaac Sim 5.1.0, Isaac Lab, LeIsaac, and LeRobot into a Docker image \cite{docker2026}. Docker uses this image to create an isolated container environment with its own filesystem and installed software, while sharing the host's operating-system kernel and GPU when access is granted.
-The \code{make launch-isaaclab} target starts the container. The repository directory is mounted into the container at \path{/workspace/physicalai}, so code edited on the host is immediately visible inside the container. The host's \path{datasets/} directory is also mounted as the LeRobot dataset cache, allowing recorded datasets to remain accessible on the host. The container is removed when it exits, so files written outside the mounted directories are lost. Recording and rollout run in this environment because both require the simulator.
+The \code{make launch-isaaclab} target starts the container. The repository directory is mounted into the container at \path{/workspace/physicalai}, so code edited on the host is immediately visible inside the container. The host's \path{datasets/} directory is also mounted at \path{~/.cache/huggingface/lerobot}, the LeRobot dataset cache inside the container, so datasets recorded in the container remain accessible on the host. The container is removed when it exits, so files written outside the mounted directories are lost.
 
 \paragraph{Host Python Environment.} The repository uses uv \cite{uv}, a Python package and project manager, to manage its Python environment on the host machine. Running \code{uv sync} creates a virtual environment in \path{.venv} with Python 3.11 and the package versions specified in the lock file. This ensures that all groups use consistent Python dependencies.
-Unlike the Docker container, this environment uses the host's operating system and GPU driver directly. Training and data verification run in this environment because they do not require the simulator and can avoid the additional file-access overhead of running inside a container.
+Unlike the Docker container, this environment uses the host's operating system and GPU driver directly.
+
+\paragraph{Where to Run What.}
+
+\begin{longtable}{L{0.30\linewidth}L{0.25\linewidth}L{0.37\linewidth}}
+\toprule
+\textbf{Stage} & \textbf{Environment} & \textbf{Reason} \\
+\midrule
+Data Collection and Policy Rollout & Docker Container & Both start Isaac Sim, which requires the pinned GPU and rendering stack. \\
+Policy Training & Host Python environment & The simulator is not needed, and the container adds file-access (I/O) and GPU pass-through overhead. \\
+Data Verification & Host Python environment & It reads Parquet files only and never starts the simulator. \\
+\bottomrule
+\end{longtable}
 
 
 \subsection{Repository Overview}
@@ -732,10 +745,9 @@ Unlike the Docker container, this environment uses the host's operating system a
 \path{dependencies/IsaacLab}
   & Isaac Lab as a Git submodule. \\
 \path{Dockerfile}, \path{Makefile}
-  & Container image (Isaac Sim 5.1.0, Isaac Lab, LeRobot) and the \code{make} targets that build and launch it. \\
+  & Container image (Section~\ref{sec:exec-env}) and the \code{make} targets that build and launch it. \\
 \path{datasets/}
-  & Created on the first container launch and mounted as \path{~/.cache/huggingface/lerobot} inside the container,
-    so datasets recorded in the container appear here on the host. \\
+  & Recorded datasets. Created on the first container launch and shared with the container (Section~\ref{sec:exec-env}). \\
 \bottomrule
 \end{longtable}
 
@@ -760,18 +772,6 @@ env = gym.make("HCIS-CupStacking-SingleArm-v0", cfg=env_cfg).unwrapped
 \code{use_joint_position_actions()} sets the absolute joint-position arm action, the binary gripper action, and the
 robot settings that \code{rollout.py} also uses (gravity off on the robot links, arm joint stiffness 80 and damping 4, and
 the per-step gripper effort update when the task enables it). Call it in every recording script before \code{gym.make}.
-
-\paragraph{Where to Run What.}
-
-\begin{longtable}{L{0.30\linewidth}L{0.25\linewidth}L{0.37\linewidth}}
-\toprule
-\textbf{Stage} & \textbf{Environment} & \textbf{Reason} \\
-\midrule
-Data Collection and Policy Rollout & Docker Container & Isaac Sim requires the pinned GPU and rendering stack. \\
-Policy Training & Host Python environment & The container adds I/O and GPU pass-through overhead. \\
-Data Verification & Host Python environment & They read Parquet files only and never start the simulator. \\
-\bottomrule
-\end{longtable}
 
 
 
@@ -1600,7 +1600,7 @@ Everything lands in one cell & Object positions never changed between episodes. 
 \subsection{Training}
 \label{sec:training}
 
-Training runs on the host, because container I/O and GPU pass-through reduce training throughput.
+Training runs in the host Python environment (Section~\ref{sec:exec-env}).
 \begin{lstlisting}[language=bash]
 # at the repo root
 uv sync
