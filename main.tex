@@ -565,8 +565,7 @@ The check is built from four knowledge-representation tools:
 \end{itemize}
 
 The store separates raw capture from interpretation. The LeRobot dataset and the rollout log stay the sources: the
-dataset is still uploaded and trained on as before, and the rollout log is written line by line inside the container,
-so an interrupted rollout still leaves a readable log. Both enter the store afterwards, on the host, with their path and a
+dataset is still uploaded and trained on as before, and the rollout log is written inside the container. Both enter the store afterwards, on the host, with their path and a
 content hash, so the tools can tell when a source has changed since it entered the store.
 
 Coverage is a diagnostic, not a proof of the cause of a failure. An uncovered evaluation region is evidence of a
@@ -1029,7 +1028,7 @@ Each tracked object gets one column:
 \end{longtable}
 
 \begin{itemize}
-  \item \textbf{Position} is in metres, relative to the environment origin. This is the same frame as
+  \item \textbf{Position} is in metres, in the environment-local frame (relative to the environment origin). This is the same frame as
         \code{init_state.pos} in the task configurations, so those numbers and your specification are directly comparable.
   \item \textbf{Orientation} is not recorded, because every task keeps the start rotation of its objects fixed.
   \item \textbf{Written every frame.} The check uses the first frame of each episode; the full trajectory helps debugging.
@@ -1145,7 +1144,7 @@ Missing \code{object_position.*} features & LeIsaac's recorder was imported inst
 
 During evaluation, your policy may encounter object positions not seen during training. The coverage check identifies which areas of the table are represented in your dataset and whether they meet your specified coverage requirements.
 
-This is a required step in your workflow. You must specify the area, the number of grid cells along $x$ and $y$, and the minimum number of episodes per cell. The check focuses on the position component of the Object Pose axis in STAR-Gen \cite{gao2026taxonomy}: changes in task-relevant object positions. Orientation is excluded because the initial object rotation remains fixed across all tasks (Section~\ref{sec:object-position-coverage-concept}).
+This check is required for every dataset. You specify the area, the number of grid cells along $x$ and $y$, and the minimum number of episodes per cell; Section~\ref{sec:object-position-coverage-concept} explains why only the initial object position is checked.
 
 Everything goes through one verification store per dataset, a directory \path{stores/<dataset_repo>/} of Turtle
 files that you can query with SPARQL. All commands are subcommands of \path{scripts/store.py} and run on the host.
@@ -1215,7 +1214,7 @@ The fields have the following meanings:
 \bottomrule
 \end{longtable}
 
-An object block can be deleted to exclude that object from checking, or copied to add another object. The \code{# Already} comment shows the current position range in the dataset for reference only; do not copy it as the target area (see \emph{Choosing the Values} below). A store can hold several specifications, for example a coarse and a fine grid; each is attached under its own name and verified separately.
+An object block can be deleted to exclude that object from checking, or copied to add another object. The \code{# Already} comment shows the current position range in the dataset for reference only (see \emph{Choosing the Values} below). A store can hold several specifications, for example a coarse and a fine grid; each is attached under its own name and verified separately.
 
 \paragraph{Choosing the Values.} The area, grid size, and minimum number of episodes depend on the task and collection setup. The following guidelines help define these values:
 \begin{itemize}
@@ -1463,8 +1462,8 @@ distinct episodes of \(D\):
 }
 \]
 
-Pure OWL/DL describes the classes, properties, and datatypes, but it does not
-perform the required numeric interval comparison and per-cell aggregation.
+As noted in Section~\ref{sec:coverage-concept}, OWL/DL describes the classes, properties, and datatypes but does not
+perform the numeric interval comparison and per-cell counting above.
 The repository therefore uses SHACL SPARQL in
 \code{axes/object_position/shapes.ttl} for the executable condition above; the axis-independent rules (episodes,
 positions, unique indices) are in \code{shapes/dataset.ttl}.
@@ -1760,10 +1759,6 @@ WARNING   'blue_cup': 3 of 4 sampled cell(s) are not covered by the dataset (15 
 RESULT: the dataset does NOT cover every rollout run; see above
 \end{lstlisting}
 
-The two suggestion blocks answer two questions. \textbf{Record more episodes here}: \emph{where is data
-missing?} (cells of your grid to fill; the specification stays). \textbf{Grow your area}: \emph{is the area too
-small?} (the rollout placed objects outside it; enlarge it first).
-
 \begin{longtable}{L{0.15\linewidth}L{0.36\linewidth}L{0.41\linewidth}}
 \toprule
 \textbf{Part} & \textbf{Meaning} & \textbf{In the example} \\
@@ -1802,7 +1797,9 @@ small?} (the rollout placed objects outside it; enlarge it first).
 \bottomrule
 \end{longtable}
 
-The two suggestion blocks, \emph{Record more episodes here} and \emph{Grow your area}, are one way to read the
+The two suggestion blocks answer two questions. \textbf{Record more episodes here}: \emph{where is data
+missing?} (cells of your grid to fill; the specification stays). \textbf{Grow your area}: \emph{is the area too
+small?} (the rollout placed objects outside it; enlarge it first). Both are one way to read the
 comparison, computed by the object position verifier. \code{--no-hints} leaves them out of the printed report; they
 are still stored as \code{Info} findings. The stored run placements let you draw your own conclusions with SPARQL
 (Section~\ref{sec:store-query}), for example the success rate per cell or the failed runs that started in uncovered
@@ -2034,8 +2031,8 @@ spec:lighting a cp:LightingAxisRequirement ;
 \end{lstlisting}
 
 Choose the requirement from the expected evaluation conditions, the robot's limitations, and your collection budget.
-Do not simply use the minimum and maximum already found in the dataset, because that can hide the missing region
-you are trying to detect. \code{attach} renames every \code{spec:} node under the store, so this specification can
+As for object position, do not take the range from the minimum and maximum already found in the dataset
+(\emph{Choosing the Values} in Section~\ref{sec:coverage-howto}). \code{attach} renames every \code{spec:} node under the store, so this specification can
 share the store with the object position one, or both axes can be written in one file. Return the problems that
 should stop \code{attach} (a \code{TODO} left, a quoted number) from \code{spec_errors()}, as
 \code{axes/object_position/spec.py} does.
@@ -2129,11 +2126,6 @@ Another student should be able to understand the factor, its unit, sampling, and
 LeRobot v3 dataset; inspect the raw Parquet values; write a coverage requirement; run the same \code{ingest}, \code{attach}, and \code{verify} commands; see
 actionable coverage gaps and query them from the store; reproduce the passing and failing tests; and train normally without accidentally making
 the verification metadata a policy input.
-
-\begin{quote}
-Coverage is evidence, not proof. A coverage gap can support a hypothesis about a policy failure, but complete
-coverage does not guarantee policy success.
-\end{quote}
 
 
 % ============================================================
