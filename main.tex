@@ -886,7 +886,7 @@ At every step, the controller returns one action: a \code{torch.float32} tensor 
 the current angle, and entry \code{7} is the gripper command: \code{+1.0} opens and \code{-1.0} closes (Section~\ref{sec:rollout-inputs}).
 The simulator does not jump to these angles: Isaac Lab's proportional-derivative (PD) actuators drive each arm joint
 toward its target with fixed gains (Section~\ref{sec:rollout-contract}). These actuators are the robot's low-level
-joint controller and are not part of your controller.
+joint control and are not part of your controller.
 
 Most controllers, however, do not think in joint angles. A teleoperation device reports where the
 operator's hand is, and a scripted policy is easiest to write as a sequence of gripper poses, such as above
@@ -1001,12 +1001,12 @@ recorder_manager.finalize()  files are closed and the dataset can be loaded
 The following recording behaviors and constraints are important for implementing your recording script correctly:
 
 \begin{enumerate}
-  \item \textbf{One frame per \code{env.step()}.} If you do not step, nothing is recorded.
+  \item \textbf{One frame per \code{env.step()}.} Each frame pairs the observation with the action of the same step, as shown above. If you do not step, nothing is recorded.
   \item \textbf{The first 5 steps after every reset are skipped} to avoid recording unstable initial states. Camera images from before the reset may still appear there, so hold the arm still during those steps \cite{leisaac_recorder}.
   \item \textbf{Keeping or dropping an episode is decided at the next reset} by the \code{success} term. Any call to
         \code{env.reset()} ends the current episode.
   \item \textbf{Only environment 0 is recorded.} Always use \code{num_envs=1}.
-  \item \textbf{The export mode must be \code{EXPORT_SUCCEEDED_ONLY}} (or its resume variant). Failed episodes never reach the disk.
+  \item \textbf{The export mode must be \code{EXPORT_SUCCEEDED_ONLY}} (or its resume variant, Section~\ref{sec:resume}); any other export mode stops the recorder at start-up. Failed episodes never reach the disk.
   \item \textbf{\code{finalize()} is mandatory.} Without it, the Parquet files have no footer and the dataset cannot be loaded.
 \end{enumerate}
 
@@ -1078,8 +1078,9 @@ timestamps match simulation time, and keep it identical across all recording ses
 
 
 \subsubsection{Recording over Several Sessions}
+\label{sec:resume}
 
-The repository recorder extends the LeRobot recorder of LeIsaac \cite{leisaac}, which accepts only two export modes: \code{EXPORT_SUCCEEDED_ONLY} and \code{EXPORT_SUCCEEDED_ONLY_RESUME}. Both keep successful episodes only. The recorder buffers the frames of the current episode and writes them to the dataset when the episode ends with success; otherwise, the frames are discarded. A failed attempt therefore never appears in your dataset, and any other export mode stops the recorder at start-up. The two modes differ only in where the episodes go: \code{EXPORT_SUCCEEDED_ONLY} starts a new dataset, while \code{EXPORT_SUCCEEDED_ONLY_RESUME} appends to an existing one.
+The recorder accepts two export modes, both of which keep successful episodes only (Section~\ref{sec:recording}). They differ only in where the episodes go: \code{EXPORT_SUCCEEDED_ONLY} starts a new dataset, while \code{EXPORT_SUCCEEDED_ONLY_RESUME} appends to an existing one.
 
 To add episodes to a finalized dataset, set the export mode to \code{EXPORT_SUCCEEDED_ONLY_RESUME} instead of
 \code{EXPORT_SUCCEEDED_ONLY}. Use the same task, dataset ID, \code{tracked_object_names}, and \code{fps} as in the
@@ -1569,7 +1570,7 @@ finds nothing, because indices are stored as \code{xsd:nonNegativeInteger} and \
 
 \paragraph{What Is Checked and What Is Not.}
 
-The dataset reader takes the first row with the lowest \code{frame_index} in each episode and uses its recorded position \([x,y,z]\); the grid uses \(x\) and \(y\). Every episode saved in the dataset counts; failed attempts never reach it (Section~\ref{sec:recording}).
+The dataset reader takes the first row with the lowest \code{frame_index} in each episode and uses its recorded position \([x,y,z]\); the grid uses \(x\) and \(y\).
 
 The current DL/SHACL model does not check orientation, height, object-object position combinations, trajectories, grasp quality, or policy success. Such checks require new properties, shapes, and aggregation rules.
 
@@ -2154,6 +2155,12 @@ Submission deadlines and specific penalty policies vary by institution. Please f
 
     \item \textbf{Plagiarism: }
     All submitted work must be original. Plagiarism, including unauthorized copying of code or report content from other students or public sources, is prohibited and will be handled according to your institution's policy.
+
+    % \item \textbf{Reproducibility: }
+    % For every reported result, the report should state the dataset revision, the checkpoint path, the seed, and the exact command used, so that the result can be reproduced.
+
+    \item \textbf{Repository Content: }
+    Please do not commit sensitive information, such as access tokens, or large runtime artifacts, such as datasets and checkpoints, to the repository. Instead, share datasets and checkpoints through the Hugging Face Hub.
 \end{itemize}
 
 
@@ -2168,27 +2175,6 @@ Poster Presentation & In English, and must include the task description, pipelin
 \bottomrule
 \end{longtable}
 \end{tutornote}
-
-% ============================================================
-\section{Common Pitfalls}
-% ============================================================
-% 這邊應該只留下文書細節，技術細節應該拿到第4章實作講
-
-\begin{enumerate}
-  \item Running Isaac Sim or Isaac Lab outside the prepared container.
-  \item Training inside the container and mistaking slow I/O for a model failure.
-  \item Forgetting \code{--enable_cameras}, which removes the required image features.
-  \item Forgetting \code{env_cfg.use_joint_position_actions()} in a recording script, which leaves the action space undefined.
-  \item Pairing an observation with the action from a different time step.
-  \item Subsampling or skipping steps when recording; one frame must correspond to one \code{env.step()}.
-  \item Recording setup, reset, or post-success motion as task behavior.
-  \item Exporting failed episodes as successful demonstrations.
-  \item Adding policy inputs that rollout cannot provide, such as depth, a third camera, or \code{observation.*} metadata.
-  \item Using a coverage range copied from the observed dataset, which can hide gaps.
-  \item Omitting the dataset revision, checkpoint path, seed, or exact command from the report.
-  \item Committing secrets or large runtime artifacts to the repository.
-\end{enumerate}
-
 
 \printbibliography[heading=bibintoc]
 \end{document}
