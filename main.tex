@@ -363,7 +363,7 @@ These resources establish a common starting point, allowing students to focus on
 \subsection{Leaderboard}
 \label{sec:leaderboard}
 
-If a leaderboard is available, groups will compete based on the success rates of their policies across the three predefined tasks. A public validation configuration is provided for evaluating policy performance, while final rankings are determined using a separate private test configuration to assess how well the policies generalize to unseen scenarios and to ensure a fair comparison. Further details about leaderboard access, evaluation procedures, and checkpoint submission will be announced later.
+If a leaderboard is available, groups will compete against other groups working on the same selected task, with rankings determined by the success rates of their policies on that task. A public validation configuration is provided for evaluating policy performance, while final rankings are determined using a separate private test configuration to assess how well the policies generalize to unseen scenarios and to ensure a fair comparison. Further details about leaderboard access, evaluation procedures, and checkpoint submission will be announced later.
 
 \begin{tutornote}
 The link (\url{https://github.com/asddzxcc1856/aicapstone-worker}) describes how to set up leaderboard. Refer to it if needed.
@@ -457,7 +457,7 @@ teleoperation and automated data collection using state-machine-based scripted p
 for converting HDF5 data into the LeRobot dataset format \cite{lerobot_dataset_v3}, and support for subsequent policy training.
 
 \paragraph{Repository Packages.}
-The course repository builds its tasks on Isaac Lab and uses LeIsaac as a library for LeRobot recording, randomization utilities, and policy rollout, adding what this project needs. It defines the three course tasks in the simulated NYCU AI \& Interaction Specialty Classroom (Figure~\ref{fig:ED305-predefined-tasks}), each with its own objects, randomization of initial conditions, and success condition, on a shared single-arm Franka setup. It also provides a recorder that, in addition to what LeIsaac records, stores the starting position of every randomized object, so that each demonstration can later be traced back to the conditions it covers. Last but not least, it provides tools to evaluate a trained policy in the same simulated tasks and to verify whether a dataset covers the conditions that a task requires. However, the repository does not provide a data-collection controller or collection script, because building them is part of the project; Section~\ref{sec:recording} lists the steps of the collection script and the repository tools it uses. For more details, see Section~\ref{sec:implementation}.
+The course repository builds its tasks on Isaac Lab and uses LeIsaac as a library for LeRobot recording, randomization utilities, and policy rollout, adding what this project needs. It defines the three predefined tasks in the simulated NYCU AI \& Interaction Specialty Classroom on a shared single-arm Franka setup. It also provides a recorder that, in addition to what LeIsaac records, stores the starting position of every randomized object, so that each demonstration can later be traced back to the conditions it covers. Finally, it provides tools to evaluate a trained policy in the same simulated tasks and to verify whether a dataset covers the conditions that a task requires. However, the repository does not provide a data-collection controller or collection script, because building them is part of the project; Section~\ref{sec:recording} lists the steps of the collection script and the repository tools it uses. For more details, see Section~\ref{sec:implementation}.
 
 
 \subsection{Task Configuration}
@@ -967,7 +967,7 @@ simulation_app = AppLauncher(args).app
 # Import isaaclab, LeIsaac, and simulator modules only after this line.
 \end{lstlisting}
 
-The repository does not provide a collection script. After the simulator has started, the script performs the following steps; \path{docs/how_to_record.md} names the module of each tool.
+After the simulator has started, the collection script performs the following steps; \path{docs/how_to_record.md} names the module of each tool.
 
 \begin{enumerate}
   \item \textbf{Configure the environment before it is created.} Load the task configuration with \code{parse_env_cfg(task, num_envs=1)}, call \code{env_cfg.use_joint_position_actions()}, set \code{env_cfg.terminations.time_out = None} so that the controller ends each attempt, replace \code{env_cfg.terminations.success} with a term that the script controls, and set \code{env_cfg.recorders.dataset_export_mode}.
