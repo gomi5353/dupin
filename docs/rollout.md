@@ -30,7 +30,7 @@ the public file's exact positions is not enough.
 
 Rollout never reads the recording task configuration (`packages/simulator/src/simulator/tasks/<task>/<task>_env_cfg.py`). A dataset recorded under a modified configuration must still produce a policy that
 fits [section 4](#4-policy-input-and-output-contract)
-([How to Record Episodes §2.1](how_to_record.md#21-modifying-the-environment-configuration)).
+([Data Collection §4](data_collection.md#4-adjusting-the-collection)).
 
 | Task | Eval file | Episode length |
 |---|---|---|
@@ -116,7 +116,7 @@ features and predict only this output. The dataset may contain other columns
 | `action` | Output | float32 | `(8,)` | `[0:7]` absolute joint-position targets in rad; `[7]` gripper: `< 0` closes, `≥ 0` opens (±1 in recorded data). |
 
 These are the features that the repository recorder writes
-([How to Record Episodes §5.4](how_to_record.md#54-what-each-frame-contains)),
+([Data Collection §5](data_collection.md#5-the-recorder-and-the-dataset)),
 so a policy trained with default settings on such a dataset satisfies the
 contract. Groups may experiment with other features, but the submitted
 checkpoint must follow this table.

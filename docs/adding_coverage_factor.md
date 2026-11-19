@@ -71,7 +71,7 @@ input, because LeRobot exposes `observation.*` features to the policy.
 **Background**
 
 ```text
-collection script
+recording script (generate.py or teleop.py)
    │ records factor.<name>
    ▼
 LeRobot v3 metadata and Parquet
@@ -97,7 +97,7 @@ The repository's `LeRobotRecorderManager` in
 [`lerobot_recorder.py`](../packages/simulator/src/simulator/utils/lerobot_recorder.py)
 is the base for every verification factor: it already adds the
 `object_position.*` columns, and a new factor is appended next to them
-([How to Record Episodes §5.2](how_to_record.md#52-the-repositorys-recorder-and-object-positions)).
+([Data Collection §5](data_collection.md#5-the-recorder-and-the-dataset)).
 Recording continues with that class, so the object positions stay in the dataset
 next to the new factor.
 

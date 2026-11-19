@@ -106,6 +106,15 @@ def _make_recorder_manager_class():
             finally:
                 leisaac_recorder.build_feature_from_env = base_build
 
+            # Resume: leisaac reopens the dataset with LeRobotDataset(repo_id), which has no episode
+            # buffer, and the first reset then fails in clear_episode_buffer(). Create the buffer here.
+            dataset = getattr(self._dataset_file_handler, "_lerobot_dataset", None)
+            if dataset is not None and getattr(dataset, "episode_buffer", ()) is None:
+                dataset.episode_buffer = dataset.create_episode_buffer()
+            # leisaac's handler raises NotImplementedError here; the collection scripts read it on resume.
+            if dataset is not None:
+                self._dataset_file_handler.get_num_episodes = lambda: dataset.meta.total_episodes
+
     return LeRobotRecorderManager
 
 

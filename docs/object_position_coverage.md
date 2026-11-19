@@ -57,7 +57,7 @@ record ──▶ init spec ──▶ fill in the values ──▶ check ──�
 
 | Step | Runs in | Command |
 |---|---|---|
-| Record, with object positions | Simulator environment | The group's collection script with the repository recorder ([How to Record Episodes §5.2](how_to_record.md#52-the-repositorys-recorder-and-object-positions)) |
+| Record, with object positions | Simulator environment | `generate.py` or `teleop.py` with `--use_lerobot_recorder` ([Data Collection §5](data_collection.md#5-the-recorder-and-the-dataset)) |
 | Create a specification skeleton | Host `uv` environment | `verify_object_position_coverage.py init` |
 | Fill in the requirement | Any editor | [Section 3](#3-write-the-specification) |
 | Check | Host `uv` environment | `verify_object_position_coverage.py check` |
@@ -65,18 +65,13 @@ record ──▶ init spec ──▶ fill in the values ──▶ check ──�
 The check reads only `meta/info.json` and `data/**/*.parquet`. It never starts
 the simulator and never decodes video, so it runs in seconds.
 
-The values of the requirement (area, grid, minimum) are the group's decision.
-Running the check is required for every dataset; the report is evidence for the
-group's own analysis, not a grade.
-
 ## 2. The object-position columns
 
 **Background**
 
 The check needs the `object_position.*` columns. Only the repository's
-`LeRobotRecorderManager` writes them; [How to Record Episodes
-§5.2](how_to_record.md#52-the-repositorys-recorder-and-object-positions) explains
-the recorder. Each column has this format:
+`LeRobotRecorderManager` writes them
+([Data Collection §5](data_collection.md#5-the-recorder-and-the-dataset)). Each column has this format:
 
 | Key | dtype | Shape | Content |
 |---|---|---|---|
@@ -123,7 +118,8 @@ uv run python -c "import json; f=json.load(open('datasets/<HF_USER>/<repo_id>/me
 ```
 
 The output lists one key per tracked object. An empty list means that the
-dataset was recorded with LeIsaac's recorder and has to be recorded again.
+dataset was recorded without `--use_lerobot_recorder` and has to be recorded
+again.
 
 ## 3. Write the specification
 
@@ -291,8 +287,8 @@ How to read it:
 | `--extra-shapes my_rules.ttl` | Also runs the group's own SHACL rules ([section 7](#7-how-it-works-rdf-owl-shacl)); repeatable |
 
 Exit code: `0` when the specification is met, `1` when it is not or when an
-error occurs. A collection script can use it, for example, to stop collecting
-once coverage is reached.
+error occurs. A script can use it, for example, to stop collecting once
+coverage is reached.
 
 ## 5. Troubleshooting
 
@@ -300,7 +296,7 @@ once coverage is reached.
 
 | Message | Cause | Fix |
 |---|---|---|
-| `meta/info.json declares no 'object_position.<name>' features` | Dataset recorded with LeIsaac's recorder instead of the repository's | Record again with the repository recorder ([How to Record Episodes §5.2](how_to_record.md#52-the-repositorys-recorder-and-object-positions)) |
+| `meta/info.json declares no 'object_position.<name>' features` | Dataset recorded without `--use_lerobot_recorder` | Record again with the option ([Data Collection §5](data_collection.md#5-the-recorder-and-the-dataset)) |
 | `Dataset has no 'object_position.<name>' column, which the spec requires` | Block for an object that was not recorded, or a typo in `cp:name` | Fix the name or delete the block |
 | `Spec still has TODO values: ...` | Unfilled fields | Fill them in ([section 3.2](#32-one-object-block)) |
 | `... must be a number without quotes, got "8.8"` | Quoted number | Write `8.8`, not `"8.8"` |
