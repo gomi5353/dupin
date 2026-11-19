@@ -15,15 +15,15 @@ Every section starts with one of two labels:
 
 **Background**
 
-Students pick one manipulation task, build their own data collection for it in
-simulation, verify the collected data, train an imitation-learning policy with
+Students pick one manipulation task, collect demonstrations for it in
+simulation with a provided data-collection method, verify the collected data, train an imitation-learning policy with
 LeRobot, and evaluate the policy in the simulator.
 
 | Step | What happens | Runs in | Output | Detailed guide |
 |---|---|---|---|---|
 | [0. Set up](#3-step-0-set-up-the-machine) | Install the software and start the simulator | Host | Working environments | This guide |
-| [1. Choose a task](#4-step-1-choose-a-task) | Select one of the three predefined tasks | – | Task id | [How to Record Episodes §3](how_to_record.md#3-the-task-configuration) |
-| [2. Record](#5-step-2-record-demonstrations) | Write a controller and a collection script, record demonstrations | Simulator environment | LeRobot v3 dataset | [How to Record Episodes](how_to_record.md) |
+| [1. Choose a task](#4-step-1-choose-a-task) | Select one of the three predefined tasks | – | Task id | [Data Collection §1](data_collection.md#1-the-two-methods) |
+| [2. Record](#5-step-2-record-demonstrations) | Record demonstrations with the state machine or keyboard teleoperation | Simulator environment | LeRobot v3 dataset | [Data Collection](data_collection.md) |
 | [3. Inspect and verify](#6-step-3-inspect-and-verify-the-dataset) | Look at the episodes and check object-position coverage | Host | Coverage report | [Dataset Visualizer](lerobot_dataset_visualizer.md), [Object Position Coverage](object_position_coverage.md) |
 | [4. Train](#7-step-4-train-a-policy) | Train a policy on the dataset | Host | Policy checkpoint | [LeRobot Training](lerobot_training.md) |
 | [5. Evaluate](#8-step-5-evaluate-the-policy) | Run the policy in the simulator | Simulator environment | Success rate | [Rollout](rollout.md) |
@@ -60,8 +60,7 @@ recording: [Adding a New Task](adding_new_task.md).
 | Task configuration | The Python class that defines a task for Isaac Lab. Each task is registered under a *task id*, such as `HCIS-CupStacking-SingleArm-v0`. |
 | Isaac Lab environment | The running simulation of one task, created from the task id with `gym.make(...)`. `env.reset()` starts a new attempt with randomized objects; `env.step(action)` applies one action and advances the simulation by 1/60 s. |
 | Episode | One attempt at the task, from one `env.reset()` to the next. |
-| Data-collection controller (short: controller) | The code that decides the robot's action at every step while demonstrations are recorded, for example a scripted state machine or keyboard teleoperation. It plays the expert that the policy imitates. It does not mean the robot's low-level joint controller. |
-| Collection entry point (collection script) | The Python script that students write and run to record a dataset. It starts the simulator, creates the environment and the recorder, and runs the controller in a loop. |
+| Data-collection method | How the robot is driven while demonstrations are recorded: a scripted **state machine** (`scripts/datagen/generate.py`) or **keyboard teleoperation** (`scripts/teleop.py`). It plays the expert that the policy imitates. |
 | LeRobot recorder | The repository's `LeRobotRecorderManager`. It is attached to the environment and saves every successful episode, including the object positions that data verification needs. |
 | Dataset | The recorded episodes of one task, stored in the LeRobot v3 format: per-frame numbers in Parquet tables, camera images as MP4 videos, and metadata in `meta/`. |
 | Policy | The neural network trained on the dataset. It maps camera images and joint states to robot actions. |
@@ -138,8 +137,8 @@ docker run --rm --gpus all ubuntu nvidia-smi
 
 Students cannot push to the course repository. Every group therefore works in
 its own **fork**: a copy of the repository under a group member's GitHub
-account. The group's work (collection script, controller, configuration
-changes, coverage specifications, new verification factors) is committed and
+account. The group's work (state-machine and configuration changes, coverage
+specifications, new verification factors) is committed and
 pushed to the fork, so it is kept, shared within the group, and handed in
 from there. A plain clone of the course repository would leave all changes on
 one machine, with no place to push them.
@@ -284,9 +283,10 @@ Other `make` targets:
 
 | Path | Content |
 |---|---|
-| `packages/simulator/` | Task configurations, the shared Franka template, randomization events, assets, and the LeRobot recorder (`simulator.utils.lerobot_recorder`). |
+| `packages/simulator/` | Task configurations, the shared Franka template, randomization events, assets, the state machines (`simulator.datagen.state_machine`), the keyboard device (`simulator.devices`), and the LeRobot recorder (`simulator.utils.lerobot_recorder`). |
 | `packages/data_verification/` | The coverage checker (dataset reader, RDF graph builder, OWL ontology, SHACL rules, specification template). |
 | `eval/` | Public evaluation task files, one per task, used by rollout. |
+| `scripts/datagen/generate.py`, `scripts/teleop.py` | The two data-collection methods: state machine and keyboard teleoperation. |
 | `scripts/rollout.py` | Runs a trained policy in the simulator and reports the success rate. |
 | `scripts/verify_object_position_coverage.py` | Command-line interface of the coverage check. |
 | `tests/` | Host-side tests (`make test`). |
@@ -294,8 +294,6 @@ Other `make` targets:
 | `requirements-sim.txt`, `scripts/install_sim_host.sh`, `scripts/sim_env.sh` | The host simulator environment: pinned versions, installer, and shell setup. |
 | `Dockerfile`, `Makefile` | The container image, and the commands that install and launch both simulator environments. |
 | `datasets/`, `outputs/`, `checkpoints/` | Recorded datasets and training outputs; not tracked by Git. |
-
-The repository provides no data collection script: building one is step 2.
 
 ## 4. Step 1: Choose a task
 
@@ -314,46 +312,33 @@ the environment used for rollout: the same task with the evaluation's own
 object positions and randomization. The episode length is the time a policy gets
 during evaluation.
 
-Groups may modify any environment configuration for recording, for example
-the randomization ranges or the lighting, because rollout always builds its
-environment from the eval file. Every modification must keep the rollout
-contract (robot, action space, control rate, joint state, cameras) and is a
-deliberate difference from the eval file;
-[How to Record Episodes §2.1](how_to_record.md#21-modifying-the-environment-configuration)
-lists the rules.
-
-[How to Record Episodes §3](how_to_record.md#3-the-task-configuration) lists
-each task's configuration file, scene objects, cameras, action space, success
-check, and task text. Advanced Level groups that define their own task follow
-[Adding a New Task](adding_new_task.md) and then continue with step 2.
+[Data Collection §1](data_collection.md#1-the-two-methods) lists each task's
+scene objects, success check, and task text. Advanced Level groups that
+define their own task follow [Adding a New Task](adding_new_task.md) and then
+continue with step 2.
 
 ## 5. Step 2: Record demonstrations
 
 **Required**
 
-Students write a **collection entry point**: one Python script containing a
-data-collection controller and a recording loop. The loop connects the
-controller to the Isaac Lab environment and to the repository's
-`LeRobotRecorderManager`. LeIsaac's original recorder must not be used,
-because only the repository's recorder also stores each object's position, which
-step 3 needs. The recorder keeps only the episodes that the task's success
-check accepts.
-
-[How to Record Episodes](how_to_record.md) explains the controller interface,
-the action format, the recorder, and the steps of the collection script with
-the tools used in each step. A recording run in the simulator shell looks like:
+Demonstrations are recorded in the simulator shell with one of two provided
+methods: the **state machine**, which solves the task by script, or **keyboard
+teleoperation**, where a group member drives the robot. For example:
 
 ```bash
-python scripts/collect_cup_stacking.py \
-    --task HCIS-CupStacking-SingleArm-v0 \
+python scripts/datagen/generate.py \
+    --task HCIS-CupStacking-SingleArm-v0 --num_demos 50 \
     --device cuda --enable_cameras --headless \
-    --record --dataset_repo_id ${HF_USER}/cup-stacking-demos \
-    --num_episodes 50
+    --record --use_lerobot_recorder \
+    --lerobot_dataset_repo_id ${HF_USER}/cup-stacking-demos
 ```
 
-The script name and its options are defined by the group's own script. How
-many episodes to record, and which object positions they must cover, is the
-group's decision and is revisited in step 6.
+Groups may adjust the state machine and the task configuration, for example
+the randomization ranges or the lighting, as long as the rollout contract is
+kept. How many episodes to record, and which object positions they must
+cover, is the group's decision and is revisited in step 6.
+[Data Collection](data_collection.md) describes both methods, what may be
+adjusted, and the recorder.
 
 ## 6. Step 3: Inspect and verify the dataset
 
@@ -459,7 +444,7 @@ can select it from the STAR-Gen taxonomy or another paper and follow
 
 | Guide | Extends | Content |
 |---|---|---|
-| [How to Record Episodes](how_to_record.md) | Steps 1–2 | Task configurations, controller, recorder, collection-script template, dataset checks |
+| [Data Collection](data_collection.md) | Steps 1–2 | Tasks, state machine, keyboard teleoperation, adjustable settings, recorder |
 | [LeRobot Dataset Visualizer](lerobot_dataset_visualizer.md) | Step 3 | Inspecting episodes in the browser or locally |
 | [Object Position Coverage](object_position_coverage.md) | Steps 3 and 6 | Writing the coverage requirement, running the check, reading the report |
 | [LeRobot Training](lerobot_training.md) | Step 4 | Training flags, multi-GPU, checkpoint layout, upload |

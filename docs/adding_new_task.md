@@ -51,7 +51,7 @@ The **template** `SingleArmFrankaTaskEnvCfg` already provides:
   targets plus one binary gripper command, with joint stiffness 80 and damping 4
   and gravity disabled on the robot links;
 - `build_lerobot_frame`, which turns every step into a dataset row
-  ([How to Record Episodes §5.4](how_to_record.md#54-what-each-frame-contains));
+  ([Data Collection §5](data_collection.md#5-the-recorder-and-the-dataset));
 - `decimation = 1` (one simulation step of 1/60 s per `env.step()`) and a
   `time_out` termination.
 
@@ -186,7 +186,7 @@ class CupStackingEnvCfg(SingleArmFrankaTaskEnvCfg):
 
 | Setting | Purpose |
 |---|---|
-| `task_description` | Short sentence describing the goal. It is saved with every episode as the task text ([How to Record Episodes §5.4](how_to_record.md#54-what-each-frame-contains)) and is the instruction for language-conditioned policies. |
+| `task_description` | Short sentence describing the goal. It is saved with every episode as the task text ([Data Collection §5](data_collection.md#5-the-recorder-and-the-dataset)) and is the instruction for language-conditioned policies. |
 | `tracked_object_names` | Objects whose start position is randomized. The recorder writes their positions as `object_position.<name>` for data verification and refuses to start when the list is empty. |
 | `fixed_object_names` | Objects that start at the same place in every episode (optional). They get no dataset column and are not verified; rollout logs their pose once in its log header, for reference. |
 | `episode_length_s` | Time a policy gets per evaluation episode. |
@@ -239,7 +239,7 @@ finds all episodes in one cell.
 **Required**
 
 Registration gives the configuration a task id, so that `gym.make`,
-`parse_env_cfg`, the collection script, and rollout can find it. Two edits are
+`parse_env_cfg`, the data-collection scripts, and rollout can find it. Two edits are
 needed.
 
 1. `<my_task>/__init__.py` registers the id:
@@ -299,17 +299,20 @@ simulator has started.
 
    This should print `simulator.tasks.my_task.my_task_env_cfg`.
 
-2. Run the group's collection script on the new task id
-   without `--record` and with the GUI
-   ([How to Record Episodes §6](how_to_record.md#6-run-the-collection-script)).
+2. Run keyboard teleoperation on the new task id without `--record`
+   ([Data Collection §3](data_collection.md#3-record-with-keyboard-teleoperation)).
    The objects should appear, both cameras show the workspace, and the objects land
-   at a different position after every reset.
+   at a different position after every reset (press **R** to reset).
 
 3. **Make sure the success check works:** a test attempt that solves the task makes the
    `success` term true, and one that does not leaves it false.
 
 After these checks, recording proceeds as for a predefined task, from step 2 of
-[Getting Started](getting_started.md#5-step-2-record-demonstrations).
+[Getting Started](getting_started.md#5-step-2-record-demonstrations). A new
+task has no state machine, so it is recorded with keyboard teleoperation, or
+the group writes a state machine modelled on those in
+`packages/simulator/src/simulator/datagen/state_machine/` and adds it to
+`TASK_REGISTRY` in `scripts/datagen/generate.py`.
 
 ## 6. Evaluate on the new task
 

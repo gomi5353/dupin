@@ -39,8 +39,8 @@ lerobot-dataset-viz \
 ```
 
 It opens the same plots and videos in a local rerun.io viewer. This version
-needs no upload and suits quick checks while the collection script is still
-being developed.
+needs no upload and suits quick checks while the data collection is still
+being adjusted.
 
 ### 2.2 Hosted Space
 
@@ -85,9 +85,8 @@ feature that the recorder did not declare does not appear. The
 |---|---|
 | "Dataset not found" in the Space | Typo in the repo id, or a private dataset while not signed in. Opening the dataset's Hub page shows whether it is visible. |
 | Video panel blank while the plots load | Videos failed to encode during recording, or were not uploaded. The local folder should contain `videos/observation.images.*/chunk-*/file-*.mp4`. |
-| A camera is missing | The dataset was not recorded with the repository's recorder, or the scene was changed ([How to Record Episodes §5.4](how_to_record.md#54-what-each-frame-contains)). |
-| Episode starts with the previous episode's scene | The controller moved during the 5 skipped steps after a reset ([How to Record Episodes §5.1](how_to_record.md#51-how-the-recorder-works)). |
-| Episode ends early or late | The controller's `is_episode_done` or `check_success` misfires; compare it with the task's success check ([How to Record Episodes §3](how_to_record.md#3-the-task-configuration)). |
+| A camera is missing | The scene's cameras were changed ([Data Collection §4](data_collection.md#4-adjusting-the-collection)). |
+| Episode ends early or late | A changed state-machine phase duration or success range, or **N** pressed too early in teleoperation; compare the last frame with the task's success check ([Data Collection §1](data_collection.md#1-the-two-methods)). |
 
 ## 5. References
 
