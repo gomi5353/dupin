@@ -278,8 +278,9 @@ in.
 
 **Required**
 
-All checks run inside the Isaac Lab container, because Isaac Lab modules can
-only be imported after the simulator has started.
+All checks run in the simulator environment (`make launch-sim`, or the Isaac
+Lab container), because Isaac Lab modules can only be imported after the
+simulator has started.
 
 1. **Test new task configuration:**
 
