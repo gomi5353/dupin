@@ -13,8 +13,8 @@ must do or follow) or **Background** (explanation without work items).
 
 **Background**
 
-Rollout runs **inside the Isaac Lab container**, because it starts the
-simulator. It builds the environment from an evaluation task file, loads the
+Rollout runs **in the simulator environment** (`make launch-sim`, or the
+Isaac Lab container), because it starts the simulator. It builds the environment from an evaluation task file, loads the
 checkpoint, and runs a number of episodes (rounds). In each episode the policy
 receives the camera images and joint state, predicts actions, and the
 environment executes them until the task's success check passes or the episode
@@ -42,10 +42,10 @@ fits [section 4](#4-policy-input-and-output-contract)
 
 **Required**
 
-A checkpoint trained on the same machine is used directly: the repository
-folder is mounted in the container, so
-`outputs/train/<job_name>/checkpoints/last/pretrained_model` works on both
-sides.
+A checkpoint trained on the same machine is used directly:
+`outputs/train/<job_name>/checkpoints/last/pretrained_model` works in the
+simulator shell, and also in the container, where the repository folder is
+mounted.
 
 A checkpoint on the Hugging Face Hub is downloaded first:
 
@@ -59,7 +59,7 @@ hf download ${HF_USER}/<policy_name> --local-dir checkpoints/<policy_name> --rep
 
 **Required**
 
-Inside the container, from the repository root:
+In the simulator shell, from the repository root:
 
 ```bash
 python scripts/rollout.py \

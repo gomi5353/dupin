@@ -13,9 +13,10 @@ must do or follow) or **Background** (explanation without work items).
 **Background**
 
 Training runs on the **host**, in the `uv` environment (`source .venv/bin/activate`
-after `uv sync`), not inside the Isaac Lab container: the container adds
-file-access and GPU pass-through overhead that slows training down
-considerably. `nvidia-smi` must list the GPU.
+after `uv sync`), not in the simulator environment: `.venv-sim` pins the older
+packages that Isaac Sim needs, and the Isaac Lab container adds file-access and
+GPU pass-through overhead that slows training down considerably. `nvidia-smi`
+must list the GPU.
 
 The official LeRobot training documentation is at
 <https://huggingface.co/docs/lerobot/il_robots#train-a-policy>.
@@ -24,10 +25,9 @@ The official LeRobot training documentation is at
 
 **Required**
 
-A dataset recorded on the same machine is used directly: the container writes
-datasets to `~/.cache/huggingface/lerobot`, which is the repository's
-`datasets/` folder on the host, so the dataset is at
-`datasets/${HF_USER}/<repo_id>`.
+A dataset recorded on the same machine is used directly: the simulator shell
+and the container both write datasets to the repository's `datasets/` folder,
+so the dataset is at `datasets/${HF_USER}/<repo_id>`.
 
 A dataset on the Hugging Face Hub is downloaded first:
 

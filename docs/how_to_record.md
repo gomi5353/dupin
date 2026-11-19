@@ -7,11 +7,11 @@ the policy ([LeRobot Training Procedure](lerobot_training.md)) and is checked
 with the [object-position coverage](object_position_coverage.md) tool.
 
 It extends steps 1 and 2 of [Getting Started](getting_started.md) and assumes
-that step 0 (setup) is complete, so that a shell inside the Isaac Lab container
-is available.
+that step 0 (setup) is complete, so that a simulator shell (`make launch-sim`,
+or the Isaac Lab container) is available.
 
-> **Run on:** a Linux machine with an NVIDIA GPU, inside the Isaac Lab
-> container (see [Getting Started](getting_started.md)). The host `uv`
+> **Run on:** a Linux machine with an NVIDIA GPU, in the simulator
+> environment (see [Getting Started §3.5](getting_started.md#35-launch-the-simulator)). The host `uv`
 > environment cannot run Isaac Sim, and recording always needs the camera
 > images, so every recording command needs `--enable_cameras`.
 
@@ -402,8 +402,9 @@ Consequences that the recording loop has to respect (source:
 6. **`finalize()` is mandatory.** Without it the Parquet files have no footer
    and the dataset cannot be loaded.
 7. **The dataset goes to `$HF_LEROBOT_HOME/<repo_id>`**, by default
-   `~/.cache/huggingface/lerobot/<repo_id>`. In the container this folder is
-   mounted from `datasets/<repo_id>` on the host. If the folder already
+   `~/.cache/huggingface/lerobot/<repo_id>`. The simulator shell sets it to
+   `datasets/`, and the container mounts `datasets/` there, so the dataset
+   lands in `datasets/<repo_id>` either way. If the folder already
    exists, creating the dataset fails with `FileExistsError`.
 
 ### 5.2 The repository's recorder and object positions
@@ -577,9 +578,9 @@ exactly the features listed above.
 
 **Required**
 
-The script is run from the repository root, inside the container. The
-repository folder is mounted into the container, so a script written on the
-host is available there immediately.
+The script is run from the repository root, in the simulator shell. In the
+container, the repository folder is mounted, so a script written on the host
+is available there immediately.
 
 ```bash
 # test run: controller only, nothing is saved
@@ -677,8 +678,8 @@ existing episodes from a failed session.
    After recording more episodes into the same dataset, run `ingest` and
    `verify` again.
 
-   These commands run on the host, from the repository root: `datasets/` on
-   the host is the container's `~/.cache/huggingface/lerobot/`.
+   These commands run in the host `uv` environment, from the repository root,
+   where the recorded dataset is under `datasets/`.
    [Object Position Coverage](object_position_coverage.md) explains the report. The
    check is a coverage diagnostic; it does not replace visual inspection or
    loading the dataset in LeRobot.

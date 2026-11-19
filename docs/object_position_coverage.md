@@ -62,7 +62,7 @@ record ──▶ ingest ──▶ init spec ──▶ fill in ──▶ attach �
 
 | Step | Runs in | Command (`uv run python scripts/store.py ...`) |
 |---|---|---|
-| Record, with object positions | Isaac Lab container | The group's collection script with the repository recorder ([How to Record Episodes §5.2](how_to_record.md#52-the-repositorys-recorder-and-object-positions)) |
+| Record, with object positions | Simulator environment | The group's collection script with the repository recorder ([How to Record Episodes §5.2](how_to_record.md#52-the-repositorys-recorder-and-object-positions)) |
 | Put the dataset into a store | Host `uv` environment | `ingest --dataset` |
 | Create a specification skeleton | Host `uv` environment | `init` |
 | Fill in the requirement | Any editor | [Section 3](#3-write-the-specification) |

@@ -21,12 +21,12 @@ LeRobot, and evaluate the policy in the simulator.
 
 | Step | What happens | Runs in | Output | Detailed guide |
 |---|---|---|---|---|
-| [0. Set up](#3-step-0-set-up-the-machine) | Install the software and start the simulator container | Host and container | Working environments | This guide |
+| [0. Set up](#3-step-0-set-up-the-machine) | Install the software and start the simulator | Host | Working environments | This guide |
 | [1. Choose a task](#4-step-1-choose-a-task) | Select one of the three predefined tasks | – | Task id | [How to Record Episodes §3](how_to_record.md#3-the-task-configuration) |
-| [2. Record](#5-step-2-record-demonstrations) | Write a controller and a collection script, record demonstrations | Isaac Lab container | LeRobot v3 dataset | [How to Record Episodes](how_to_record.md) |
+| [2. Record](#5-step-2-record-demonstrations) | Write a controller and a collection script, record demonstrations | Simulator environment | LeRobot v3 dataset | [How to Record Episodes](how_to_record.md) |
 | [3. Inspect and verify](#6-step-3-inspect-and-verify-the-dataset) | Look at the episodes and check object-position coverage | Host | Coverage report | [Dataset Visualizer](lerobot_dataset_visualizer.md), [Object Position Coverage](object_position_coverage.md) |
 | [4. Train](#7-step-4-train-a-policy) | Train a policy on the dataset | Host | Policy checkpoint | [LeRobot Training](lerobot_training.md) |
-| [5. Evaluate](#8-step-5-evaluate-the-policy) | Run the policy in the simulator | Isaac Lab container | Success rate | [Rollout](rollout.md) |
+| [5. Evaluate](#8-step-5-evaluate-the-policy) | Run the policy in the simulator | Simulator environment | Success rate | [Rollout](rollout.md) |
 | [6. Diagnose and iterate](#9-step-6-diagnose-and-iterate) | Relate failures to gaps in the data, then collect again | Host | Next round of data | [Object Position Coverage](object_position_coverage.md), [Adding a Coverage Factor](adding_coverage_factor.md) |
 
 The steps form a loop rather than a single pass: a failed evaluation usually
@@ -49,8 +49,9 @@ recording: [Adding a New Task](adding_new_task.md).
 |---|---|
 | Host machine | The GPU computer itself, with its own operating system, files, and GPU driver. |
 | Docker container | An isolated environment that runs on the host. It shares the host's operating-system kernel and GPU, but has its own file system and installed software. It is started from an *image*, a packaged snapshot of an operating system and software built from the repository's `Dockerfile`. |
-| Isaac Lab container | The project's container. It holds Isaac Sim 5.1.0, Isaac Lab, LeIsaac, and LeRobot at fixed versions, because the simulator depends on exact CUDA and Vulkan versions. Everything that starts the simulator runs here. |
-| `uv` environment | A Python virtual environment on the host, in `.venv`, created by [`uv`](https://docs.astral.sh/uv/) from the repository's `uv.lock`, so that every group gets the same package versions. Training and data verification run here. |
+| Simulator environment | The Python environment that holds Isaac Sim 5.1.0, Isaac Lab, LeIsaac, and LeRobot at fixed versions, because the simulator depends on exact CUDA and Vulkan versions. Everything that starts the simulator runs here. By default it is `.venv-sim` on the host (`make install-sim`); the Isaac Lab container is an alternative with the same versions. |
+| Isaac Lab container | The project's Docker container, an alternative simulator environment built from the `Dockerfile`. |
+| `uv` environment | A Python virtual environment on the host, in `.venv`, created by [`uv`](https://docs.astral.sh/uv/) from the repository's `uv.lock`, so that every group gets the same package versions. Training and data verification run here. It cannot run Isaac Sim. |
 | Isaac Sim | NVIDIA's robot simulator: physics, rendering, and sensors. |
 | Isaac Lab | A robot-learning framework on top of Isaac Sim. It turns a simulated scene into an environment with `reset()` and `step()`. |
 | LeIsaac | A library on top of Isaac Lab that connects it to LeRobot, including a recorder that writes LeRobot datasets. |
@@ -81,8 +82,12 @@ recording: [Adding a New Task](adding_new_task.md).
   Recording and rollout render camera images, which needs a GPU with RT cores
   (GeForce RTX, RTX A/Ada/PRO, L40S). Data-center GPUs without RT cores
   (A100, H100, V100) cannot run them; such GPUs are only usable for training.
+- Ubuntu 22.04 or newer (the Isaac Sim packages need glibc 2.35 or newer),
+  about 40 GB of free disk space for the simulator environment, and a
+  desktop session for the Isaac Sim window.
 - Git with submodule support.
-- Docker and the
+- Only for the container alternative
+  ([section 3.5](#35-launch-the-simulator)): Docker and the
   [NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html),
   which lets containers use the GPU (`docker run --gpus ...`). Without it,
   the launch commands fail with
@@ -95,7 +100,7 @@ recording: [Adding a New Task](adding_new_task.md).
 On the GlowsAI VNC desktop, commands run as the `glows` user:
 `su - glows`.
 
-Docker is installed on Ubuntu as follows:
+For the container alternative, Docker is installed on Ubuntu as follows:
 
 ```bash
 sudo apt-get update
@@ -177,8 +182,9 @@ Notes:
   ([step 3](#6-step-3-inspect-and-verify-the-dataset) and
   [LeRobot Training §7](lerobot_training.md#7-upload-a-checkpoint)), not
   through the fork.
-- The Isaac Lab submodule (`dependencies/IsaacLab/`) is fetched by the first
-  `make launch-isaaclab` ([section 3.5](#35-launch-the-isaac-lab-container)).
+- The Isaac Lab submodule (`dependencies/IsaacLab/`) is fetched by
+  `make install-sim` or the first `make launch-isaaclab`
+  ([section 3.5](#35-launch-the-simulator)).
 
 ### 3.3 Install the host environment
 
@@ -197,9 +203,37 @@ export HF_USER=<your-huggingface-username>
 ```
 
 Commands in all guides use `${HF_USER}`. The variable is set again in every
-new terminal, including inside the container.
+new terminal, including the simulator shell.
 
-### 3.5 Launch the Isaac Lab container
+### 3.5 Launch the simulator
+
+**Default: on the host.** The simulator stack is installed once into a
+separate environment, `.venv-sim`, with the same package versions as the
+container (`requirements-sim.txt`):
+
+```bash
+make install-sim   # once; downloads about 20 GB, takes a while
+make launch-sim    # opens a shell with .venv-sim active, in the repository root
+```
+
+`make launch-sim` opens a new shell; `exit` leaves it. In an existing
+terminal, `source scripts/sim_env.sh` does the same. The shell sets the
+variables the container sets: it accepts the Isaac Sim license, and points
+LeRobot's dataset folder (`HF_LEROBOT_HOME`) to `datasets/`, so a recorded
+dataset appears in `datasets/<hf_user>/<name>`. The first start of Isaac Sim
+compiles shaders and takes several minutes.
+The Isaac Sim window opens on the display in `DISPLAY`, so the shell is
+started from a terminal on the machine's desktop. If the window cannot open
+(`GLFW initialization failed` in the log), `DISPLAY` points to no running
+desktop; commands with `--headless` run without a window.
+
+`.venv-sim` and `.venv` are kept separate because Isaac Sim needs older
+versions (NumPy 1.26, PyTorch 2.7) than the `uv` environment. Training and
+verification commands (`uv run ...`, `lerobot-train`) are run outside the
+simulator shell.
+
+**Alternative: the Isaac Lab container.** For machines where the host
+installation is not possible, for example the GlowsAI cloud machines:
 
 | Command | Machine |
 |---|---|
@@ -209,7 +243,7 @@ new terminal, including inside the container.
 
 The first launch initializes the Git submodules and builds the image, which
 takes a while. On success, the terminal is a shell inside the container, in the
-repository root.
+repository root. All guides work the same in this shell.
 
 What the container shares with the host:
 
@@ -219,8 +253,8 @@ What the container shares with the host:
 - `datasets/` on the host is mounted as LeRobot's dataset folder
   (`~/.cache/huggingface/lerobot`), so a dataset recorded in the container
   appears in `datasets/<hf_user>/<name>` on the host.
-- The host's `.venv` is hidden inside the container; the container has its own
-  Python installation.
+- The host's `.venv` and `.venv-sim` are hidden inside the container; the
+  container has its own Python installation.
 - The container is deleted when it exits. Anything written outside the
   repository folder is lost.
 
@@ -229,6 +263,8 @@ Other `make` targets:
 | Target | Purpose |
 |---|---|
 | `make install` | Initialize submodules and run `uv sync` |
+| `make install-sim` | Install the simulator environment `.venv-sim` on the host |
+| `make launch-sim` | Open a shell with `.venv-sim` active |
 | `make build-isaaclab` | Build the image without launching it |
 | `make check-isaaclab-gpu` | Check that the image sees the GPU, Vulkan, and CUDA |
 | `make fix-perms` | Give files that the container wrote under `datasets/` and `outputs/` back to the host user |
@@ -238,7 +274,7 @@ Other `make` targets:
 
 | Work | Environment | Reason |
 |---|---|---|
-| Recording, rollout | Isaac Lab container | Both start the simulator, which needs the pinned GPU and rendering stack. |
+| Recording, rollout | Simulator environment (`make launch-sim`, or the container) | Both start the simulator, which needs the pinned GPU and rendering stack. |
 | Training | Host `uv` environment | The container adds file-access and GPU pass-through overhead. |
 | Verification store (coverage check, queries), dataset inspection, tests | Host `uv` environment | They only read files and never start the simulator. |
 
@@ -256,7 +292,8 @@ Other `make` targets:
 | `queries/` | Example SPARQL queries over a store. |
 | `tests/` | Host-side tests (`make test`). |
 | `dependencies/IsaacLab/` | Isaac Lab as a Git submodule. Not edited. |
-| `Dockerfile`, `Makefile` | The container image and the commands that build and launch it. |
+| `requirements-sim.txt`, `scripts/install_sim_host.sh`, `scripts/sim_env.sh` | The host simulator environment: pinned versions, installer, and shell setup. |
+| `Dockerfile`, `Makefile` | The container image, and the commands that install and launch both simulator environments. |
 | `datasets/`, `outputs/`, `checkpoints/`, `stores/` | Recorded datasets, training and rollout outputs, verification stores; not tracked by Git. |
 
 The repository provides no data collection script: building one is step 2.
@@ -305,7 +342,7 @@ check accepts.
 
 [How to Record Episodes](how_to_record.md) explains the controller interface,
 the action format, the recorder, and the steps of the collection script with
-the tools used in each step. A recording run inside the container looks like:
+the tools used in each step. A recording run in the simulator shell looks like:
 
 ```bash
 python scripts/collect_cup_stacking.py \
@@ -384,7 +421,7 @@ multi-GPU training, the checkpoint layout, and uploading.
 
 **Required**
 
-Rollout runs inside the container. It loads the checkpoint, runs it for a
+Rollout runs in the simulator shell. It loads the checkpoint, runs it for a
 number of episodes under the task's eval file, and prints the success rate:
 
 ```bash

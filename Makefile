@@ -1,5 +1,6 @@
 .PHONY: install install-dev test \
 	submodules submodules-pull \
+	install-sim launch-sim \
 	build-isaaclab launch-isaaclab \
 	launch-isaaclab-glowsai-4090 launch-isaaclab-glowsai-l40s \
 	check-isaaclab-gpu fix-perms
@@ -66,6 +67,16 @@ test:
 		tests/test_object_position_coverage.py \
 		tests/test_rollout_comparison.py
 
+# ---- Host simulator (no Docker) ---------------------------------------------
+# Default way to run Isaac Sim with the GUI: a separate .venv-sim on the host
+# with the same package versions as the container (requirements-sim.txt).
+install-sim: submodules
+	bash scripts/install_sim_host.sh
+
+# Interactive shell with .venv-sim active (exit to leave).
+launch-sim:
+	@SIM_RCFILE=1 bash --rcfile scripts/sim_env.sh -i
+
 # ---- Docker image ------------------------------------------------------------
 build-isaaclab: submodules
 	docker build -f $(DOCKERFILE) -t $(IMAGE) .
@@ -84,6 +95,7 @@ launch-isaaclab: build-isaaclab
 		--ulimit stack=67108864 \
 		-v $(shell pwd):/workspace/physicalai \
 		-v /workspace/physicalai/.venv \
+		-v /workspace/physicalai/.venv-sim \
 		-v $(shell pwd)/datasets:/root/.cache/huggingface/lerobot \
 		-v /tmp/.X11-unix:/tmp/.X11-unix:rw \
 		-v /usr/share/vulkan/icd.d:/usr/share/vulkan/icd.d:ro \
@@ -121,6 +133,7 @@ launch-isaaclab-glowsai-4090: build-isaaclab
 		--shm-size=16g \
 		-v $(shell pwd):/workspace/physicalai \
 		-v /workspace/physicalai/.venv \
+		-v /workspace/physicalai/.venv-sim \
 		-v $(shell pwd)/datasets:/root/.cache/huggingface/lerobot \
 		-v /home/glows/.Xauthority:/root/.Xauthority:ro \
 		-v /tmp/.X11-unix:/tmp/.X11-unix:rw \
@@ -163,6 +176,7 @@ launch-isaaclab-glowsai-l40s: build-isaaclab
 		--shm-size=16g \
 		-v $(shell pwd):/workspace/physicalai \
 		-v /workspace/physicalai/.venv \
+		-v /workspace/physicalai/.venv-sim \
 		-v $(shell pwd)/datasets:/root/.cache/huggingface/lerobot \
 		-v /home/glows/.Xauthority:/root/.Xauthority:ro \
 		-v /tmp/.X11-unix:/tmp/.X11-unix:rw \
