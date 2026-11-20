@@ -1,0 +1,8 @@
+# Initial position of every object in every recorded episode (raw facts from ingest).
+SELECT ?episode ?object ?x ?y ?z WHERE {
+    ?dataset a cp:Dataset ; cp:hasEpisode ?e .
+    ?e cp:index ?episode ; cp:hasTaskObject ?o .
+    ?o cp:name ?object ; cp:hasPosition ?p .
+    ?p cp:positionX ?x ; cp:positionY ?y ; cp:positionZ ?z .
+}
+ORDER BY ?episode ?object

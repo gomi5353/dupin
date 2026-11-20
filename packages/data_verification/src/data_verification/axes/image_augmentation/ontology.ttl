@@ -1,0 +1,120 @@
+# OWL vocabulary of the Image Augmentations axis (extends ontology/core.ttl).
+#
+# STAR-Gen axis V-AUG, Image Augmentations (Visual), factor lighting (STAR-Gen
+# also lists blur and contrast; this repository has lighting only). The scene light named in the
+# requirement (rect_light in the predefined tasks) changes its intensity and
+# color temperature at every reset; the recorder writes both per frame
+# (dataset column lighting.<name> = [intensity, color_temperature]).
+#
+# An ImageAugmentationAxis has LightingRequirements. A requirement names one light,
+# an intensity range and a color temperature range, and splits them into a
+# grid of numBinsIntensity x numBinsColorTemperature cells; every cell needs at
+# least minEpisodesPerCell episodes whose initial light falls inside it.
+#
+# Recorded facts (ingest):
+#   an Episode or Run has a LightCondition per recorded light (first frame).
+# Derived by the verifier, never written by hand:
+#   verify  one LightingCell per grid cell with its bounds and episodeCount
+#           (Verification), and one LightingPlacement per finished run and
+#           requirement (Comparison).
+
+@prefix cp:      <http://taica.course/cp/ontology#> .
+@prefix owl:     <http://www.w3.org/2002/07/owl#> .
+@prefix rdfs:    <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix xsd:     <http://www.w3.org/2001/XMLSchema#> .
+@prefix dcterms: <http://purl.org/dc/terms/> .
+
+<http://taica.course/cp/ontology/image_augmentation> a owl:Ontology ;
+    dcterms:title "Image Augmentations axis (STAR-Gen V-AUG)"@en ;
+    owl:imports <http://taica.course/cp/ontology> ;
+    owl:versionIRI <http://taica.course/cp/ontology/image_augmentation/2.0.0> .
+
+# ---- Recorded facts -----------------------------------------------------------
+
+cp:LightCondition a owl:Class ;
+    rdfs:subClassOf
+        [ a owl:Restriction ; owl:onProperty cp:name ; owl:qualifiedCardinality "1"^^xsd:nonNegativeInteger ; owl:onDataRange xsd:string ] ,
+        [ a owl:Restriction ; owl:onProperty cp:lightIntensity ; owl:qualifiedCardinality "1"^^xsd:nonNegativeInteger ; owl:onDataRange xsd:decimal ] ,
+        [ a owl:Restriction ; owl:onProperty cp:colorTemperature ; owl:qualifiedCardinality "1"^^xsd:nonNegativeInteger ; owl:onDataRange xsd:decimal ] ;
+    rdfs:label "Light Condition"@en ;
+    rdfs:comment "One scene light at the start of an episode or run: its scene name, intensity (USD inputs:intensity) and color temperature in kelvin (USD inputs:colorTemperature)."@en .
+
+# ---- Requirements -------------------------------------------------------------
+
+cp:ImageAugmentationAxis a owl:Class ;
+    rdfs:subClassOf
+        cp:GeneralizationAxis ,
+        [ a owl:Restriction ; owl:onProperty cp:hasRequirement ; owl:allValuesFrom cp:LightingRequirement ] ;
+    rdfs:label "Image Augmentations"@en ;
+    cp:starGenAxis "V-AUG" ;
+    rdfs:comment "STAR-Gen axis Image Augmentations (Visual). In this repository its only factor is lighting; its requirements are lighting requirements."@en .
+
+cp:LightingRequirement a owl:Class ;
+    rdfs:subClassOf
+        cp:AxisRequirement ,
+        [ a owl:Restriction ; owl:onProperty cp:lightName ; owl:qualifiedCardinality "1"^^xsd:nonNegativeInteger ; owl:onDataRange xsd:string ] ,
+        [ a owl:Restriction ; owl:onProperty cp:intensityMin ; owl:qualifiedCardinality "1"^^xsd:nonNegativeInteger ; owl:onDataRange xsd:decimal ] ,
+        [ a owl:Restriction ; owl:onProperty cp:intensityMax ; owl:qualifiedCardinality "1"^^xsd:nonNegativeInteger ; owl:onDataRange xsd:decimal ] ,
+        [ a owl:Restriction ; owl:onProperty cp:colorTemperatureMin ; owl:qualifiedCardinality "1"^^xsd:nonNegativeInteger ; owl:onDataRange xsd:decimal ] ,
+        [ a owl:Restriction ; owl:onProperty cp:colorTemperatureMax ; owl:qualifiedCardinality "1"^^xsd:nonNegativeInteger ; owl:onDataRange xsd:decimal ] ,
+        [ a owl:Restriction ; owl:onProperty cp:numBinsIntensity ; owl:qualifiedCardinality "1"^^xsd:nonNegativeInteger ; owl:onDataRange xsd:positiveInteger ] ,
+        [ a owl:Restriction ; owl:onProperty cp:numBinsColorTemperature ; owl:qualifiedCardinality "1"^^xsd:nonNegativeInteger ; owl:onDataRange xsd:positiveInteger ] ,
+        [ a owl:Restriction ; owl:onProperty cp:minEpisodesPerCell ; owl:qualifiedCardinality "1"^^xsd:nonNegativeInteger ; owl:onDataRange xsd:positiveInteger ] ;
+    rdfs:label "Lighting Requirement"@en ;
+    cp:starGenFactor "lighting" ;
+    rdfs:comment "One light, its intensity and color temperature ranges split into a grid, and the minimum number of dataset episodes per cell."@en .
+
+# ---- Verification results -----------------------------------------------------
+
+cp:LightingCell a owl:Class ;
+    rdfs:subClassOf
+        [ a owl:Restriction ; owl:onProperty cp:index ; owl:qualifiedCardinality "1"^^xsd:nonNegativeInteger ; owl:onDataRange xsd:nonNegativeInteger ] ,
+        [ a owl:Restriction ; owl:onProperty cp:ofRequirement ; owl:qualifiedCardinality "1"^^xsd:nonNegativeInteger ; owl:onClass cp:LightingRequirement ] ,
+        [ a owl:Restriction ; owl:onProperty cp:episodeCount ; owl:qualifiedCardinality "1"^^xsd:nonNegativeInteger ; owl:onDataRange xsd:nonNegativeInteger ] ;
+    rdfs:label "Lighting Cell"@en ;
+    rdfs:comment "One cell of a lighting requirement's grid, row-major index k = j * numBinsIntensity + i, with intensity bin i (cellI) and color temperature bin j (cellJ), its bounds, and the number of dataset episodes in it. Written by verify."@en .
+
+cp:LightingPlacement a owl:Class ;
+    rdfs:subClassOf
+        [ a owl:Restriction ; owl:onProperty cp:ofRun ; owl:qualifiedCardinality "1"^^xsd:nonNegativeInteger ; owl:onClass cp:Run ] ,
+        [ a owl:Restriction ; owl:onProperty cp:ofRequirement ; owl:qualifiedCardinality "1"^^xsd:nonNegativeInteger ; owl:onClass cp:LightingRequirement ] ,
+        [ a owl:Restriction ; owl:onProperty cp:covered ; owl:qualifiedCardinality "1"^^xsd:nonNegativeInteger ; owl:onDataRange xsd:boolean ] ;
+    rdfs:label "Lighting Placement"@en ;
+    rdfs:comment "Where a finished run's light falls for one requirement: the lattice bins (cellI, cellJ; outside the ranges they run past the grid), the cell when inside (cp:inLightingCell), and whether that cell has at least minEpisodesPerCell dataset episodes."@en .
+
+[] a owl:AllDisjointClasses ;
+    owl:members ( cp:LightCondition cp:LightingRequirement cp:LightingCell cp:LightingPlacement
+                  cp:Dataset cp:Episode cp:Rollout cp:Run cp:TaskObject cp:Position cp:Finding ) .
+
+# ---- Object properties --------------------------------------------------------
+
+cp:hasLightCondition a owl:ObjectProperty ;
+    rdfs:label "has light condition"@en ;
+    rdfs:comment "An episode or run has the condition of each recorded light at its start."@en .
+cp:inLightingCell a owl:ObjectProperty ; rdfs:label "in lighting cell"@en .
+
+# ---- Datatype properties ------------------------------------------------------
+
+cp:lightIntensity a owl:DatatypeProperty ; rdfs:range xsd:decimal ; rdfs:label "light intensity"@en .
+cp:colorTemperature a owl:DatatypeProperty ;
+    rdfs:range xsd:decimal ;
+    rdfs:label "color temperature"@en ;
+    rdfs:comment "Kelvin; lower is warmer (orange), higher is cooler (blue)."@en .
+cp:recordedLight a owl:DatatypeProperty ;
+    rdfs:range xsd:string ;
+    rdfs:label "recorded light"@en ;
+    rdfs:comment "The name of a light a dataset has a lighting.<name> column for."@en .
+cp:lightName a owl:DatatypeProperty ;
+    rdfs:range xsd:string ;
+    rdfs:label "light name"@en ;
+    rdfs:comment "The scene name of the light a requirement is about, as in the dataset column lighting.<name>."@en .
+cp:intensityMin a owl:DatatypeProperty ; rdfs:range xsd:decimal ; rdfs:label "intensity minimum"@en .
+cp:intensityMax a owl:DatatypeProperty ; rdfs:range xsd:decimal ; rdfs:label "intensity maximum"@en .
+cp:colorTemperatureMin a owl:DatatypeProperty ; rdfs:range xsd:decimal ; rdfs:label "color temperature minimum"@en .
+cp:colorTemperatureMax a owl:DatatypeProperty ; rdfs:range xsd:decimal ; rdfs:label "color temperature maximum"@en .
+cp:numBinsIntensity a owl:DatatypeProperty ; rdfs:range xsd:positiveInteger ; rdfs:label "number of intensity bins"@en .
+cp:numBinsColorTemperature a owl:DatatypeProperty ; rdfs:range xsd:positiveInteger ; rdfs:label "number of color temperature bins"@en .
+cp:cellIntensityMin a owl:DatatypeProperty ; rdfs:range xsd:decimal ; rdfs:label "cell intensity minimum"@en .
+cp:cellIntensityMax a owl:DatatypeProperty ; rdfs:range xsd:decimal ; rdfs:label "cell intensity maximum"@en .
+cp:cellColorTemperatureMin a owl:DatatypeProperty ; rdfs:range xsd:decimal ; rdfs:label "cell color temperature minimum"@en .
+cp:cellColorTemperatureMax a owl:DatatypeProperty ; rdfs:range xsd:decimal ; rdfs:label "cell color temperature maximum"@en .

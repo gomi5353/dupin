@@ -181,10 +181,26 @@ class SingleArmFrankaTaskEnvCfg(ManagerBasedRLEnvCfg):
     task_description: str = MISSING
     teleop_target_frame: str = "panda_hand"
     tracked_object_names: list[str] = []
-    """Randomized rigid objects, recorded as ``object_position.<name>`` dataset columns for data verification."""
+    """Randomized rigid objects, recorded as ``object_position.<name>`` dataset columns (factor object position of the Object Poses axis)."""
     fixed_object_names: list[str] = []
     """Rigid objects that start at the same pose in every episode. They get no dataset column and are not
     verified; ``scripts/rollout.py`` logs their start position under ``fixed_objects`` for reference."""
+    recorded_light_names: list[str] = []
+    """Scene lights recorded as ``lighting.<name>`` = ``[intensity, color_temperature]`` dataset columns
+    (factor lighting of the Image Augmentations axis). Each is a scene entity of the task, such as ``rect_light``."""
+    object_references: dict[str, dict[str, str]] = {}
+    """Object -> the phrases the task text may use for it, ``{form: phrase}``, e.g.
+    ``{"fork": {"name": "fork", "color": "pink object"}}`` (STAR-Gen S-PROP, Object Properties: the
+    ``color`` form refers to the object by its color instead of its name; the object itself never
+    changes). Each listed object's color is recorded as an ``object_color.<name>`` dataset column, so
+    the verifier can check that it stays the same."""
+    reference_weights: dict[str, float] = {"name": 1.0}
+    """Form -> how often an episode's task text uses it, e.g. ``{"name": 0.5, "color": 0.5}``. One form
+    per episode, for every object (``choose_object_reference_forms``, added by the task)."""
+    task_description_template: str = ""
+    """Task text with one ``{object}`` field per object in ``object_references``, filled with the phrase of
+    the episode's form, e.g. ``"place the {fork} on the left ..."``. Empty: the task text is always
+    ``task_description``."""
 
     def __post_init__(self) -> None:
         super().__post_init__()
@@ -196,6 +212,20 @@ class SingleArmFrankaTaskEnvCfg(ManagerBasedRLEnvCfg):
         self.sim.physx.friction_correlation_distance = 0.00625
         self.sim.render.enable_translucency = True
         self.default_feature_joint_names = [f"{joint_name}.pos" for joint_name in FRANKA_JOINT_NAMES]
+        if self.task_description_template:
+            # The text before the first reset, and for code that reads one fixed text: the most likely form.
+            self.task_description = self.reference_text(max(self.reference_weights, key=self.reference_weights.get))
+
+    def reference_text(self, form: str) -> str:
+        """The task text with every object referred to by its ``form`` phrase."""
+        return self.task_description_template.format(**{name: refs[form] for name, refs in self.object_references.items()})
+
+    def task_text(self, env, env_id: int = 0) -> str:
+        """The task text of the episode running in ``env_id``: the template in that episode's form."""
+        forms = getattr(env, "object_reference_forms", None)
+        if not self.task_description_template or not forms:
+            return self.task_description
+        return self.reference_text(forms[env_id])
 
     def use_joint_position_actions(self) -> None:
         """Set the action space and robot settings shared by data collection and rollout.

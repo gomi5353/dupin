@@ -193,7 +193,7 @@ import leisaac  # noqa: F401
 import simulator.tasks  # noqa: F401
 from simulator.tasks.external import resolve_task
 from simulator import FRANKA_JOINT_NAMES
-from simulator.utils.rollout_log import OBJECT_POSITION_FACTOR, RolloutLogWriter, asset_pose, file_sha256, object_positions
+from simulator.utils.rollout_log import RolloutLogWriter, asset_pose, file_sha256, start_factors
 
 
 def setup_dual_viewports():
@@ -418,7 +418,9 @@ class LeRobotSyncPolicy:
             key: observation_dict[key].cpu().numpy().astype(np.uint8)[env_index]
             for key in self.camera_keys
         }
-        raw_observation["task"] = observation_dict["task_description"]
+        task = observation_dict["task_description"]
+        # One text for every env, or one per env (the colors named in the text differ between envs).
+        raw_observation["task"] = task[env_index] if isinstance(task, list) else task
 
         joint_pos = observation_dict["joint_pos"].cpu().numpy()
 
@@ -528,7 +530,7 @@ def _repo_relative(path: str) -> str:
 
 
 def open_rollout_log(env_cfg, task_id: str, env) -> RolloutLogWriter:
-    """Start the per-episode log outputs/rollout/<timestamp>.jsonl, read by `verify_object_position_coverage.py compare`.
+    """Start the per-episode log outputs/rollout/<timestamp>.jsonl, read by `store.py ingest --rollout-log`.
 
     Call after the first reset: the header records the robot base and fixed object poses, which never change.
     It also records the eval file path and its SHA-256, so a log can be traced back to the exact eval settings.
@@ -598,10 +600,15 @@ def main():
         rollout_log = open_rollout_log(env_cfg, task_id, env)
     print("[rollout] env.reset() returned", flush=True)
 
-    language_instruction = args_cli.policy_language_instruction
-    if language_instruction is None:
-        language_instruction = getattr(env_cfg, "task_description", None)
+    def instructions():
+        """The task text per env after a reset: --policy_language_instruction for all, or each env's own text."""
+        if args_cli.policy_language_instruction is not None:
+            return args_cli.policy_language_instruction
+        if hasattr(env_cfg, "task_text"):
+            return [env_cfg.task_text(env, e) for e in range(env.num_envs)]
+        return getattr(env_cfg, "task_description", None)
 
+    language_instruction = instructions()
     policy_obs_dict = preprocess_obs_dict(obs_dict["policy"], language_instruction)
     camera_infos = get_camera_infos(env, policy_obs_dict)
     print(
@@ -653,9 +660,10 @@ def main():
             with torch.inference_mode():
                 obs_dict, _ = env.reset()
         needs_reset = True
-        # Initial positions of this round's episodes, right after the reset randomized them.
+        # Initial positions and lighting of this round's episodes, right after the reset randomized them.
         with torch.inference_mode():
-            start_positions = object_positions(env.scene, slice(0, batch), getattr(env_cfg, "tracked_object_names", None))
+            round_factors = start_factors(env.scene, env_cfg, range(batch))
+        language_instruction = instructions()
         policy.reset()
         controller.reset()
         done_mask = torch.zeros(num_envs, dtype=torch.bool, device=env.device)
@@ -684,8 +692,8 @@ def main():
 
         for e in range(batch):
             status = "succeeded" if success_mask[e] else "failed" if done_mask[e] else "aborted"
-            positions = {name: values[e] for name, values in start_positions.items()}
-            rollout_log.write_episode(episodes_done + e, status, {OBJECT_POSITION_FACTOR: positions})
+            instruction = language_instruction[e] if isinstance(language_instruction, list) else language_instruction
+            rollout_log.write_episode(episodes_done + e, status, round_factors[e], instruction)
         rollout_log.flush()
 
         round_success = int(success_mask[:batch].sum().item())
@@ -705,9 +713,9 @@ def main():
 
     rollout_log.close()
     print(
-        f"[rollout] per-episode log written to {rollout_log.path}; compare it with your dataset:"
-        " uv run python scripts/verify_object_position_coverage.py compare --dataset <dataset> --spec <spec>"
-        f" --rollout-log {rollout_log.path}",
+        f"[rollout] per-episode log written to {rollout_log.path}; put it into your dataset's store, then verify:"
+        f" uv run python scripts/store.py ingest --store stores/<dataset_repo> --rollout-log {rollout_log.path}"
+        " && uv run python scripts/store.py verify --store stores/<dataset_repo>",
         flush=True,
     )
 

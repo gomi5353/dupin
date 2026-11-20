@@ -5,7 +5,8 @@
 * the first line is the header: ``{"type": "header", "version": 1, "eval_file": ..., "eval_sha256": ..., ...,
   "robot_base": {"pos": [x, y, z], "rot": [w, x, y, z]}, "fixed_objects": {"<name>": {"pos": ..., "rot": ...}, ...}}``;
 * then one line per episode: ``{"type": "episode", "episode": 0, "status": "succeeded" | "failed" | "aborted",
-  "factors": {"object_position": {"<name>": [x, y, z], ...}}}``.
+  "factors": {"object_position": {"<name>": [x, y, z], ...}, "lighting": {"<light>": [intensity, color_temperature]}},
+  "instruction": "<the episode's task text>"}``.
 
 Positions are each object's root position right after the reset that starts the
 episode, relative to the env origin, metres: the same frame as the dataset's
@@ -18,12 +19,18 @@ after the first reset in env 0, same frame, rotation as a ``(w, x, y, z)``
 quaternion. They are for reference only: fixed objects have no dataset column
 and the comparison ignores both.
 
-``factors`` is keyed by generalization axis. A group that adds a factor logs its
-value under its own key next to ``object_position`` (see
-``docs/adding_coverage_factor.md``).
+``lighting`` is read from the scene at the same moment, for the task's
+``recorded_light_names`` (same values as the dataset's ``lighting.<light>``
+columns; see ``scene_factors.py``); a task without lights logs none.
+``instruction`` is the text the policy was given (the Object Properties axis
+reads which reference form it used).
+
+``factors`` is keyed by factor (STAR-Gen): ``object_position`` (axis Object
+Poses), ``lighting`` (axis Image Augmentations). A group that adds a factor logs
+its value under its own key (see ``docs/adding_coverage_factor.md``).
 
 Read back by ``data_verification.rollout_log``; keep ``ROLLOUT_LOG_VERSION`` and
-``OBJECT_POSITION_FACTOR`` in sync with it.
+the ``*_FACTOR`` names in sync with it.
 """
 
 from __future__ import annotations
@@ -34,6 +41,7 @@ from pathlib import Path
 
 ROLLOUT_LOG_VERSION = 1
 OBJECT_POSITION_FACTOR = "object_position"
+LIGHTING_FACTOR = "lighting"
 
 
 def file_sha256(path: str | Path) -> str:
@@ -49,8 +57,11 @@ class RolloutLogWriter:
         self._file = self.path.open("w")
         self._write({"type": "header", "version": ROLLOUT_LOG_VERSION, **header})
 
-    def write_episode(self, episode: int, status: str, factors: dict[str, dict]) -> None:
-        self._write({"type": "episode", "episode": episode, "status": status, "factors": factors})
+    def write_episode(self, episode: int, status: str, factors: dict[str, dict], instruction: str | None = None) -> None:
+        record = {"type": "episode", "episode": episode, "status": status, "factors": factors}
+        if instruction is not None:
+            record["instruction"] = instruction
+        self._write(record)
 
     def flush(self) -> None:
         self._file.flush()
@@ -70,6 +81,22 @@ def object_positions(scene, env_ids, names: list[str] | None = None) -> dict[str
         for name, obj in scene.rigid_objects.items()
         if not names or name in names
     }
+
+
+def start_factors(scene, env_cfg, env_ids) -> list[dict[str, dict]]:
+    """The ``factors`` of each env in ``env_ids`` right after a reset: object positions and lighting."""
+    from .scene_factors import light_values
+
+    ids = list(env_ids)
+    positions = object_positions(scene, ids, getattr(env_cfg, "tracked_object_names", None))
+    lights = {name: light_values(scene, name, ids) for name in getattr(env_cfg, "recorded_light_names", [])}
+    factors = []
+    for k in range(len(ids)):
+        entry = {OBJECT_POSITION_FACTOR: {name: values[k] for name, values in positions.items()}}
+        if lights:
+            entry[LIGHTING_FACTOR] = {name: values[k] for name, values in lights.items()}
+        factors.append(entry)
+    return factors
 
 
 def asset_pose(scene, name: str, env_id: int = 0) -> dict[str, list[float]]:

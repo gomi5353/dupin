@@ -1,0 +1,88 @@
+# Object Properties axis (STAR-Gen S-PROP), factor: referencing objects based
+# on color.
+#
+# S-PROP changes only the task text, never the scene: "place the fork on the
+# left ..." becomes "place the pink object on the left ...". The task
+# configuration lists the phrases per object (object_references, e.g.
+# {"name": "fork", "color": "pink object"}) and how often each form is used
+# (reference_weights). Fill in every "TODO" below in a copy of this file, then
+# verify your dataset with it:
+#
+#   uv run python scripts/store.py verify --store stores/<dataset_repo> --spec <your copy>
+#
+# To check several axes in one run, list one spec file per axis:
+# --spec my_specs/object_pose.ttl my_specs/image_augmentation.ttl
+# my_specs/object_property.ttl. Axes without a spec file are not checked.
+#
+# Each episode uses the reference whose phrase its task text contains (whole
+# words, case-insensitive). The checks: every reference below is used by at
+# least minEpisodesPerReference episodes (coverage), and each object's
+# recorded color (object_color.<name>) is the same in every episode (S-PROP
+# never changes the object).
+#
+# One block per object you want checked. Delete a block to stop checking that
+# object; copy a block to check another one.
+#
+# Guide: docs/object_property.md
+
+@prefix cp:   <http://taica.course/cp/ontology#> .
+@prefix spec: <http://taica.course/cp/spec/mine#> .
+
+# The Object Properties axis. Each block below adds one color reference requirement to it.
+spec:object_property_axis a cp:ObjectPropertyAxis .
+
+# --- BEGIN OBJECT ---
+spec:object_property_axis cp:hasRequirement spec:fork_reference_requirement .
+
+spec:fork_reference_requirement a cp:ColorReferenceRequirement ;
+    cp:hasTaskObject spec:fork_reference_object ;
+    cp:hasReference spec:fork_by_name , spec:fork_by_color ;
+
+    # Minimum number of episodes per reference (each reference below needs at
+    # least this many to be "seen"). Whole number, e.g. 10. To give one
+    # reference its own minimum, add cp:minEpisodesPerReference to it.
+    cp:minEpisodesPerReference "TODO" .
+
+spec:fork_reference_object a cp:TaskObject ;
+    # Must match the task configuration's object_references key and the
+    # dataset column object_color.fork.
+    cp:name "fork" .
+
+# The phrase the task text uses when it refers to the object by its name:
+# object_references["fork"]["name"] in the task configuration.
+spec:fork_by_name a cp:NameReference ;
+    cp:phrase "TODO" .
+
+# The phrase the task text uses when it refers to the object by its color:
+# object_references["fork"]["color"] in the task configuration.
+spec:fork_by_color a cp:ColorReference ;
+    cp:phrase "TODO" .
+# --- END OBJECT ---
+
+# --- BEGIN OBJECT ---
+spec:object_property_axis cp:hasRequirement spec:knife_reference_requirement .
+
+spec:knife_reference_requirement a cp:ColorReferenceRequirement ;
+    cp:hasTaskObject spec:knife_reference_object ;
+    cp:hasReference spec:knife_by_name , spec:knife_by_color ;
+
+    # Minimum number of episodes per reference (each reference below needs at
+    # least this many to be "seen"). Whole number, e.g. 10. To give one
+    # reference its own minimum, add cp:minEpisodesPerReference to it.
+    cp:minEpisodesPerReference "TODO" .
+
+spec:knife_reference_object a cp:TaskObject ;
+    # Must match the task configuration's object_references key and the
+    # dataset column object_color.knife.
+    cp:name "knife" .
+
+# The phrase the task text uses when it refers to the object by its name:
+# object_references["knife"]["name"] in the task configuration.
+spec:knife_by_name a cp:NameReference ;
+    cp:phrase "TODO" .
+
+# The phrase the task text uses when it refers to the object by its color:
+# object_references["knife"]["color"] in the task configuration.
+spec:knife_by_color a cp:ColorReference ;
+    cp:phrase "TODO" .
+# --- END OBJECT ---

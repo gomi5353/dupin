@@ -1,0 +1,325 @@
+# Core OWL vocabulary of the verification store.
+#
+# One store per dataset (stores/<dataset>/). The store records what happened,
+# in the order it happened, as RDF:
+#
+#   ingest  --dataset      a Dataset with its Episodes; each Episode has the
+#                          TaskObjects it recorded, each with its initial
+#                          Position (first recorded frame, env-local, metres).
+#   ingest  --rollout-log  a Rollout of a policy trained on the Dataset, with
+#                          its Runs (status and initial positions).
+#   verify  --spec         a Spec per given file: the student's
+#                          GeneralizationAxes, each with its AxisRequirements.
+#                          The Dataset then has the axes (cp:hasGeneralizationAxis).
+#                          Then a Verification per spec (dataset vs requirements)
+#                          and a Comparison per spec and rollout (rollout runs
+#                          vs dataset coverage), each with its Findings.
+#
+# Ingested facts are never derived; verification results are separate nodes
+# that point at the facts they are about. Every ingested source and spec file
+# records its path, a content hash and the time it entered the store.
+#
+# This file holds the axis-independent terms. Each generalization axis adds its
+# own subclasses of cp:GeneralizationAxis and cp:AxisRequirement in its own
+# file (data_verification/axes/<axis>/ontology.ttl), registered in
+# data_verification/registry.py.
+#
+# Each class is described by restrictions on what its members have (rdfs:subClassOf
+# owl:Restriction), not by property domains and ranges. The verifier checks them
+# as closed-world constraints with SHACL (shapes/*.ttl, axes/<axis>/*.ttl).
+
+@prefix cp:      <http://taica.course/cp/ontology#> .
+@prefix owl:     <http://www.w3.org/2002/07/owl#> .
+@prefix rdfs:    <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix xsd:     <http://www.w3.org/2001/XMLSchema#> .
+@prefix dcterms: <http://purl.org/dc/terms/> .
+@prefix vann:    <http://purl.org/vocab/vann/> .
+
+<http://taica.course/cp/ontology> a owl:Ontology ;
+    dcterms:title "Course project verification store ontology (core)"@en ;
+    owl:versionIRI <http://taica.course/cp/ontology/4.0.0> ;
+    vann:preferredNamespacePrefix "cp" ;
+    vann:preferredNamespaceUri "http://taica.course/cp/ontology#" .
+
+# ---- Recorded facts -----------------------------------------------------------
+
+cp:Dataset a owl:Class ;
+    rdfs:subClassOf
+        [ a owl:Restriction ; owl:onProperty cp:hasGeneralizationAxis ; owl:allValuesFrom cp:GeneralizationAxis ] ,
+        [ a owl:Restriction ; owl:onProperty cp:hasEpisode ; owl:someValuesFrom cp:Episode ] ,
+        [ a owl:Restriction ; owl:onProperty cp:hasEpisode ; owl:allValuesFrom cp:Episode ] ,
+        [ a owl:Restriction ; owl:onProperty cp:name ; owl:qualifiedCardinality "1"^^xsd:nonNegativeInteger ; owl:onDataRange xsd:string ] ;
+    rdfs:label "Dataset"@en ;
+    rdfs:comment "A LeRobot dataset, ingested into its own store. It has its recorded episodes, the names of the objects it recorded positions for (cp:recordedObject), and, once verified against specs, the generalization axes it is checked against."@en .
+
+cp:Episode a owl:Class ;
+    rdfs:subClassOf
+        [ a owl:Restriction ; owl:onProperty cp:index ; owl:qualifiedCardinality "1"^^xsd:nonNegativeInteger ; owl:onDataRange xsd:nonNegativeInteger ] ,
+        [ a owl:Restriction ; owl:onProperty cp:hasTaskObject ; owl:allValuesFrom cp:TaskObject ] ;
+    rdfs:label "Episode"@en ;
+    rdfs:comment "One recorded demonstration of a dataset, identified by its LeRobot episode_index. Every episode of a dataset counts toward coverage (the repo recorder saves successful episodes only), so an episode has no status."@en .
+
+cp:Rollout a owl:Class ;
+    rdfs:subClassOf
+        [ a owl:Restriction ; owl:onProperty cp:hasDataset ; owl:qualifiedCardinality "1"^^xsd:nonNegativeInteger ; owl:onClass cp:Dataset ] ,
+        [ a owl:Restriction ; owl:onProperty cp:hasRun ; owl:someValuesFrom [
+            owl:intersectionOf ( cp:Run [ a owl:Restriction ; owl:onProperty cp:status ;
+                                          owl:someValuesFrom [ a rdfs:Datatype ; owl:oneOf ( "succeeded" "failed" ) ] ] ) ] ] ,
+        [ a owl:Restriction ; owl:onProperty cp:hasRun ; owl:allValuesFrom cp:Run ] ,
+        [ a owl:Restriction ; owl:onProperty cp:successEpisodes ; owl:qualifiedCardinality "1"^^xsd:nonNegativeInteger ; owl:onDataRange xsd:nonNegativeInteger ] ,
+        [ a owl:Restriction ; owl:onProperty cp:totalEpisodes ; owl:qualifiedCardinality "1"^^xsd:nonNegativeInteger ; owl:onDataRange xsd:nonNegativeInteger ] ;
+    rdfs:label "Rollout"@en ;
+    rdfs:comment "One policy evaluation (scripts/rollout.py), ingested from its log. It has the dataset the policy was trained on (the store's dataset), its runs, and how many runs succeeded out of how many finished."@en .
+
+cp:Run a owl:Class ;
+    rdfs:subClassOf
+        [ a owl:Restriction ; owl:onProperty cp:index ; owl:qualifiedCardinality "1"^^xsd:nonNegativeInteger ; owl:onDataRange xsd:nonNegativeInteger ] ,
+        [ a owl:Restriction ; owl:onProperty cp:hasTaskObject ; owl:allValuesFrom cp:TaskObject ] ,
+        [ a owl:Restriction ; owl:onProperty cp:status ; owl:qualifiedCardinality "1"^^xsd:nonNegativeInteger ; owl:onDataRange [ a rdfs:Datatype ; owl:oneOf ( "succeeded" "failed" "aborted" ) ] ] ;
+    rdfs:label "Run"@en ;
+    rdfs:comment "One episode of a rollout, identified by its number within the rollout. It has exactly one status: succeeded, failed, or aborted (manual reset, app closed). Finished runs (succeeded or failed) have the initial position of every tracked task object; aborted runs are kept but not counted."@en .
+
+cp:TaskObject a owl:Class ;
+    rdfs:subClassOf
+        [ a owl:Restriction ; owl:onProperty cp:name ; owl:qualifiedCardinality "1"^^xsd:nonNegativeInteger ; owl:onDataRange xsd:string ] ,
+        [ a owl:Restriction ; owl:onProperty cp:hasPosition ; owl:maxQualifiedCardinality "1"^^xsd:nonNegativeInteger ; owl:onClass cp:Position ] ;
+    rdfs:label "Task Object"@en ;
+    rdfs:comment "An object relevant to the task, identified by its IsaacLab scene name, as in the dataset column object_position.<name>. In an episode or a run it has its initial position; in a requirement it has none."@en .
+
+cp:Position a owl:Class ;
+    rdfs:subClassOf
+        [ a owl:Restriction ; owl:onProperty cp:positionX ; owl:qualifiedCardinality "1"^^xsd:nonNegativeInteger ; owl:onDataRange xsd:decimal ] ,
+        [ a owl:Restriction ; owl:onProperty cp:positionY ; owl:qualifiedCardinality "1"^^xsd:nonNegativeInteger ; owl:onDataRange xsd:decimal ] ,
+        [ a owl:Restriction ; owl:onProperty cp:positionZ ; owl:qualifiedCardinality "1"^^xsd:nonNegativeInteger ; owl:onDataRange xsd:decimal ] ;
+    rdfs:label "Position"@en ;
+    rdfs:comment "An initial (first-frame) position in the env-local frame, metres, rounded to 6 decimal places."@en .
+
+# ---- Student declarations -----------------------------------------------------
+
+cp:Spec a owl:Class ;
+    rdfs:subClassOf
+        [ a owl:Restriction ; owl:onProperty cp:declaresAxis ; owl:someValuesFrom cp:GeneralizationAxis ] ,
+        [ a owl:Restriction ; owl:onProperty cp:declaresAxis ; owl:allValuesFrom cp:GeneralizationAxis ] ;
+    rdfs:label "Spec"@en ;
+    rdfs:comment "A coverage spec file filled in by the student and put into the store by verify. Its individuals are renamed under the spec's IRI so that several specs can live in one store."@en .
+
+cp:GeneralizationAxis a owl:Class ;
+    rdfs:subClassOf
+        [ a owl:Restriction ; owl:onProperty cp:hasRequirement ; owl:someValuesFrom cp:AxisRequirement ] ,
+        [ a owl:Restriction ; owl:onProperty cp:hasRequirement ; owl:allValuesFrom cp:AxisRequirement ] ;
+    rdfs:label "Generalization Axis"@en ;
+    rdfs:comment "A dimension along which the policy is expected to generalize. It groups the requirements along that dimension. Each axis subclasses it and registers a verifier for it."@en .
+
+cp:AxisRequirement a owl:Class ;
+    rdfs:subClassOf
+        [ a owl:Restriction ; owl:onProperty [ owl:inverseOf cp:hasRequirement ] ; owl:qualifiedCardinality "1"^^xsd:nonNegativeInteger ; owl:onClass cp:GeneralizationAxis ] ;
+    rdfs:label "Axis Requirement"@en ;
+    rdfs:comment "A coverage requirement along one generalization axis, written by the student. Each axis subclasses it with its own requirement class."@en .
+
+# ---- Verification results -----------------------------------------------------
+
+cp:Verification a owl:Class ;
+    rdfs:subClassOf
+        [ a owl:Restriction ; owl:onProperty cp:ofSpec ; owl:qualifiedCardinality "1"^^xsd:nonNegativeInteger ; owl:onClass cp:Spec ] ,
+        [ a owl:Restriction ; owl:onProperty cp:onDataset ; owl:qualifiedCardinality "1"^^xsd:nonNegativeInteger ; owl:onClass cp:Dataset ] ,
+        [ a owl:Restriction ; owl:onProperty cp:passed ; owl:qualifiedCardinality "1"^^xsd:nonNegativeInteger ; owl:onDataRange xsd:boolean ] ,
+        [ a owl:Restriction ; owl:onProperty cp:hasFinding ; owl:allValuesFrom cp:Finding ] ;
+    rdfs:label "Verification"@en ;
+    rdfs:comment "One check of the dataset against one spec. It passed when it has no finding of severity Error or Violation. Replaced by the next verify."@en .
+
+cp:Comparison a owl:Class ;
+    rdfs:subClassOf
+        [ a owl:Restriction ; owl:onProperty cp:ofSpec ; owl:qualifiedCardinality "1"^^xsd:nonNegativeInteger ; owl:onClass cp:Spec ] ,
+        [ a owl:Restriction ; owl:onProperty cp:ofRollout ; owl:qualifiedCardinality "1"^^xsd:nonNegativeInteger ; owl:onClass cp:Rollout ] ,
+        [ a owl:Restriction ; owl:onProperty cp:hasFinding ; owl:allValuesFrom cp:Finding ] ,
+        [ a owl:Restriction ; owl:onProperty cp:inDistributionRun ; owl:allValuesFrom cp:Run ] ;
+    rdfs:label "Comparison"@en ;
+    rdfs:comment "One comparison of a rollout's runs with the dataset's coverage under one spec. A run is in distribution (cp:inDistributionRun) when every axis of the spec covers it. Replaced by the next verify."@en .
+
+cp:Finding a owl:Class ;
+    rdfs:subClassOf
+        [ a owl:Restriction ; owl:onProperty cp:severity ; owl:qualifiedCardinality "1"^^xsd:nonNegativeInteger ; owl:onDataRange [ a rdfs:Datatype ; owl:oneOf ( "Error" "Violation" "Warning" "Info" ) ] ] ,
+        [ a owl:Restriction ; owl:onProperty cp:message ; owl:qualifiedCardinality "1"^^xsd:nonNegativeInteger ; owl:onDataRange xsd:string ] ;
+    rdfs:label "Finding"@en ;
+    rdfs:comment "One result of a verification or comparison: an Error (the check could not be made), a Violation (a requirement or constraint is not met), a Warning, or an Info hint. It names the verifier that produced it and the nodes it is about (cp:focusNode)."@en .
+
+[] a owl:AllDisjointClasses ;
+    owl:members ( cp:Dataset cp:Episode cp:Rollout cp:Run cp:TaskObject cp:Position cp:Spec
+                  cp:GeneralizationAxis cp:AxisRequirement cp:Verification cp:Comparison cp:Finding ) .
+
+# ---- Object properties --------------------------------------------------------
+
+cp:hasGeneralizationAxis a owl:ObjectProperty ;
+    rdfs:label "has generalization axis"@en ;
+    rdfs:comment "A dataset has the axes of its specs: the axes it is checked against."@en .
+
+cp:hasRequirement a owl:ObjectProperty ;
+    rdfs:label "has requirement"@en .
+
+cp:hasDataset a owl:ObjectProperty ;
+    rdfs:label "has dataset"@en ;
+    rdfs:comment "A rollout has the dataset its policy was trained on."@en .
+
+cp:hasEpisode a owl:ObjectProperty ;
+    rdfs:label "has episode"@en .
+
+cp:hasRun a owl:ObjectProperty ;
+    rdfs:label "has run"@en .
+
+cp:hasTaskObject a owl:ObjectProperty ;
+    rdfs:label "has task object"@en .
+
+cp:hasFixedObject a owl:ObjectProperty ;
+    rdfs:label "has fixed object"@en ;
+    rdfs:comment "A rollout has the task objects that start at the same pose in every run (rollout log header), with that pose's position."@en .
+
+cp:hasPosition a owl:ObjectProperty ;
+    rdfs:label "has position"@en .
+
+cp:declaresAxis a owl:ObjectProperty ;
+    rdfs:label "declares axis"@en ;
+    rdfs:comment "A spec declares the generalization axes written in it."@en .
+
+cp:ofSpec a owl:ObjectProperty ;
+    rdfs:label "of spec"@en .
+
+cp:onDataset a owl:ObjectProperty ;
+    rdfs:label "on dataset"@en .
+
+cp:ofRollout a owl:ObjectProperty ;
+    rdfs:label "of rollout"@en .
+
+cp:hasFinding a owl:ObjectProperty ;
+    rdfs:label "has finding"@en .
+
+cp:inDistributionRun a owl:ObjectProperty ;
+    rdfs:label "in-distribution run"@en ;
+    rdfs:comment "A comparison lists the finished runs that every axis of its spec covers."@en .
+
+cp:focusNode a owl:ObjectProperty ;
+    rdfs:label "focus node"@en ;
+    rdfs:comment "A node a finding is about (episode, cell, run, requirement, ...)."@en .
+
+# Shared by the axes: a comparison places each finished run per requirement.
+cp:hasPlacement a owl:ObjectProperty ;
+    rdfs:label "has placement"@en ;
+    rdfs:comment "A comparison has one placement per finished run and requirement (each axis has its own placement class)."@en .
+cp:ofRun a owl:ObjectProperty ; rdfs:label "of run"@en .
+cp:ofRequirement a owl:ObjectProperty ; rdfs:label "of requirement"@en .
+
+# ---- Datatype properties ------------------------------------------------------
+
+cp:starGenAxis a owl:AnnotationProperty ;
+    rdfs:label "STAR-Gen axis"@en ;
+    rdfs:comment "The STAR-Gen axis id a GeneralizationAxis subclass stands for (e.g. VB-POSE, V-AUG, S-PROP; Gao et al., A Taxonomy for Evaluating Generalist Robot Manipulation Policies, arXiv:2503.01238)."@en .
+cp:starGenFactor a owl:AnnotationProperty ;
+    rdfs:label "STAR-Gen factor"@en ;
+    rdfs:comment "The STAR-Gen factor an AxisRequirement subclass checks (e.g. lighting)."@en .
+
+cp:name a owl:DatatypeProperty ;
+    rdfs:range xsd:string ;
+    rdfs:label "name"@en ;
+    rdfs:comment "The name of a dataset, rollout or spec in the store, or the IsaacLab scene name of a task object."@en .
+
+cp:index a owl:DatatypeProperty ;
+    rdfs:range xsd:nonNegativeInteger ;
+    rdfs:label "index"@en ;
+    rdfs:comment "The episode_index of an episode, the number of a run within its rollout, or the row-major number of a cell."@en .
+
+cp:status a owl:DatatypeProperty ;
+    rdfs:range [ a rdfs:Datatype ; owl:oneOf ( "succeeded" "failed" "aborted" ) ] ;
+    rdfs:label "status"@en ;
+    rdfs:comment "How a run ended, as written in the rollout log."@en .
+
+cp:positionX a owl:DatatypeProperty ; rdfs:range xsd:decimal ; rdfs:label "position X"@en .
+cp:positionY a owl:DatatypeProperty ; rdfs:range xsd:decimal ; rdfs:label "position Y"@en .
+cp:positionZ a owl:DatatypeProperty ;
+    rdfs:range xsd:decimal ;
+    rdfs:label "position Z"@en ;
+    rdfs:comment "Height above the env origin. Recorded and stored, not used by the object-position coverage rule."@en .
+
+cp:frameCount a owl:DatatypeProperty ;
+    rdfs:range xsd:nonNegativeInteger ;
+    rdfs:label "frame count"@en ;
+    rdfs:comment "The number of recorded frames of an episode."@en .
+
+cp:recordedObject a owl:DatatypeProperty ;
+    rdfs:range xsd:string ;
+    rdfs:label "recorded object"@en ;
+    rdfs:comment "The name of an object a dataset has an object_position.<name> column for."@en .
+
+cp:robotType a owl:DatatypeProperty ; rdfs:range xsd:string ; rdfs:label "robot type"@en .
+cp:fps a owl:DatatypeProperty ; rdfs:range xsd:nonNegativeInteger ; rdfs:label "frames per second"@en .
+cp:taskDescription a owl:DatatypeProperty ;
+    rdfs:range xsd:string ;
+    rdfs:label "task description"@en ;
+    rdfs:comment "A natural-language task: on a dataset, each task text in meta/tasks.parquet; on an episode, the task text of its first frame (the instruction the episode was recorded with); on a run, the instruction the policy was given."@en .
+cp:task a owl:DatatypeProperty ;
+    rdfs:range xsd:string ;
+    rdfs:label "task"@en ;
+    rdfs:comment "The gym task id a dataset was recorded with (ingest --task) or a rollout was evaluated on (rollout log header)."@en .
+
+cp:successEpisodes a owl:DatatypeProperty ;
+    rdfs:range xsd:nonNegativeInteger ;
+    rdfs:label "success episodes"@en ;
+    rdfs:comment "The number of succeeded runs of a rollout."@en .
+
+cp:totalEpisodes a owl:DatatypeProperty ;
+    rdfs:range xsd:nonNegativeInteger ;
+    rdfs:label "total episodes"@en ;
+    rdfs:comment "The number of finished (succeeded or failed) runs of a rollout; aborted runs are not counted."@en .
+
+cp:evalFile a owl:DatatypeProperty ; rdfs:range xsd:string ; rdfs:label "eval file"@en .
+cp:evalSha256 a owl:DatatypeProperty ; rdfs:range xsd:string ; rdfs:label "eval file SHA-256"@en .
+cp:seed a owl:DatatypeProperty ; rdfs:range xsd:integer ; rdfs:label "seed"@en .
+cp:checkpoint a owl:DatatypeProperty ; rdfs:range xsd:string ; rdfs:label "checkpoint"@en .
+cp:trainedOnRepo a owl:DatatypeProperty ;
+    rdfs:range xsd:string ;
+    rdfs:label "trained on repository"@en ;
+    rdfs:comment "The dataset repo_id in the checkpoint's train_config.json, when it was found at ingest."@en .
+
+# Provenance of everything that entered the store.
+cp:sourcePath a owl:DatatypeProperty ;
+    rdfs:range xsd:string ;
+    rdfs:label "source path"@en ;
+    rdfs:comment "The file or directory a dataset, rollout or spec was read from."@en .
+cp:sourceSha256 a owl:DatatypeProperty ;
+    rdfs:range xsd:string ;
+    rdfs:label "source SHA-256"@en ;
+    rdfs:comment "SHA-256 of the source: the file's bytes, or, for a dataset directory, of the path, size and modification time of every file under meta/ and data/."@en .
+cp:ingestedAt a owl:DatatypeProperty ; rdfs:range xsd:dateTime ; rdfs:label "ingested at"@en .
+cp:verifiedAt a owl:DatatypeProperty ; rdfs:range xsd:dateTime ; rdfs:label "verified at"@en .
+
+# Shared by the axes that split a range into a grid of cells.
+cp:minEpisodesPerCell a owl:DatatypeProperty ;
+    rdfs:range xsd:positiveInteger ;
+    rdfs:label "minimum episodes per cell"@en ;
+    rdfs:comment "The minimum number of dataset episodes required in each cell of a requirement's grid."@en .
+cp:cellI a owl:DatatypeProperty ; rdfs:range xsd:integer ; rdfs:label "cell column"@en .
+cp:cellJ a owl:DatatypeProperty ; rdfs:range xsd:integer ; rdfs:label "cell row"@en .
+cp:episodeCount a owl:DatatypeProperty ;
+    rdfs:range xsd:nonNegativeInteger ;
+    rdfs:label "episode count"@en ;
+    rdfs:comment "The number of dataset episodes in a cell or color category (added by verify)."@en .
+cp:covered a owl:DatatypeProperty ;
+    rdfs:range xsd:boolean ;
+    rdfs:label "covered"@en ;
+    rdfs:comment "Whether a run placement falls where the dataset has at least the required number of episodes."@en .
+
+cp:passed a owl:DatatypeProperty ; rdfs:range xsd:boolean ; rdfs:label "passed"@en .
+cp:runsInDistribution a owl:DatatypeProperty ;
+    rdfs:range xsd:nonNegativeInteger ;
+    rdfs:label "runs in distribution"@en ;
+    rdfs:comment "The number of finished runs of a comparison that every axis of its spec covers."@en .
+cp:severity a owl:DatatypeProperty ;
+    rdfs:range [ a rdfs:Datatype ; owl:oneOf ( "Error" "Violation" "Warning" "Info" ) ] ;
+    rdfs:label "severity"@en .
+cp:message a owl:DatatypeProperty ; rdfs:range xsd:string ; rdfs:label "message"@en .
+cp:verifier a owl:DatatypeProperty ;
+    rdfs:range xsd:string ;
+    rdfs:label "verifier"@en ;
+    rdfs:comment "The registered verifier that produced a finding, or \"core\"."@en .
+cp:focus a owl:DatatypeProperty ;
+    rdfs:range xsd:string ;
+    rdfs:label "focus"@en ;
+    rdfs:comment "What a finding is about, when it is not a node of the store (e.g. a lattice cell outside the area)."@en .

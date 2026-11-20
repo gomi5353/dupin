@@ -44,11 +44,17 @@ The three predefined tasks:
 | Task configuration | [`cup_stacking_env_cfg.py`](../packages/simulator/src/simulator/tasks/cup_stacking/cup_stacking_env_cfg.py) | [`cutlery_arrangement_env_cfg.py`](../packages/simulator/src/simulator/tasks/cutlery_arrangement/cutlery_arrangement_env_cfg.py) | [`toy_blocks_collection_env_cfg.py`](../packages/simulator/src/simulator/tasks/toy_blocks_collection/toy_blocks_collection_env_cfg.py) |
 | Scene objects | `blue_cup`, `pink_cup` | `plate`, `fork`, `knife` | `green_block`, `blue_block`, `red_block`, `storage_box` |
 | Success check (`success` term) | Blue cup within 2 cm of the pink cup in x and in y, and 8–10 cm higher | Fork and knife each inside a 10 cm × 10 cm square centred 12 cm from the plate centre: fork at smaller x (the robot's left, the right side of the front image), knife at larger x | Every block inside the storage box footprint (0.296 m × 0.209 m) shrunk by 1 cm on each side, in the box's own frame, and 0–11 cm above the box bottom |
-| Task text (`task_description`) | `pick up the blue cup and place it on the pink cup.` | `place the fork on the left and knife on the right of the plate.` | `pick up the toys and place them into the storage box.` |
+| Task text, objects referred to by name | `pick up the blue cup and place it on the pink cup.` | `place the fork on the left and the knife on the right of the plate.` | `pick up the bridge, the cylinder and the triangle and place them into the storage box.` |
+| Task text, objects referred to by color | `pick up the blue object and place it on the pink object.` | `place the pink object on the left and the orange object on the right of the plate.` | `pick up the green object, the blue object and the red object and place them into the storage box.` |
 
-Every reset moves the objects by a few centimetres and changes the light
-intensity. The success check looks only at the object positions at one
-moment; it does not know whether the gripper still holds an object.
+Every reset moves the objects by a few centimetres, changes the intensity and
+color temperature of the scene light `rect_light`, and picks how the
+episode's task text refers to the objects: by name or by color
+([section 4](#4-adjusting-the-collection)). The task text is built from the
+configuration's `task_description_template` and the phrases in
+`object_references`; the recording configurations use the name form only. The
+success check looks only at the object positions at one moment; it does not
+know whether the gripper still holds an object.
 
 ## 2. Record with the state machine
 
@@ -128,8 +134,18 @@ Students may adjust the collection to target the data they need, for example:
   `packages/simulator/src/simulator/datagen/state_machine/<task>.py`
   (approach and lift heights, phase durations, grasp offsets, random jitter,
   success ranges);
-- the task configuration: object randomization ranges, lighting, object
-  start positions, or a stricter success check;
+- the task configuration: object randomization ranges, object start
+  positions, or a stricter success check;
+- the light ranges: `intensity_range` and `color_temperature_range` of the
+  `randomize_light_conditions("rect_light", ...)` event in the task
+  configuration (recording: intensity 4500–5500 and 5300–5900 K; the
+  evaluation files use 2500–8000 and 3000–6500 K);
+- how often the task text refers to the objects by color: `reference_weights`
+  in the task configuration, for example `{"name": 0.5, "color": 0.5}`
+  (recording: `{"name": 1.0, "color": 0.0}`; the evaluation files use
+  `{"name": 0.5, "color": 0.5}`). One form is drawn per episode and used for
+  every object. The phrases themselves are in `object_references`. Only the
+  words change: the objects are never recolored;
 - the teleoperation `--sensitivity`.
 
 Such changes are part of the group's data-collection design and are reported
@@ -159,7 +175,7 @@ recorded with other values trains a policy that cannot run in evaluation:
 **Other differences from the evaluation environment are deliberate.** Each one
 is a distribution shift that the policy has to bridge. The task configuration
 is compared with `eval/<task>_eval.py` for object start positions and
-randomization ranges, lighting, robot start pose, `front` camera pose, success
+randomization ranges, light ranges, reference weights, robot start pose, `front` camera pose, success
 check, and episode length. A wider randomization range than the evaluation
 file usually helps, because the private evaluation uses other positions; a
 narrower range, a moved camera, or a different robot start pose usually hurts.
@@ -172,8 +188,9 @@ narrower range, a moved camera, or a different robot start pose usually hurts.
 ([`lerobot_recorder.py`](../packages/simulator/src/simulator/utils/lerobot_recorder.py)),
 which writes the LeRobot v3 dataset. Without it, `--record` writes an HDF5
 file that cannot be trained on or verified. The recorder extends LeIsaac's
-recorder by one column per randomized object, `object_position.<name>`, which
-the [coverage check](object_position_coverage.md) reads.
+recorder by the columns that [data verification](data_verification.md) reads:
+the object positions, the lighting, and the object colors, and it writes each
+episode's own task text.
 
 Behavior that affects recording:
 
@@ -197,11 +214,16 @@ Columns written in addition to the
 
 | Column | Shape / type | Content |
 |---|---|---|
-| `object_position.<name>` | `(3,)` float32, `x, y, z` | Position of every object in the configuration's `tracked_object_names`, relative to the environment origin. Fixed objects (`plate`, `storage_box`, listed in `fixed_object_names`) get no column. |
-| `task_index` | int64 | Number of the task text. The text itself is stored once in `meta/tasks.parquet`; LeRobot returns it as `task` when the dataset is loaded. Language-conditioned policies (for example pi0 or SmolVLA) use it as their instruction; Diffusion Policy and ACT ignore it. |
+| `object_position.<name>` | `(3,)` float32, `x, y, z` | Position of every object in the configuration's `tracked_object_names`, relative to the environment origin, in metres. Fixed objects (`plate`, `storage_box`, listed in `fixed_object_names`) get no column. Axis Object Poses. |
+| `lighting.rect_light` | `(2,)` float32, `intensity, color_temperature` | The scene light's USD `inputs:intensity` and `inputs:colorTemperature` in kelvin (6500 K when the light does not use its color temperature). One column per light in `recorded_light_names`. Axis Image Augmentations. |
+| `object_color.<name>` | `(3,)` float32, `r, g, b` | Diffuse color of the material bound to the object (OmniPBR `inputs:diffuse_color_constant`), for every object in `object_references`. It shows that the object itself never changes. Axis Object Properties. |
+| `task_index` | int64 | Number of the episode's task text. Each episode gets its own text, in the reference form drawn for it; the distinct texts are stored once in `meta/tasks.parquet`, and LeRobot returns the text as `task` when the dataset is loaded. Axis Object Properties. Language-conditioned policies (for example pi0 or SmolVLA) use it as their instruction; Diffusion Policy and ACT ignore it. |
 
-[Object Position Coverage §2](object_position_coverage.md#2-the-object-position-columns)
-describes how the coverage check reads the `object_position.*` columns.
+The `lighting.*` and `object_color.*` values are read from the scene at every
+frame; the other columns come from the recorded step. How the verifier reads
+each column is described on the axis pages:
+[Object Poses](object_pose.md), [Image Augmentations](image_augmentation.md),
+[Object Properties](object_property.md).
 
 ## 6. Troubleshooting
 
@@ -213,7 +235,7 @@ describes how the coverage check reads the `object_position.*` columns.
 | `PermissionError` under `datasets/` | The folder was created by the container as root | Exit the container, or run `make fix-perms` |
 | `LeRobot not found. Using GenericDataRecorder.` followed by an `AttributeError` | LeRobot cannot be imported in the simulator environment | Reinstall it with `make install-sim`, or rebuild the container image |
 | Dataset will not load / Parquet footer error | The script was killed before it closed the dataset | Stop with Ctrl+C; record a corrupted dataset again under a new id |
-| Missing `object_position.*` columns | Recorded without `--use_lerobot_recorder` | Record again with the option |
+| Missing `object_position.*`, `lighting.*` or `object_color.*` columns | Recorded without `--use_lerobot_recorder`, or the task does not list the light in `recorded_light_names` or the object in `object_references` | Record again with the option and the lists set |
 | Camera errors or missing images | Started without `--enable_cameras` | Add the option |
 | Most state-machine attempts fail | Changed task settings or state-machine constants | Watch a run with the GUI and without `--record`; compare the failing phase with the constants |
 | Keyboard does nothing | The window has no focus, the script runs `--headless`, or **B** was not pressed after a reset | Click the Isaac Sim window, run with the GUI, and press **B** |

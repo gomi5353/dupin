@@ -1,0 +1,121 @@
+# OWL vocabulary of the Object Poses axis (extends ontology/core.ttl).
+#
+# STAR-Gen axis VB-POSE, Object Poses (Visual + Behavioral): "changes to
+# task-relevant object poses in the scene". Its STAR-Gen factor is the
+# manipulated object pose. This repository considers the position only (not
+# the orientation), so the factor is called object position here; the
+# "manipulated" qualifier is omitted for brevity.
+#
+# An ObjectPoseAxis has ObjectPositionRequirements. A requirement names
+# one TaskObject and an AreaConfiguration whose CoverageGrid splits the area
+# into Cells; every Cell needs at least minEpisodesPerCell episodes of the
+# dataset whose initial position of that object falls inside it. Requirement
+# and episode objects are matched by name.
+#
+# Derived by the verifier, never written by hand:
+#   verify  the Cells of each grid, with their bounds (when the spec is loaded).
+#   verify  each Cell's episodeCount in the dataset (Verification), and one
+#           RunPlacement per finished run and requirement (Comparison): the
+#           lattice cell the run started in and whether the dataset covers it.
+
+@prefix cp:      <http://taica.course/cp/ontology#> .
+@prefix owl:     <http://www.w3.org/2002/07/owl#> .
+@prefix rdfs:    <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix xsd:     <http://www.w3.org/2001/XMLSchema#> .
+@prefix dcterms: <http://purl.org/dc/terms/> .
+
+<http://taica.course/cp/ontology/object_pose> a owl:Ontology ;
+    dcterms:title "Object Poses axis (STAR-Gen VB-POSE)"@en ;
+    owl:imports <http://taica.course/cp/ontology> ;
+    owl:versionIRI <http://taica.course/cp/ontology/object_pose/5.0.0> .
+
+# ---- Classes ----------------------------------------------------------------
+
+cp:ObjectPoseAxis a owl:Class ;
+    rdfs:subClassOf
+        cp:GeneralizationAxis ,
+        [ a owl:Restriction ; owl:onProperty cp:hasRequirement ; owl:allValuesFrom cp:ObjectPositionRequirement ] ;
+    rdfs:label "Object Poses"@en ;
+    cp:starGenAxis "VB-POSE" ;
+    rdfs:comment "STAR-Gen axis Object Poses (Visual + Behavioral): changes to task-relevant object poses in the scene. Its requirements are object position requirements."@en .
+
+cp:ObjectPositionRequirement a owl:Class ;
+    rdfs:subClassOf
+        cp:AxisRequirement ,
+        [ a owl:Restriction ; owl:onProperty cp:hasTaskObject ; owl:qualifiedCardinality "1"^^xsd:nonNegativeInteger ; owl:onClass cp:TaskObject ] ,
+        [ a owl:Restriction ; owl:onProperty cp:hasAreaConfiguration ; owl:qualifiedCardinality "1"^^xsd:nonNegativeInteger ; owl:onClass cp:AreaConfiguration ] ,
+        [ a owl:Restriction ; owl:onProperty cp:minEpisodesPerCell ; owl:qualifiedCardinality "1"^^xsd:nonNegativeInteger ; owl:onDataRange xsd:positiveInteger ] ;
+    rdfs:label "Object Position Requirement"@en ;
+    cp:starGenFactor "manipulated object pose (position only)" ;
+    rdfs:comment "Factor object position (STAR-Gen: manipulated object pose; position only). One task object, one area with a grid, and the minimum number of dataset episodes per cell."@en .
+
+cp:AreaConfiguration a owl:Class ;
+    rdfs:subClassOf
+        [ a owl:Restriction ; owl:onProperty cp:areaXMin ; owl:qualifiedCardinality "1"^^xsd:nonNegativeInteger ; owl:onDataRange xsd:decimal ] ,
+        [ a owl:Restriction ; owl:onProperty cp:areaXMax ; owl:qualifiedCardinality "1"^^xsd:nonNegativeInteger ; owl:onDataRange xsd:decimal ] ,
+        [ a owl:Restriction ; owl:onProperty cp:areaYMin ; owl:qualifiedCardinality "1"^^xsd:nonNegativeInteger ; owl:onDataRange xsd:decimal ] ,
+        [ a owl:Restriction ; owl:onProperty cp:areaYMax ; owl:qualifiedCardinality "1"^^xsd:nonNegativeInteger ; owl:onDataRange xsd:decimal ] ,
+        [ a owl:Restriction ; owl:onProperty cp:hasCoverageGrid ; owl:qualifiedCardinality "1"^^xsd:nonNegativeInteger ; owl:onClass cp:CoverageGrid ] ,
+        [ a owl:Restriction ; owl:onProperty [ owl:inverseOf cp:hasAreaConfiguration ] ; owl:qualifiedCardinality "1"^^xsd:nonNegativeInteger ; owl:onClass cp:ObjectPositionRequirement ] ;
+    rdfs:label "Area Configuration"@en ;
+    rdfs:comment "An axis-aligned rectangle on the table plane, split by one coverage grid."@en .
+
+cp:CoverageGrid a owl:Class ;
+    rdfs:subClassOf
+        [ a owl:Restriction ; owl:onProperty cp:numCellW ; owl:qualifiedCardinality "1"^^xsd:nonNegativeInteger ; owl:onDataRange xsd:positiveInteger ] ,
+        [ a owl:Restriction ; owl:onProperty cp:numCellH ; owl:qualifiedCardinality "1"^^xsd:nonNegativeInteger ; owl:onDataRange xsd:positiveInteger ] ,
+        [ a owl:Restriction ; owl:onProperty cp:hasCell ; owl:allValuesFrom cp:Cell ] ,
+        [ a owl:Restriction ; owl:onProperty [ owl:inverseOf cp:hasCoverageGrid ] ; owl:qualifiedCardinality "1"^^xsd:nonNegativeInteger ; owl:onClass cp:AreaConfiguration ] ;
+    rdfs:label "Coverage Grid"@en ;
+    rdfs:comment "A partition of an area into numCellW columns and numCellH rows, with one cell per column and row (checked with SHACL)."@en .
+
+cp:Cell a owl:Class ;
+    rdfs:subClassOf
+        [ a owl:Restriction ; owl:onProperty cp:index ; owl:qualifiedCardinality "1"^^xsd:nonNegativeInteger ; owl:onDataRange xsd:nonNegativeInteger ] ,
+        [ a owl:Restriction ; owl:onProperty [ owl:inverseOf cp:hasCell ] ; owl:qualifiedCardinality "1"^^xsd:nonNegativeInteger ; owl:onClass cp:CoverageGrid ] ;
+    rdfs:label "Coverage Cell"@en ;
+    rdfs:comment "One grid cell, identified by its row-major index k = j * numCellW + i, with column i along X from areaXMin and row j along Y from areaYMin. Generated when verify loads the spec, with its bounds (cellXMin ... cellYMax, column cellI, row cellJ); its episodeCount is added by verify."@en .
+
+cp:RunPlacement a owl:Class ;
+    rdfs:subClassOf
+        [ a owl:Restriction ; owl:onProperty cp:ofRun ; owl:qualifiedCardinality "1"^^xsd:nonNegativeInteger ; owl:onClass cp:Run ] ,
+        [ a owl:Restriction ; owl:onProperty cp:ofRequirement ; owl:qualifiedCardinality "1"^^xsd:nonNegativeInteger ; owl:onClass cp:ObjectPositionRequirement ] ,
+        [ a owl:Restriction ; owl:onProperty cp:inCell ; owl:maxQualifiedCardinality "1"^^xsd:nonNegativeInteger ; owl:onClass cp:Cell ] ,
+        [ a owl:Restriction ; owl:onProperty cp:covered ; owl:qualifiedCardinality "1"^^xsd:nonNegativeInteger ; owl:onDataRange xsd:boolean ] ;
+    rdfs:label "Run Placement"@en ;
+    rdfs:comment "Where a finished run started for one requirement: the lattice column and row (cellI, cellJ; outside the area they run past the grid), the grid cell when inside the area (cp:inCell), and whether that cell has at least minEpisodesPerCell dataset episodes (cp:covered)."@en .
+
+[] a owl:AllDisjointClasses ;
+    owl:members ( cp:ObjectPositionRequirement cp:AreaConfiguration cp:CoverageGrid cp:Cell cp:RunPlacement
+                  cp:Dataset cp:Episode cp:Rollout cp:Run cp:TaskObject cp:Position cp:Finding ) .
+
+# ---- Object properties --------------------------------------------------------
+# cp:hasPlacement, cp:ofRun, cp:ofRequirement, cp:cellI, cp:cellJ, cp:covered,
+# cp:episodeCount and cp:minEpisodesPerCell are shared by the axes (core.ttl).
+
+cp:hasAreaConfiguration a owl:ObjectProperty ; rdfs:label "has area configuration"@en .
+cp:hasCoverageGrid a owl:ObjectProperty ; rdfs:label "has coverage grid"@en .
+cp:hasCell a owl:ObjectProperty ; rdfs:label "has cell"@en .
+cp:inCell a owl:ObjectProperty ; rdfs:label "in cell"@en .
+
+# ---- Datatype properties ------------------------------------------------------
+
+cp:areaXMin a owl:DatatypeProperty ; rdfs:range xsd:decimal ; rdfs:label "area X minimum"@en .
+cp:areaXMax a owl:DatatypeProperty ; rdfs:range xsd:decimal ; rdfs:label "area X maximum"@en .
+cp:areaYMin a owl:DatatypeProperty ; rdfs:range xsd:decimal ; rdfs:label "area Y minimum"@en .
+cp:areaYMax a owl:DatatypeProperty ; rdfs:range xsd:decimal ; rdfs:label "area Y maximum"@en .
+
+cp:numCellW a owl:DatatypeProperty ;
+    rdfs:range xsd:positiveInteger ;
+    rdfs:label "number of cells in width"@en ;
+    rdfs:comment "The number of grid divisions along the width (X direction)."@en .
+
+cp:numCellH a owl:DatatypeProperty ;
+    rdfs:range xsd:positiveInteger ;
+    rdfs:label "number of cells in height"@en ;
+    rdfs:comment "The number of grid divisions along the height (Y direction)."@en .
+
+cp:cellXMin a owl:DatatypeProperty ; rdfs:range xsd:decimal ; rdfs:label "cell X minimum"@en .
+cp:cellXMax a owl:DatatypeProperty ; rdfs:range xsd:decimal ; rdfs:label "cell X maximum"@en .
+cp:cellYMin a owl:DatatypeProperty ; rdfs:range xsd:decimal ; rdfs:label "cell Y minimum"@en .
+cp:cellYMax a owl:DatatypeProperty ; rdfs:range xsd:decimal ; rdfs:label "cell Y maximum"@en .

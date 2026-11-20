@@ -1,16 +1,38 @@
-"""Offline verification of LeRobot datasets against RDF/OWL + SHACL specs."""
+"""Verification store for LeRobot datasets: RDF/OWL facts, SHACL + Python verifiers, SPARQL queries.
 
-from .coverage import CoverageReport, format_report, verify_object_position_coverage
-from .rollout_comparison import RolloutComparison, compare_rollout, format_comparison
-from .spec_template import render_spec, write_spec
+    ingest_dataset / ingest_rollout   raw capture -> store (stores/<dataset>/)
+    verify_store                      the student's spec files + registered verifiers -> findings in the store
+    load_spec                         check one spec file and put it into the store (verify does this)
+    query                             SPARQL over the store
+"""
+
+from . import registry
+from .query import query
+from .registry import VERIFIERS
+from .store import Store, StoreError, ingest_dataset, ingest_rollout, load_spec, open_store
+from .verifier import AxisCheck, AxisComparison, Finding, Verifier
+from .verify import CheckReport, CombinedComparison, RolloutComparison, VerifyResult, format_check, format_combined, format_comparison, verify_store
 
 __all__ = [
-    "CoverageReport",
+    "VERIFIERS",
+    "registry",
+    "AxisCheck",
+    "AxisComparison",
+    "CheckReport",
+    "Finding",
     "RolloutComparison",
-    "compare_rollout",
+    "Store",
+    "StoreError",
+    "Verifier",
+    "VerifyResult",
+    "format_check",
+    "format_combined",
     "format_comparison",
-    "format_report",
-    "render_spec",
-    "verify_object_position_coverage",
-    "write_spec",
+    "CombinedComparison",
+    "ingest_dataset",
+    "ingest_rollout",
+    "load_spec",
+    "open_store",
+    "query",
+    "verify_store",
 ]

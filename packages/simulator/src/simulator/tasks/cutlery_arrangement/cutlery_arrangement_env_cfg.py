@@ -13,7 +13,7 @@ from leisaac.utils.general_assets import parse_usd_and_create_subassets
 from leisaac.utils.domain_randomization import domain_randomization, randomize_object_uniform
 from simulator import ASSETS_ROOT
 from simulator.assets.scenes.dining_room import DINING_ROOM_CFG, DINING_ROOM_USD_PATH
-from simulator.utils.domain_randomization import randomize_light_conditions
+from simulator.utils.domain_randomization import choose_object_reference_forms, randomize_light_conditions
 
 from simulator.tasks.template.single_arm_franka_cfg import (
     SingleArmFrankaObservationsCfg,
@@ -43,6 +43,10 @@ class CutleryArrangementSceneCfg(SingleArmFrankaTaskSceneCfg):
     """Scene configuration for the cutlery arrangement task."""
 
     scene: AssetBaseCfg = DINING_ROOM_CFG.replace(prim_path="{ENV_REGEX_NS}/Scene")
+
+    # RectLight baked into the scene USD (/root/RectLight), as in eval/; wrap the existing prim so it can be
+    # randomized and recorded (recorded_light_names).
+    rect_light: AssetBaseCfg = AssetBaseCfg(prim_path="{ENV_REGEX_NS}/Scene/RectLight")
 
     # Standalone white table (matte, static colliders baked in). Static furniture
     # -> AssetBaseCfg (no rigid body). Tune DININGTABLE_WORLD_POS for the scene.
@@ -135,9 +139,19 @@ class CutleryArrangementEnvCfg(SingleArmFrankaTaskEnvCfg):
     scene: CutleryArrangementSceneCfg = CutleryArrangementSceneCfg(env_spacing=8.0)
     observations: SingleArmFrankaObservationsCfg = SingleArmFrankaObservationsCfg()
     terminations: TerminationsCfg = TerminationsCfg()
-    task_description: str = "place the fork on the left and knife on the right of the plate."
+    task_description: str = "place the fork on the left and the knife on the right of the plate."  # set from the template
     tracked_object_names: list[str] = ["fork", "knife"]
     fixed_object_names: list[str] = ["plate"]
+    recorded_light_names: list[str] = ["rect_light"]
+    # Object Properties axis (STAR-Gen S-PROP): how the task text refers to each object, {form: phrase}.
+    # The objects never change; only the words do. "name" refers by name, "color" by color only.
+    # reference_weights sets how often each form is used (one form per episode, for every object).
+    object_references: dict[str, dict[str, str]] = {
+        "fork": {"name": "fork", "color": "pink object"},
+        "knife": {"name": "knife", "color": "orange object"},
+    }
+    reference_weights: dict[str, float] = {"name": 1.0, "color": 0.0}
+    task_description_template: str = "place the {fork} on the left and the {knife} on the right of the plate."
 
     def __post_init__(self) -> None:
         super().__post_init__()
@@ -192,6 +206,15 @@ class CutleryArrangementEnvCfg(SingleArmFrankaTaskEnvCfg):
                         "z": (0.0, 0.0),
                     },
                 ),
-                randomize_light_conditions("light", textures=[], intensity_range=(1100, 1300)),
+                # The scene's RectLight, the light the evaluation files randomize. Choose the ranges your data
+                # should cover; the evaluation files use intensity 2500-8000 and 3000-6500 K.
+                randomize_light_conditions(
+                    "rect_light",
+                    intensity_range=(4500.0, 5500.0),
+                    color_variation=0.0,
+                    textures=[],
+                    color_temperature_range=(5300.0, 5900.0),
+                ),
+                choose_object_reference_forms(self.reference_weights),
             ],
         )

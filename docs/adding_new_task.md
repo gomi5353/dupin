@@ -15,7 +15,10 @@ The running example is the cup-stacking task:
 - [`cup_stacking/__init__.py`](../packages/simulator/src/simulator/tasks/cup_stacking/__init__.py):
   its registration.
 - [`utils/domain_randomization.py`](../packages/simulator/src/simulator/utils/domain_randomization.py):
-  the reset events that randomize object positions and lighting.
+  the reset events that randomize object positions and lighting, and pick
+  how the task text refers to the objects.
+- [`specs/cup_stacking/`](../specs/cup_stacking/): the task's shipped specs,
+  one per generalization axis.
 
 Every section starts with one of two labels: **Required** (something students
 must do or follow) or **Background** (explanation without work items).
@@ -56,7 +59,8 @@ The **template** `SingleArmFrankaTaskEnvCfg` already provides:
   `time_out` termination.
 
 A new task therefore only adds its scene objects, its success check, its
-randomization, and a few settings.
+randomization, a few settings, and the lists that tell the recorder what to
+record for data verification (section 3.3).
 
 ## 2. Where the task lives
 
@@ -69,6 +73,10 @@ A task is a standalone set of files in its own directory under
 packages/simulator/src/simulator/tasks/<my_task>/
     __init__.py             # gym.register(...)
     <my_task>_env_cfg.py    # the task configuration
+specs/<my_task>/            # the task's specs, one per axis (section 6)
+    object_pose.ttl
+    image_augmentation.ttl
+    object_property.ttl
 ```
 
 | Item | Pattern | Example |
@@ -106,6 +114,8 @@ class CupStackingSceneCfg(SingleArmFrankaTaskSceneCfg):
         init_state=RigidObjectCfg.InitialStateCfg(pos=(8.95, 6.52, 1.0), rot=(1.0, 0.0, 0.0, 0.0)),
     )
     pink_cup: RigidObjectCfg = ...
+    # The light baked into the scene USD, wrapped so it can be randomized and recorded.
+    rect_light: AssetBaseCfg = AssetBaseCfg(prim_path="{ENV_REGEX_NS}/Scene/RectLight")
 ```
 
 - The attribute name (`blue_cup`) becomes the object's scene name, used as
@@ -118,6 +128,12 @@ class CupStackingSceneCfg(SingleArmFrankaTaskSceneCfg):
   specification.
 - `init_state.pos` is relative to the environment origin, in metres.
   Quaternions are `(w, x, y, z)`; `(1, 0, 0, 0)` is no rotation.
+- A light is a scene entity too. `rect_light` wraps a light that already
+  exists in the scene USD (`AssetBaseCfg` with only a `prim_path`), so that
+  the reset event can change it and the recorder can read it as
+  `lighting.rect_light`. A scene without such a light adds one, for example
+  with `spawn=sim_utils.SphereLightCfg(...)` or another Isaac Lab light
+  configuration.
 
 ### 3.2 Success check
 
@@ -167,8 +183,15 @@ class CupStackingEnvCfg(SingleArmFrankaTaskEnvCfg):
     scene: CupStackingSceneCfg = CupStackingSceneCfg(env_spacing=8.0)
     observations: SingleArmFrankaObservationsCfg = SingleArmFrankaObservationsCfg()
     terminations: TerminationsCfg = TerminationsCfg()
-    task_description: str = "pick up the blue cup and place it on the pink cup."
+    task_description: str = "pick up the blue cup and place it on the pink cup."  # set from the template
     tracked_object_names: list[str] = ["blue_cup", "pink_cup"]
+    recorded_light_names: list[str] = ["rect_light"]
+    object_references: dict[str, dict[str, str]] = {
+        "blue_cup": {"name": "blue cup", "color": "blue object"},
+        "pink_cup": {"name": "pink cup", "color": "pink object"},
+    }
+    reference_weights: dict[str, float] = {"name": 1.0, "color": 0.0}
+    task_description_template: str = "pick up the {blue_cup} and place it on the {pink_cup}."
 
     def __post_init__(self) -> None:
         super().__post_init__()
@@ -186,9 +209,13 @@ class CupStackingEnvCfg(SingleArmFrankaTaskEnvCfg):
 
 | Setting | Purpose |
 |---|---|
-| `task_description` | Short sentence describing the goal. It is saved with every episode as the task text ([Data Collection §5](data_collection.md#5-the-recorder-and-the-dataset)) and is the instruction for language-conditioned policies. |
-| `tracked_object_names` | Objects whose start position is randomized. The recorder writes their positions as `object_position.<name>` for data verification and refuses to start when the list is empty. |
-| `fixed_object_names` | Objects that start at the same place in every episode (optional). They get no dataset column and are not verified; rollout logs their pose once in its log header, for reference. |
+| `task_description` | Short sentence describing the goal. With a `task_description_template`, the template overwrites it with the text in the most likely reference form; it is used only where one fixed text is needed. |
+| `tracked_object_names` | Objects whose start position is randomized. The recorder writes their positions as `object_position.<name>` (axis Object Poses) and refuses to start when the list is empty. |
+| `fixed_object_names` | Objects that start at the same place in every episode, such as the plate or the storage box (optional). They get no dataset column and are not verified; rollout logs their pose once in its log header, for reference. |
+| `recorded_light_names` | Scene lights recorded as `lighting.<name>` = `[intensity, color_temperature]` (axis Image Augmentations). Each is a scene entity, such as `rect_light`. |
+| `object_references` | Per object, the phrases the task text may use, `{form: phrase}`: `"name"` refers to the object by its name, `"color"` by its color only (axis Object Properties). Every listed object's color is recorded as `object_color.<name>`. Only the words change; the objects are never recolored. |
+| `reference_weights` | How often an episode's task text uses each form, for example `{"name": 0.5, "color": 0.5}`. One form is drawn per episode and used for every object. A form with a weight above 0 needs a phrase for every object; otherwise the environment refuses to start. |
+| `task_description_template` | The task text with one `{<object>}` field per object in `object_references`, filled with the phrases of the episode's form. Each episode's text is saved with it ([Data Collection §5](data_collection.md#5-the-recorder-and-the-dataset)) and is the instruction for language-conditioned policies. |
 | `episode_length_s` | Time a policy gets per evaluation episode. |
 | `env_spacing` | Distance between parallel environments; larger than the scene. |
 | `scene.robot.init_state` | Robot base pose and home joint angles. |
@@ -215,7 +242,14 @@ domain_randomization(
             },
             min_distance=0.11,
         ),
-        randomize_light_conditions("light", textures=[], intensity_range=(1100, 1300)),
+        randomize_light_conditions(
+            "rect_light",
+            intensity_range=(4500.0, 5500.0),
+            color_variation=0.0,
+            textures=[],
+            color_temperature_range=(5300.0, 5900.0),
+        ),
+        choose_object_reference_forms(self.reference_weights),
     ],
 )
 ```
@@ -228,10 +262,16 @@ domain_randomization(
   two largest object radii, so that objects never spawn inside each other.
 - For a single object, LeIsaac's `randomize_object_uniform(name, pose_range)`
   does the same without the distance check.
-- `randomize_light_conditions` changes the light intensity (and optionally the
-  color temperature) at every reset.
+- `randomize_light_conditions(name, ...)` sets the light's intensity, and with
+  `color_temperature_range` its color temperature, to uniform samples at every
+  reset. `color_variation=0.0` and `textures=[]` keep the light's color and
+  leave textures alone, as in the predefined tasks.
+- `choose_object_reference_forms(self.reference_weights)` draws the episode's
+  reference form at every reset; the task text is then built from
+  `task_description_template`. Without this event every episode uses the most
+  likely form.
 
-Without randomization, every episode starts identically and the coverage check
+Without randomization, every episode starts identically and the verifier
 finds all episodes in one cell.
 
 ## 4. Register the task
@@ -314,7 +354,37 @@ the group writes a state machine modelled on those in
 `packages/simulator/src/simulator/datagen/state_machine/` and adds it to
 `TASK_REGISTRY` in `scripts/datagen/generate.py`.
 
-## 6. Evaluate on the new task
+## 6. Write the specs
+
+**Required**
+
+Data verification checks a dataset against specs, one Turtle file per
+generalization axis ([Data Verification §3](data_verification.md#3-specs)).
+There is no generator for them: the specs of a new task are written by
+copying those of a predefined task and adapting them to the new objects.
+
+```bash
+mkdir -p specs/my_task
+cp specs/cup_stacking/object_pose.ttl specs/cup_stacking/image_augmentation.ttl \
+   specs/cup_stacking/object_property.ttl specs/my_task/
+```
+
+In the copies:
+
+- `object_pose.ttl`: one object block per name in `tracked_object_names`
+  (copy or delete blocks); `cp:name` is the object's scene name.
+- `image_augmentation.ttl`: `cp:lightName` is a name in
+  `recorded_light_names`.
+- `object_property.ttl`: one object block per object in `object_references`;
+  the phrases correspond to its `"name"` and `"color"` entries.
+
+The file names stay `object_pose.ttl`, `image_augmentation.ttl` and
+`object_property.ttl`, and the values stay `"TODO"`, as in the shipped specs.
+The group fills in its own values in a copy under `my_specs/`, as for a
+predefined task. `make test` checks that every file under `specs/<task>/` is
+named after an axis and has only its values left as `TODO`.
+
+## 7. Evaluate on the new task
 
 **Background**
 
@@ -326,7 +396,7 @@ call with a unique `TASK_ID`, passed to rollout as a path
 The evaluation protocol of a self-defined task is part of the group's
 reproducibility documentation.
 
-## 7. Common pitfalls
+## 8. Common pitfalls
 
 **Background**
 
@@ -342,8 +412,15 @@ reproducibility documentation.
   `wrist`.
 - **Empty `tracked_object_names`.** The recorder raises a `ValueError` and
   nothing can be verified.
+- **A light or object missing from the lists.** A light not in
+  `recorded_light_names` or an object not in `object_references` gets no
+  `lighting.*` or `object_color.*` column, and `verify` reports an error for a
+  spec that names it.
+- **Template field without a phrase.** Every `{<object>}` field in
+  `task_description_template` needs an entry in `object_references` with a
+  phrase for every form that has a weight above 0.
 
-## 8. Checklist
+## 9. Checklist
 
 **Required**
 
@@ -351,8 +428,10 @@ reproducibility documentation.
 - [ ] Scene, terminations, and environment classes are `@configclass` subclasses of the template classes.
 - [ ] Success check uses env-local positions (subtracts `env.scene.env_origins`, or compares two objects of the same env) and returns a `(num_envs,)` boolean tensor.
 - [ ] `task_description`, `tracked_object_names`, and `episode_length_s` are set.
+- [ ] `recorded_light_names` lists the scene light (for example `rect_light`), and `object_references`, `reference_weights` and `task_description_template` are set.
 - [ ] `__post_init__` calls `super().__post_init__()` first.
-- [ ] Reset randomization of object positions (and lighting) is registered.
+- [ ] Reset events for object positions, lighting (`randomize_light_conditions`), and the reference form (`choose_object_reference_forms`) are registered.
+- [ ] `specs/<my_task>/` holds `object_pose.ttl`, `image_augmentation.ttl` and `object_property.ttl`, copied from a predefined task and adapted to the new objects and light.
 - [ ] `gym.register` in the task's `__init__.py`, and the import line in `simulator/tasks/__init__.py`.
 - [ ] `parse_env_cfg(<task id>)` loads the class from the new file.
 - [ ] The scene runs, the cameras show the workspace, and the success check behaves as intended.

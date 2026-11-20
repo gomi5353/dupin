@@ -1,0 +1,12 @@
+# Dataset episodes per cell, for every requirement of every spec of the last verify (episodeCount is added by verify).
+SELECT ?spec ?object ?i ?j ?xMin ?xMax ?yMin ?yMax ?episodes ?min WHERE {
+    ?s a cp:Spec ; cp:name ?spec ; cp:declaresAxis ?axis .
+    ?axis cp:hasRequirement ?req .
+    ?req cp:hasTaskObject ?o ; cp:minEpisodesPerCell ?min ; cp:hasAreaConfiguration ?area .
+    ?o cp:name ?object .
+    ?area cp:hasCoverageGrid ?grid .
+    ?grid cp:hasCell ?cell .
+    ?cell cp:cellI ?i ; cp:cellJ ?j ; cp:episodeCount ?episodes ;
+          cp:cellXMin ?xMin ; cp:cellXMax ?xMax ; cp:cellYMin ?yMin ; cp:cellYMax ?yMax .
+}
+ORDER BY ?spec ?object ?j ?i

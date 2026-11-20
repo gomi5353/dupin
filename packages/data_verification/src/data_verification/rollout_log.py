@@ -1,7 +1,7 @@
 """Read the per-episode rollout log written by ``scripts/rollout.py`` (``outputs/rollout/<timestamp>.jsonl``).
 
 Format: ``packages/simulator/src/simulator/utils/rollout_log.py``. Keep
-``ROLLOUT_LOG_VERSION`` and ``OBJECT_POSITION_FACTOR`` in sync with it.
+``ROLLOUT_LOG_VERSION`` and the ``*_FACTOR`` names in sync with it.
 """
 
 from __future__ import annotations
@@ -13,6 +13,9 @@ from pathlib import Path
 
 ROLLOUT_LOG_VERSION = 1
 OBJECT_POSITION_FACTOR = "object_position"
+LIGHTING_FACTOR = "lighting"
+# Factor -> the values of each entry.
+_FACTOR_VALUES = {OBJECT_POSITION_FACTOR: "[x, y, z]", LIGHTING_FACTOR: "[intensity, color_temperature]"}
 STATUSES = ("succeeded", "failed", "aborted")
 
 
@@ -25,6 +28,8 @@ class RolloutRun:
     index: int
     status: str
     factors: dict[str, dict]
+    instruction: str | None = None
+    """The task text the policy was given (Object Properties axis)."""
 
     @property
     def succeeded(self) -> bool:
@@ -38,6 +43,12 @@ class RolloutRun:
     def object_positions(self) -> dict[str, tuple[float, float, float]]:
         """name -> (x, y, z) of the object's initial position."""
         return {name: (float(p[0]), float(p[1]), float(p[2])) for name, p in self.factors.get(OBJECT_POSITION_FACTOR, {}).items()}
+
+    @property
+    def lighting(self) -> dict[str, tuple[float, float]]:
+        """light name -> (intensity, color temperature) at the start of the run."""
+        return {name: (float(v[0]), float(v[1])) for name, v in self.factors.get(LIGHTING_FACTOR, {}).items()}
+
 
 
 @dataclass
@@ -98,12 +109,19 @@ def read_rollout_log(path: str | Path) -> RolloutLog:
         if index in seen:
             raise RolloutLogError(f"{path}: episode {index} appears twice")
         seen.add(index)
-        run = RolloutRun(index, status, record.get("factors", {}))
-        for name, p in run.factors.get(OBJECT_POSITION_FACTOR, {}).items():
-            if not (isinstance(p, list) and len(p) == 3 and all(isinstance(v, (int, float)) for v in p)):
-                raise RolloutLogError(f"{path}: episode {index}: position of '{name}' must be [x, y, z], got {p!r}")
-        for name, xyz in run.object_positions.items():
-            if not all(math.isfinite(v) for v in xyz):
-                raise RolloutLogError(f"{path}: episode {index}: non-finite position for '{name}'")
+        instruction = record.get("instruction")
+        if instruction is not None and not isinstance(instruction, str):
+            raise RolloutLogError(f"{path}: episode {index}: instruction must be a string, got {instruction!r}")
+        run = RolloutRun(index, status, record.get("factors", {}), instruction)
+        for factor, shape in _FACTOR_VALUES.items():
+            width = shape.count(",") + 1
+            entries = run.factors.get(factor, {})
+            if not isinstance(entries, dict):
+                raise RolloutLogError(f"{path}: episode {index}: factor '{factor}' must map names to values, got {entries!r}")
+            for name, v in entries.items():
+                if not (isinstance(v, list) and len(v) == width and all(isinstance(x, (int, float)) and not isinstance(x, bool) for x in v)):
+                    raise RolloutLogError(f"{path}: episode {index}: {factor} of '{name}' must be {shape}, got {v!r}")
+                if not all(math.isfinite(x) for x in v):
+                    raise RolloutLogError(f"{path}: episode {index}: non-finite {factor} for '{name}'")
         log.runs.append(run)
     return log

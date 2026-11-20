@@ -1,0 +1,47 @@
+# Image Augmentations axis (STAR-Gen V-AUG), factor: lighting.
+#
+# You decide what "enough lighting variation" means for your dataset. Fill in
+# every "TODO" below in a copy of this file, then verify your dataset with it:
+#
+#   uv run python scripts/store.py verify --store stores/<dataset_repo> --spec <your copy>
+#
+# To check several axes in one run, list one spec file per axis:
+# --spec my_specs/object_pose.ttl my_specs/image_augmentation.ttl
+# my_specs/object_property.ttl. Axes without a spec file are not checked.
+#
+# The light is the task's RectLight (scene name rect_light). Each episode's
+# intensity and color temperature at its first frame are read from the
+# dataset column lighting.<name> = [intensity, color_temperature]. The ranges
+# below are split into a grid of numBinsIntensity x numBinsColorTemperature
+# cells; every cell needs at least minEpisodesPerCell episodes.
+#
+# Units: intensity as USD inputs:intensity (the evaluation files use
+# 2500-8000); color temperature in kelvin (lower = warmer/orange, higher =
+# cooler/blue; the evaluation files use 3000-6500).
+#
+# Guide: docs/image_augmentation.md
+
+@prefix cp:   <http://taica.course/cp/ontology#> .
+@prefix spec: <http://taica.course/cp/spec/mine#> .
+
+# The Image Augmentations axis. Each block below adds one lighting requirement to it.
+spec:image_augmentation_axis a cp:ImageAugmentationAxis .
+
+# --- BEGIN LIGHT ---
+spec:image_augmentation_axis cp:hasRequirement spec:rect_light_requirement .
+
+spec:rect_light_requirement a cp:LightingRequirement ;
+    # Must match the dataset column name lighting.rect_light.
+    cp:lightName "rect_light" ;
+
+    # Ranges your data should cover. Numbers, e.g. 2500.0 (not quoted).
+    cp:intensityMin "TODO" ; cp:intensityMax "TODO" ;
+    cp:colorTemperatureMin "TODO" ; cp:colorTemperatureMax "TODO" ;
+
+    # Number of bins along each range. Whole numbers, e.g. 3.
+    cp:numBinsIntensity "TODO" ; cp:numBinsColorTemperature "TODO" ;
+
+    # Minimum number of episodes in each (intensity, temperature) cell.
+    # Whole number, e.g. 2.
+    cp:minEpisodesPerCell "TODO" .
+# --- END LIGHT ---

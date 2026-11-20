@@ -1,0 +1,119 @@
+# Object Poses axis (STAR-Gen VB-POSE), factor: object position.
+#
+# STAR-Gen's factor is the manipulated object pose. This repository checks
+# the initial position only (no orientation) and calls the factor object
+# position ("manipulated" is omitted for brevity).
+#
+# You decide what "enough coverage" means for your dataset. Fill in every
+# "TODO" below in a copy of this file, then verify your dataset with it:
+#
+#   uv run python scripts/store.py verify --store stores/<dataset_repo> --spec <your copy>
+#
+# To check several axes in one run, list one spec file per axis:
+# --spec my_specs/object_pose.ttl my_specs/image_augmentation.ttl
+# my_specs/object_property.ttl. Axes without a spec file are not checked.
+#
+# verify renames the individuals below (spec:...) under the store's IRI for
+# this spec, so several copies of this file can share one store.
+#
+# Guide: docs/object_pose.md
+#
+# Units and frame: metres, env-local frame (the same frame as the
+# object_position.<name> dataset columns and the task cfg's init_state.pos).
+#
+# One block per object you want checked. Delete a block to stop checking that
+# object; copy a block to check another one. Objects without a block are
+# recorded but never checked.
+
+@prefix cp:   <http://taica.course/cp/ontology#> .
+@prefix spec: <http://taica.course/cp/spec/mine#> .
+
+# The Object Poses axis. Each block below adds one object position requirement to it.
+spec:object_pose_axis a cp:ObjectPoseAxis .
+
+# --- BEGIN OBJECT ---
+spec:object_pose_axis cp:hasRequirement spec:green_block_requirement .
+
+spec:green_block_requirement a cp:ObjectPositionRequirement ;
+    cp:hasTaskObject spec:green_block ;
+    cp:hasAreaConfiguration spec:green_block_area ;
+
+    # Minimum number of episodes whose initial position of this object falls
+    # inside each cell. Whole number, e.g. 2.
+    cp:minEpisodesPerCell "TODO" .
+
+spec:green_block a cp:TaskObject ;
+    # Must match the dataset column name object_position.green_block.
+    cp:name "green_block" .
+
+spec:green_block_area a cp:AreaConfiguration ;
+    cp:hasCoverageGrid spec:green_block_grid ;
+
+    # Rectangle your data should cover: where this object may start.
+    # Numbers, e.g. 8.80 (not quoted).
+    cp:areaXMin "TODO" ; cp:areaXMax "TODO" ;
+    cp:areaYMin "TODO" ; cp:areaYMax "TODO" .
+
+spec:green_block_grid a cp:CoverageGrid ;
+    # Number of cells along x (width) and along y (height).
+    # Cell width = (areaXMax - areaXMin) / numCellW. Whole numbers, e.g. 3.
+    cp:numCellW "TODO" ; cp:numCellH "TODO" .
+# --- END OBJECT ---
+
+# --- BEGIN OBJECT ---
+spec:object_pose_axis cp:hasRequirement spec:blue_block_requirement .
+
+spec:blue_block_requirement a cp:ObjectPositionRequirement ;
+    cp:hasTaskObject spec:blue_block ;
+    cp:hasAreaConfiguration spec:blue_block_area ;
+
+    # Minimum number of episodes whose initial position of this object falls
+    # inside each cell. Whole number, e.g. 2.
+    cp:minEpisodesPerCell "TODO" .
+
+spec:blue_block a cp:TaskObject ;
+    # Must match the dataset column name object_position.blue_block.
+    cp:name "blue_block" .
+
+spec:blue_block_area a cp:AreaConfiguration ;
+    cp:hasCoverageGrid spec:blue_block_grid ;
+
+    # Rectangle your data should cover: where this object may start.
+    # Numbers, e.g. 8.80 (not quoted).
+    cp:areaXMin "TODO" ; cp:areaXMax "TODO" ;
+    cp:areaYMin "TODO" ; cp:areaYMax "TODO" .
+
+spec:blue_block_grid a cp:CoverageGrid ;
+    # Number of cells along x (width) and along y (height).
+    # Cell width = (areaXMax - areaXMin) / numCellW. Whole numbers, e.g. 3.
+    cp:numCellW "TODO" ; cp:numCellH "TODO" .
+# --- END OBJECT ---
+
+# --- BEGIN OBJECT ---
+spec:object_pose_axis cp:hasRequirement spec:red_block_requirement .
+
+spec:red_block_requirement a cp:ObjectPositionRequirement ;
+    cp:hasTaskObject spec:red_block ;
+    cp:hasAreaConfiguration spec:red_block_area ;
+
+    # Minimum number of episodes whose initial position of this object falls
+    # inside each cell. Whole number, e.g. 2.
+    cp:minEpisodesPerCell "TODO" .
+
+spec:red_block a cp:TaskObject ;
+    # Must match the dataset column name object_position.red_block.
+    cp:name "red_block" .
+
+spec:red_block_area a cp:AreaConfiguration ;
+    cp:hasCoverageGrid spec:red_block_grid ;
+
+    # Rectangle your data should cover: where this object may start.
+    # Numbers, e.g. 8.80 (not quoted).
+    cp:areaXMin "TODO" ; cp:areaXMax "TODO" ;
+    cp:areaYMin "TODO" ; cp:areaYMax "TODO" .
+
+spec:red_block_grid a cp:CoverageGrid ;
+    # Number of cells along x (width) and along y (height).
+    # Cell width = (areaXMax - areaXMin) / numCellW. Whole numbers, e.g. 3.
+    cp:numCellW "TODO" ; cp:numCellH "TODO" .
+# --- END OBJECT ---

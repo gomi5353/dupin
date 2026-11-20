@@ -24,10 +24,10 @@ LeRobot, and evaluate the policy in the simulator.
 | [0. Set up](#3-step-0-set-up-the-machine) | Install the software and start the simulator | Host | Working environments | This guide |
 | [1. Choose a task](#4-step-1-choose-a-task) | Select one of the three predefined tasks | – | Task id | [Data Collection §1](data_collection.md#1-the-two-methods) |
 | [2. Record](#5-step-2-record-demonstrations) | Record demonstrations with the state machine or keyboard teleoperation | Simulator environment | LeRobot v3 dataset | [Data Collection](data_collection.md) |
-| [3. Inspect and verify](#6-step-3-inspect-and-verify-the-dataset) | Look at the episodes and check object-position coverage | Host | Coverage report | [Dataset Visualizer](lerobot_dataset_visualizer.md), [Object Position Coverage](object_position_coverage.md) |
+| [3. Inspect and verify](#6-step-3-inspect-and-verify-the-dataset) | Look at the episodes and check them against the group's specs on three generalization axes | Host | Verification report | [Dataset Visualizer](lerobot_dataset_visualizer.md), [Data Verification](data_verification.md) |
 | [4. Train](#7-step-4-train-a-policy) | Train a policy on the dataset | Host | Policy checkpoint | [LeRobot Training](lerobot_training.md) |
 | [5. Evaluate](#8-step-5-evaluate-the-policy) | Run the policy in the simulator | Simulator environment | Success rate | [Rollout](rollout.md) |
-| [6. Diagnose and iterate](#9-step-6-diagnose-and-iterate) | Relate failures to gaps in the data, then collect again | Host | Next round of data | [Object Position Coverage](object_position_coverage.md), [Adding a Coverage Factor](adding_coverage_factor.md) |
+| [6. Diagnose and iterate](#9-step-6-diagnose-and-iterate) | Relate failures to gaps in the data, then collect again | Host | Next round of data | [Data Verification §5](data_verification.md#5-compare-the-dataset-with-a-rollout), [Adding a Coverage Factor](adding_coverage_factor.md) |
 
 The steps form a loop rather than a single pass: a failed evaluation usually
 leads back to step 2 with a better-targeted collection.
@@ -61,12 +61,14 @@ recording: [Adding a New Task](adding_new_task.md).
 | Isaac Lab environment | The running simulation of one task, created from the task id with `gym.make(...)`. `env.reset()` starts a new attempt with randomized objects; `env.step(action)` applies one action and advances the simulation by 1/60 s. |
 | Episode | One attempt at the task, from one `env.reset()` to the next. |
 | Data-collection method | How the robot is driven while demonstrations are recorded: a scripted **state machine** (`scripts/datagen/generate.py`) or **keyboard teleoperation** (`scripts/teleop.py`). It plays the expert that the policy imitates. |
-| LeRobot recorder | The repository's `LeRobotRecorderManager`. It is attached to the environment and saves every successful episode, including the object positions that data verification needs. |
+| LeRobot recorder | The repository's `LeRobotRecorderManager`. It is attached to the environment and saves every successful episode, including the columns that data verification needs: object positions, lighting, object colors, and each episode's task text. |
 | Dataset | The recorded episodes of one task, stored in the LeRobot v3 format: per-frame numbers in Parquet tables, camera images as MP4 videos, and metadata in `meta/`. |
 | Policy | The neural network trained on the dataset. It maps camera images and joint states to robot actions. |
 | Checkpoint | A saved policy: its weights, configuration, and normalization statistics. |
 | Rollout | Running a policy in the simulator for a number of episodes to measure its success rate. |
-| Coverage check | The data-verification tool. It reports which regions of the table the initial object positions in a dataset cover, against a requirement that the group writes. |
+| Generalization axis | One way in which the evaluation conditions can differ from the demonstrations, taken from the STAR-Gen taxonomy. The repository checks three axes, each with one *factor*: **Object Poses** (factor object position), **Image Augmentations** (factor lighting), and **Object Properties** (factor referencing objects by color). |
+| Spec | A Turtle (`.ttl`) file in which the group states what its dataset must cover on one axis, for example the table area per object and the episodes per cell. Each predefined task ships one spec per axis in `specs/<task>/`, with every value left as `TODO`; the group copies and fills them in. |
+| Data verification | The check of a dataset against the group's specs (`scripts/store.py verify`). It reports, per axis, where the dataset has too few episodes, and compares rollouts with the dataset. |
 
 ## 3. Step 0: Set up the machine
 
@@ -137,8 +139,8 @@ docker run --rm --gpus all ubuntu nvidia-smi
 
 Students cannot push to the course repository. Every group therefore works in
 its own **fork**: a copy of the repository under a group member's GitHub
-account. The group's work (state-machine and configuration changes, coverage
-specifications, new verification factors) is committed and
+account. The group's work (state-machine and configuration changes, filled-in
+specs, new verification factors) is committed and
 pushed to the fork, so it is kept, shared within the group, and handed in
 from there. A plain clone of the course repository would leave all changes on
 one machine, with no place to push them.
@@ -275,7 +277,7 @@ Other `make` targets:
 |---|---|---|
 | Recording, rollout | Simulator environment (`make launch-sim`, or the container) | Both start the simulator, which needs the pinned GPU and rendering stack. |
 | Training | Host `uv` environment | The container adds file-access and GPU pass-through overhead. |
-| Coverage check, dataset inspection, tests | Host `uv` environment | They only read files and never start the simulator. |
+| Verification store (`verify`, queries), dataset inspection, tests | Host `uv` environment | They only read files and never start the simulator. |
 
 ### 3.7 Repository layout
 
@@ -284,16 +286,19 @@ Other `make` targets:
 | Path | Content |
 |---|---|
 | `packages/simulator/` | Task configurations, the shared Franka template, randomization events, assets, the state machines (`simulator.datagen.state_machine`), the keyboard device (`simulator.devices`), and the LeRobot recorder (`simulator.utils.lerobot_recorder`). |
-| `packages/data_verification/` | The coverage checker (dataset reader, RDF graph builder, OWL ontology, SHACL rules, specification template). |
+| `packages/data_verification/` | The verification store: dataset and rollout-log readers, OWL ontology, SHACL rules, and one verifier per generalization axis under `axes/` (`object_pose`, `image_augmentation`, `object_property`), registered in `registry.py`. |
 | `eval/` | Public evaluation task files, one per task, used by rollout. |
 | `scripts/datagen/generate.py`, `scripts/teleop.py` | The two data-collection methods: state machine and keyboard teleoperation. |
 | `scripts/rollout.py` | Runs a trained policy in the simulator and reports the success rate. |
-| `scripts/verify_object_position_coverage.py` | Command-line interface of the coverage check. |
+| `scripts/store.py` | Command-line interface of the verification store (`ingest`, `verify`, `explore`, `query`). |
+| `specs/<task>/` | The shipped specs of each predefined task, one per axis: `object_pose.ttl`, `image_augmentation.ttl`, `object_property.ttl`. Every value is `TODO`; the group copies them and fills them in. |
+| `queries/` | Example SPARQL queries over a store. |
 | `tests/` | Host-side tests (`make test`). |
 | `dependencies/IsaacLab/` | Isaac Lab as a Git submodule. Not edited. |
 | `requirements-sim.txt`, `scripts/install_sim_host.sh`, `scripts/sim_env.sh` | The host simulator environment: pinned versions, installer, and shell setup. |
 | `Dockerfile`, `Makefile` | The container image, and the commands that install and launch both simulator environments. |
-| `datasets/`, `outputs/`, `checkpoints/` | Recorded datasets and training outputs; not tracked by Git. |
+| `datasets/`, `outputs/`, `checkpoints/` | Recorded datasets, training and rollout outputs (including the rollout logs in `outputs/rollout/`); not tracked by Git. |
+| `stores/` | Verification stores, one per dataset (`stores/<dataset_repo>/`), written by `scripts/store.py`; not tracked by Git. |
 
 ## 4. Step 1: Choose a task
 
@@ -334,8 +339,9 @@ python scripts/datagen/generate.py \
 ```
 
 Groups may adjust the state machine and the task configuration, for example
-the randomization ranges or the lighting, as long as the rollout contract is
-kept. How many episodes to record, and which object positions they must
+the object randomization ranges, the light ranges, or how often the task text
+refers to the objects by color, as long as the rollout contract is kept. How
+many episodes to record, and which positions, lights, and wordings they must
 cover, is the group's decision and is revisited in step 6.
 [Data Collection](data_collection.md) describes both methods, what may be
 adjusted, and the recorder.
@@ -349,21 +355,31 @@ Before training, every dataset is checked in two ways, on the host:
 1. **Visual inspection.** A few episodes are watched with the
    [LeRobot Dataset Visualizer](lerobot_dataset_visualizer.md), to confirm
    that the camera views, the motion, and the episode boundaries are correct.
-2. **Object-position coverage check.** The group writes a short requirement file
-   that states which region of the table the initial object positions must
-   cover, how finely to divide it, and how many episodes each cell needs. The
-   check then reports the cells with too few episodes:
+2. **Data verification.** The dataset is put into a verification store (RDF
+   files under `stores/<dataset_repo>/`). The group copies the shipped specs of
+   its task from `specs/<task>/`, one file per generalization axis, and
+   replaces every `TODO` with its own values: for example the table area each
+   object must cover and the episodes per cell (Object Poses), the light ranges
+   (Image Augmentations), or the phrases that refer to each object by name and
+   by color (Object Properties). `verify` checks the dataset against every
+   spec it is given, reports where the dataset has too few episodes, and keeps
+   the specs and results in the store, where they can be queried with SPARQL:
 
    ```bash
-   uv run python scripts/verify_object_position_coverage.py init \
-       --dataset datasets/${HF_USER}/cup-stacking-demos --out specs/cup_stacking.ttl
-   # fill in the TODO values, then:
-   uv run python scripts/verify_object_position_coverage.py check \
-       --dataset datasets/${HF_USER}/cup-stacking-demos --spec specs/cup_stacking.ttl
+   uv run python scripts/store.py ingest --dataset datasets/${HF_USER}/cup-stacking-demos
+   mkdir -p my_specs
+   cp specs/cup_stacking/object_pose.ttl specs/cup_stacking/image_augmentation.ttl \
+      specs/cup_stacking/object_property.ttl my_specs/
+   # replace every "TODO" in the copies, then:
+   uv run python scripts/store.py verify --store stores/cup-stacking-demos \
+       --spec my_specs/object_pose.ttl my_specs/image_augmentation.ttl my_specs/object_property.ttl
    ```
 
-   [Object Position Coverage](object_position_coverage.md) explains how to choose the
-   values and how to read the report.
+   An axis without a spec file is not checked. [Data Verification](data_verification.md)
+   explains the workflow and the report; the axis pages
+   ([Object Poses](object_pose.md), [Image Augmentations](image_augmentation.md),
+   [Object Properties](object_property.md)) explain how to choose each
+   spec's values.
 
 Running the check is required for every dataset. Its values are the group's
 own decision, and the report is evidence for the group's analysis, not a grade.
@@ -426,16 +442,22 @@ training settings are at fault. Imitation-learning policies tend to work only
 in situations that the demonstrations cover well. The diagnosis therefore
 starts with the data:
 
-1. Watch the failed rollout episodes and note where the objects started.
-2. Compare those positions with the coverage report from step 3. A failure in a
-   cell with few or no episodes points to a gap in the data.
+1. Put the rollout log (`outputs/rollout/<timestamp>.jsonl`) into the
+   dataset's store and run `verify` again
+   ([Data Verification §5](data_verification.md#5-compare-the-dataset-with-a-rollout)).
+   For every axis, the report shows which runs the dataset covers and the
+   success rate of covered and uncovered runs: where the objects started, under
+   which light, and with which wording of the task text.
+2. Watch the failed rollout episodes. A failure in a region with few or no
+   dataset episodes points to a gap in the data.
 3. Collect more episodes where the report shows gaps, run the check again, and
    retrain.
 
 Coverage is a diagnostic, not a proof: an uncovered region is evidence of a
 possible gap in the data, while complete coverage does not guarantee success.
-A group that suspects another factor, such as lighting or object orientation,
-can select it from the STAR-Gen taxonomy or another paper and follow
+A group that suspects another factor, such as object orientation or the
+camera viewpoint, can select it from the STAR-Gen taxonomy or another paper
+and follow
 [Adding a New Dataset Coverage Factor](adding_coverage_factor.md).
 
 ## 10. Documentation map
@@ -446,8 +468,11 @@ can select it from the STAR-Gen taxonomy or another paper and follow
 |---|---|---|
 | [Data Collection](data_collection.md) | Steps 1–2 | Tasks, state machine, keyboard teleoperation, adjustable settings, recorder |
 | [LeRobot Dataset Visualizer](lerobot_dataset_visualizer.md) | Step 3 | Inspecting episodes in the browser or locally |
-| [Object Position Coverage](object_position_coverage.md) | Steps 3 and 6 | Writing the coverage requirement, running the check, reading the report |
+| [Data Verification](data_verification.md) | Steps 3 and 6 | The three generalization axes, the workflow, specs, running the check, comparing rollouts, querying the store |
+| [Object Poses: Object Position](object_pose.md) | Steps 3 and 6 | The object-position spec, its report, and its rollout comparison |
+| [Image Augmentations: Lighting](image_augmentation.md) | Steps 3 and 6 | The lighting spec, its report, and its rollout comparison |
+| [Object Properties: Referencing Objects by Color](object_property.md) | Steps 3 and 6 | The color-reference spec, its report, and its rollout comparison |
 | [LeRobot Training](lerobot_training.md) | Step 4 | Training flags, multi-GPU, checkpoint layout, upload |
 | [Rollout](rollout.md) | Step 5 | Rollout flags, eval files, policy input and output contract |
 | [Adding a New Task](adding_new_task.md) | Step 1, Advanced Level | Writing, registering, and testing a new task configuration |
-| [Adding a New Dataset Coverage Factor](adding_coverage_factor.md) | Step 6 | Extending data verification to another factor |
+| [Adding a New Dataset Coverage Factor](adding_coverage_factor.md) | Step 6 | Extending data verification to another axis or factor |

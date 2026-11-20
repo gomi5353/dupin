@@ -72,14 +72,39 @@ python scripts/rollout.py \
 ```
 
 Besides the success rate, every rollout writes a per-episode log to
-`outputs/rollout/<timestamp>.jsonl` (no flag needed): each episode's initial
-positions of the randomized objects and whether it succeeded. The first line
-(header) also records, once, the poses of what never moves: `robot_base` and
-`fixed_objects` (`fixed_object_names`, such as the plate), each as `pos`
-(env-local, metres) and `rot` (quaternion w, x, y, z). They are for reference
-only; the comparison ignores them. Comparing it with the dataset shows which
-rollout positions the dataset does not cover and where to record next
-([Object Position Coverage §8](object_position_coverage.md#8-compare-the-dataset-with-a-rollout)).
+`outputs/rollout/<timestamp>.jsonl` (no flag needed). After a header line,
+there is one line per episode:
+
+```json
+{"type": "episode", "episode": 3, "status": "failed",
+ "factors": {"object_position": {"blue_cup": [8.91, 6.47, 1.0], "pink_cup": [9.02, 6.55, 1.0]},
+             "lighting": {"rect_light": [6120.0, 4100.0]}},
+ "instruction": "pick up the blue object and place it on the pink object."}
+```
+
+| Key | Content |
+|---|---|
+| `status` | `succeeded`, `failed`, or `aborted` (manual reset or closed app; ignored by the comparison) |
+| `factors.object_position` | Initial position of every object in `tracked_object_names`, env-local, metres (axis Object Poses) |
+| `factors.lighting` | `[intensity, color_temperature]` of every light in `recorded_light_names` at the start of the episode (axis Image Augmentations) |
+| `instruction` | The task text the policy was given in this episode (axis Object Properties). Each environment gets its own episode text, built from the eval file's `task_description_template` in the reference form drawn for it (by name or by color); `--policy_language_instruction` replaces it for every episode. |
+
+Object colors are not logged: the objects never change, only the
+instruction does. The header line also records, once, the poses of what never
+moves: `robot_base` and `fixed_objects` (`fixed_object_names`, such as the
+plate), each as `pos` (env-local, metres) and `rot` (quaternion w, x, y, z).
+They are for reference only; the comparison ignores them.
+
+Putting the log into the training dataset's verification store and running
+`verify` with the group's specs shows, for every axis, which rollout episodes
+the dataset does not cover and where to record next
+([Data Verification §5](data_verification.md#5-compare-the-dataset-with-a-rollout)):
+
+```bash
+uv run python scripts/store.py ingest --store stores/<dataset_repo> --rollout-log outputs/rollout/<timestamp>.jsonl
+uv run python scripts/store.py verify --store stores/<dataset_repo> \
+    --spec my_specs/object_pose.ttl my_specs/image_augmentation.ttl my_specs/object_property.ttl
+```
 
 ### Flag reference
 
@@ -89,12 +114,12 @@ rollout positions the dataset does not cover and where to record next
 | `--policy_type` | **Required.** `lerobot-<type>`, where `<type>` is the `--policy.type` used in training. One of `lerobot-diffusion`, `lerobot-act`, `lerobot-smolvla`, `lerobot-pi0`, `lerobot-pi05`, `lerobot-vqbet`, `lerobot-tdmpc`, `lerobot-sac`, `lerobot-groot`, `lerobot-xvla`. |
 | `--policy_checkpoint_path` | **Required.** The checkpoint's `pretrained_model` folder (the one containing `config.json` and `model.safetensors`). |
 | `--policy_action_horizon` | Number of actions executed from each inference before the policy runs again. Overrides `n_action_steps` from the checkpoint, which is used by default. It must be positive and at most the number of actions one inference predicts: `horizon - n_obs_steps + 1` for Diffusion Policy, `chunk_size` for ACT. ACT with temporal ensembling only accepts `1`. The values in use are printed at start. |
-| `--policy_language_instruction` | Language instruction for language-conditioned policies. |
+| `--policy_language_instruction` | Language instruction for language-conditioned policies, the same for every episode. By default each episode gets its own task text from the eval file (by name or by color), which is also logged as `instruction`. |
 | `--device=cuda` | Runs simulation and inference on the GPU. |
 | `--enable_cameras` | Enables camera rendering. Required, because the policy needs images. |
 | `--eval_rounds` | Number of evaluation episodes. `0` (the default) runs without a time limit until success or a manual reset. |
 | `--episode_length_s` | Episode length in seconds. By default the task's graded length is used; the value in use is printed at start. |
-| `--seed` | Seed of the object-position and lighting randomization (default `42`). A fixed seed compares policies on the same episodes. |
+| `--seed` | Seed of the object-position, lighting, and reference-form randomization (default `42`). A fixed seed compares policies on the same episodes. |
 | `--num_envs` | Number of environments simulated in parallel; each round evaluates this many episodes at once. |
 | `--headless` | Runs without the GUI window. |
 
@@ -105,7 +130,7 @@ rollout positions the dataset does not cover and where to record next
 Rollout feeds the policy exactly the features below and expects the action
 below. A checkpoint submitted for evaluation must use only these input
 features and predict only this output. The dataset may contain other columns
-(for example `object_position.*`); LeRobot ignores them because they are neither
+(for example `object_position.*`, `lighting.*`, `object_color.*`); LeRobot ignores them because they are neither
 `observation.*` nor `action`.
 
 | Key | Direction | dtype | Shape | Meaning |

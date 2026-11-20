@@ -1,0 +1,14 @@
+# Cells with fewer dataset episodes than the requirement asks for, and how many more each needs.
+SELECT ?spec ?object ?i ?j ?xMin ?xMax ?yMin ?yMax ?episodes ?needed WHERE {
+    ?s a cp:Spec ; cp:name ?spec ; cp:declaresAxis ?axis .
+    ?axis cp:hasRequirement ?req .
+    ?req cp:hasTaskObject ?o ; cp:minEpisodesPerCell ?min ; cp:hasAreaConfiguration ?area .
+    ?o cp:name ?object .
+    ?area cp:hasCoverageGrid ?grid .
+    ?grid cp:hasCell ?cell .
+    ?cell cp:cellI ?i ; cp:cellJ ?j ; cp:episodeCount ?episodes ;
+          cp:cellXMin ?xMin ; cp:cellXMax ?xMax ; cp:cellYMin ?yMin ; cp:cellYMax ?yMax .
+    FILTER (?episodes < ?min)
+    BIND (?min - ?episodes AS ?needed)
+}
+ORDER BY ?spec ?object DESC(?needed) ?j ?i

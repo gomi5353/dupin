@@ -97,6 +97,42 @@ def randomize_light_conditions(
     )
 
 
+class choose_object_references(ManagerTermBase):
+    """Pick the episode's reference form on each reset (STAR-Gen S-PROP, Object Properties).
+
+    A form (``"name"``, ``"color"``, ...) says how the task text refers to the objects of
+    ``env.cfg.object_references``: by name ("the fork") or by a property ("the pink object"). The
+    objects themselves never change. One form per episode, for every object, drawn with ``weights``
+    (``env.cfg.reference_weights``) from a private RNG seeded with ``env.cfg.seed``, as in
+    ``randomize_light``. The chosen form is kept in ``env.object_reference_forms[env_id]``, which
+    ``SingleArmFrankaTaskEnvCfg.task_text`` reads.
+    """
+
+    def __init__(self, cfg: EventTerm, env: ManagerBasedEnv):
+        super().__init__(cfg, env)
+        from simulator.utils.scene_factors import reference_form_errors
+
+        errors = reference_form_errors(env.cfg.object_references, cfg.params["weights"])
+        if errors:
+            raise ValueError("; ".join(errors))
+        seed = env.cfg.seed if env.cfg.seed is not None else 0
+        self._rng = random.Random(f"{seed}:object_references")
+        weights = cfg.params["weights"]
+        env.object_reference_forms = [max(weights, key=weights.get)] * env.num_envs
+
+    def __call__(self, env: ManagerBasedEnv, env_ids: torch.Tensor | None, weights: dict[str, float]):
+        from simulator.utils.scene_factors import pick_reference_form
+
+        ids = range(env.num_envs) if env_ids is None else sorted(env_ids.tolist())
+        for env_id in ids:
+            env.object_reference_forms[env_id] = pick_reference_form(self._rng, weights)
+
+
+def choose_object_reference_forms(weights: dict[str, float]) -> EventTerm:
+    """Reset event: each episode's task text refers to the objects in one form (see ``choose_object_references``)."""
+    return EventTerm(func=choose_object_references, mode="reset", params={"weights": weights})
+
+
 _POSE_KEYS = ("x", "y", "z", "roll", "pitch", "yaw")
 
 

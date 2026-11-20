@@ -1,0 +1,34 @@
+# SHACL rules of the Object Poses axis, factor object position (rollout side; extends shapes/rollout.ttl).
+#
+# Severity:
+#   sh:Violation - the rollout is malformed; the comparison stops
+
+@prefix cp:   <http://taica.course/cp/ontology#> .
+@prefix sh:   <http://www.w3.org/ns/shacl#> .
+@prefix xsd:  <http://www.w3.org/2001/XMLSchema#> .
+@prefix owl:  <http://www.w3.org/2002/07/owl#> .
+
+cp: a owl:Ontology ;
+    sh:declare [ sh:prefix "cp" ; sh:namespace "http://taica.course/cp/ontology#"^^xsd:anyURI ] .
+
+cp:ObjectPositionRolloutShape a sh:NodeShape ;
+    sh:targetClass cp:Rollout ;
+    sh:sparql [
+        sh:message "Finished run {?index} has no initial position for '{?name}', which the training dataset's spec requires" ;
+        sh:prefixes cp: ;
+        sh:select """
+            SELECT $this ?index ?name WHERE {
+                $this cp:hasDataset ?dataset ; cp:hasRun ?run .
+                ?run cp:index ?index .
+                ?run cp:status ?s . FILTER (?s IN ("succeeded", "failed"))
+                ?dataset cp:hasGeneralizationAxis ?axis .
+                ?axis cp:hasRequirement ?req .
+                ?req a cp:ObjectPositionRequirement ; cp:hasTaskObject ?reqObj .
+                ?reqObj cp:name ?name .
+                FILTER NOT EXISTS {
+                    ?run cp:hasTaskObject ?obj .
+                    ?obj cp:name ?name ; cp:hasPosition ?p .
+                }
+            }
+        """ ;
+    ] .
