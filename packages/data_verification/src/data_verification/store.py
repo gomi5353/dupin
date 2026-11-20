@@ -3,7 +3,7 @@
     stores/<dataset>/
         dataset.ttl                       ingest --dataset: dataset, episodes, initial positions
         rollouts/<rollout>.ttl            ingest --rollout-log: rollout, runs, statuses, initial positions
-        specs/<spec>.ttl                  attach --spec: the student's spec (renamed), derived cells
+        specs/<spec>.ttl                  verify --spec: the student's spec (renamed), derived cells
         findings/<spec>.ttl               verify: Verification of the dataset against the spec
         findings/<spec>__<rollout>.ttl    verify: Comparison of the rollout's runs under the spec
         queries/                          the group's own SPARQL queries
@@ -233,11 +233,14 @@ def _provenance(graph: Graph, node: URIRef, source: Path, digest: str) -> None:
 _KEEP_PREFIXES = (str(CP), DATA, str(RDF), str(RDFS), str(OWL), str(XSD), str(SH), str(DCTERMS))
 
 
-def attach_spec(store: Store, spec_path: str | Path, name: str | None = None) -> URIRef:
-    """Check a spec, rename its individuals under the spec's IRI, derive its nodes, write specs/<name>.ttl.
+def load_spec(store: Store, spec_path: str | Path, name: str | None = None) -> URIRef:
+    """Check a spec file, rename its individuals under the spec's IRI, derive its nodes, write specs/<name>.ttl.
 
-    Renaming lets several specs, all written from the same template, live in
-    one store. The dataset gets the spec's axes (cp:hasGeneralizationAxis).
+    ``verify`` calls it for every spec it is given, so the store always holds
+    the spec files as they were at the last verify. Renaming lets several
+    specs, all copied from the same shipped spec, live in one store. The
+    dataset gets the spec's axes (cp:hasGeneralizationAxis). Raises
+    ``StoreError`` with every problem found (TODO left, wrong value types, ...).
     """
     path = Path(spec_path)
     name = name or path.stem
@@ -288,11 +291,9 @@ def attach_spec(store: Store, spec_path: str | Path, name: str | None = None) ->
     return node
 
 
-def detach_spec(store: Store, name: str) -> None:
-    path = store.spec_file(name)
-    if not path.is_file():
-        raise StoreError(f"No spec '{name}' in {store.root} (attached: {', '.join(store.spec_names()) or 'none'})")
-    path.unlink()
+def drop_spec(store: Store, name: str) -> None:
+    """Remove a spec and its findings from the store (``verify`` drops the specs it was not given)."""
+    store.spec_file(name).unlink(missing_ok=True)
     _remove_findings(store, name)
 
 
@@ -361,7 +362,7 @@ def source_changes(graph: Graph, node: URIRef, kind: str) -> list[str]:
     current = dataset_fingerprint(path) if kind == "dataset" else file_sha256(path)
     if current == str(recorded):
         return []
-    again = {"dataset": f"ingest --dataset {path}", "rollout": f"ingest --rollout-log {path}", "spec": f"attach --spec {path}"}[kind]
+    again = {"dataset": f"ingest --dataset {path}", "rollout": f"ingest --rollout-log {path}", "spec": f"verify --spec {path}"}[kind]
     return [f"The {kind} {path} changed after it entered the store; run: {again}"]
 
 

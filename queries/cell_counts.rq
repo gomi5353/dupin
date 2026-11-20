@@ -1,4 +1,4 @@
-# Dataset episodes per cell, for every requirement of every attached spec (episodeCount is added by verify).
+# Dataset episodes per cell, for every requirement of every spec of the last verify (episodeCount is added by verify).
 SELECT ?spec ?object ?i ?j ?xMin ?xMax ?yMin ?yMax ?episodes ?min WHERE {
     ?s a cp:Spec ; cp:name ?spec ; cp:declaresAxis ?axis .
     ?axis cp:hasRequirement ?req .

@@ -11,17 +11,14 @@
 # as written in the task text) with a reference RGB. An episode's color
 # belongs to the nearest category within maxColorDistance (Euclidean RGB);
 # otherwise to none. The requirement asks for:
-#   - at least minEpisodesPerColor episodes in every category;
-#   - a normalized Shannon entropy of the episodes over the categories of at
-#     least minNormalizedEntropy (1 = evenly spread, 0 = all in one);
+#   - at least minEpisodesPerColor episodes in every category (coverage);
 #   - the task text of every episode names its category (language check).
 #
 # Recorded facts (ingest):
 #   an Episode or Run has an ObjectColor per recorded object (first frame).
 # Derived by the verifier, never written by hand:
-#   verify  each category's episodeCount and each requirement's
-#           normalizedEntropy (Verification), and one ColorPlacement per
-#           finished run and requirement (Comparison).
+#   verify  each category's episodeCount (Verification), and one
+#           ColorPlacement per finished run and requirement (Comparison).
 
 @prefix cp:      <http://taica.course/cp/ontology#> .
 @prefix owl:     <http://www.w3.org/2002/07/owl#> .
@@ -61,10 +58,9 @@ cp:ObjectColorAxisRequirement a owl:Class ;
         [ a owl:Restriction ; owl:onProperty cp:hasColorCategory ; owl:someValuesFrom cp:ColorCategory ] ,
         [ a owl:Restriction ; owl:onProperty cp:hasColorCategory ; owl:allValuesFrom cp:ColorCategory ] ,
         [ a owl:Restriction ; owl:onProperty cp:maxColorDistance ; owl:qualifiedCardinality "1"^^xsd:nonNegativeInteger ; owl:onDataRange xsd:decimal ] ,
-        [ a owl:Restriction ; owl:onProperty cp:minEpisodesPerColor ; owl:qualifiedCardinality "1"^^xsd:nonNegativeInteger ; owl:onDataRange xsd:positiveInteger ] ,
-        [ a owl:Restriction ; owl:onProperty cp:minNormalizedEntropy ; owl:qualifiedCardinality "1"^^xsd:nonNegativeInteger ; owl:onDataRange xsd:decimal ] ;
+        [ a owl:Restriction ; owl:onProperty cp:minEpisodesPerColor ; owl:qualifiedCardinality "1"^^xsd:nonNegativeInteger ; owl:onDataRange xsd:positiveInteger ] ;
     rdfs:label "Object Color Axis Requirement"@en ;
-    rdfs:comment "One task object, its color categories, how far a color may be from a category's reference, the minimum episodes per category, and the minimum normalized entropy over the categories."@en .
+    rdfs:comment "One task object, its color categories, how far a color may be from a category's reference, and the minimum episodes per category."@en .
 
 cp:ColorCategory a owl:Class ;
     rdfs:subClassOf
@@ -115,11 +111,3 @@ cp:maxColorDistance a owl:DatatypeProperty ;
 cp:minEpisodesPerColor a owl:DatatypeProperty ;
     rdfs:range xsd:positiveInteger ;
     rdfs:label "minimum episodes per color"@en .
-cp:minNormalizedEntropy a owl:DatatypeProperty ;
-    rdfs:range xsd:decimal ;
-    rdfs:label "minimum normalized entropy"@en ;
-    rdfs:comment "Between 0 and 1. The episodes' Shannon entropy over the categories, divided by its maximum, log(number of categories)."@en .
-cp:normalizedEntropy a owl:DatatypeProperty ;
-    rdfs:range xsd:decimal ;
-    rdfs:label "normalized entropy"@en ;
-    rdfs:comment "The dataset's normalized entropy over a requirement's categories (added by verify)."@en .

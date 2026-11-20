@@ -8,15 +8,15 @@ Guide: docs/object_position_coverage.md
   # 1. Put the dataset into a new store (again after recording more episodes)
   uv run python scripts/store.py ingest --dataset datasets/${HF_USER}/<dataset_repo>
 
-  # 2. Write a spec skeleton, replace every "TODO", then attach it to the store
-  uv run python scripts/store.py init --store stores/<dataset_repo> --out specs/my_coverage.ttl
-  uv run python scripts/store.py attach --store stores/<dataset_repo> --spec specs/my_coverage.ttl
+  # 2. Copy the specs of the axes you want checked (specs/<task>/), replace every "TODO"
+  cp specs/<task>/object_position.ttl specs/<task>/lighting.ttl my_specs/
 
   # 3. After a rollout (scripts/rollout.py writes outputs/rollout/<timestamp>.jsonl), put it into the store
   uv run python scripts/store.py ingest --store stores/<dataset_repo> --rollout-log outputs/rollout/<timestamp>.jsonl
 
-  # 4. Check the dataset against every attached spec and compare every rollout; results go into the store
-  uv run python scripts/store.py verify --store stores/<dataset_repo>
+  # 4. Check the dataset against your specs and compare every rollout; specs and results go into the store
+  uv run python scripts/store.py verify --store stores/<dataset_repo> \\
+      --spec my_specs/object_position.ttl --spec my_specs/lighting.ttl
 
   # 5. Ask the store
   uv run python scripts/store.py explore --store stores/<dataset_repo>
@@ -34,8 +34,6 @@ from rdflib import RDF, URIRef
 
 from data_verification import (
     StoreError,
-    attach_spec,
-    detach_spec,
     format_check,
     format_comparison,
     ingest_dataset,
@@ -45,7 +43,6 @@ from data_verification import (
     verify_store,
 )
 from data_verification.graph import CP, spec_iri
-from data_verification.registry import VERIFIERS, verifier_named
 from data_verification.store import STORES, source_changes
 
 
@@ -53,58 +50,21 @@ def cmd_ingest(args: argparse.Namespace) -> int:
     if args.dataset is not None:
         store, data = ingest_dataset(args.dataset, args.stores, name=args.name, task=args.task)
         print(f"Wrote {store.dataset_file}: {len(data.episode_indices)} episode(s), objects {', '.join(data.object_names)}")
-        if store.spec_names():
-            print(f"Attached specs kept: {', '.join(store.spec_names())}. Previous findings removed; run verify again.")
-        else:
-            print(f"Next: init --store {store.root} --out specs/<name>.ttl, fill it in, then attach it.")
+        print(f"Next: verify --store {store.root} --spec <your spec>.ttl (one --spec per axis; copies of specs/<task>/*.ttl, filled in)")
         return 0
     if args.store is None:
         raise StoreError("ingest --rollout-log needs --store stores/<dataset>: the store of the dataset the policy was trained on")
     store = open_store(args.store)
     rollout = ingest_rollout(store, args.rollout_log)
     print(f"Wrote {store.rollout_file(args.rollout_log.stem)} ({rollout})")
-    print(f"Next: verify --store {store.root}")
-    return 0
-
-
-def cmd_init(args: argparse.Namespace) -> int:
-    store = open_store(args.store)
-    verifier = verifier_named(args.axis)
-    if verifier is None:
-        raise StoreError(f"No registered verifier '{args.axis}' (registered: {', '.join(v.name for v in VERIFIERS)})")
-    graph = store.load(store.dataset_file)
-    recorded = verifier.recorded_names(graph, store.dataset)
-    objects = [n.strip() for n in args.objects.split(",") if n.strip()] if args.objects else recorded
-    if not objects:
-        raise StoreError(f"The dataset recorded nothing for axis '{verifier.name}'; name the objects or lights with --objects")
-    if args.out.exists():
-        raise StoreError(f"{args.out} already exists; not overwriting")
-    args.out.parent.mkdir(parents=True, exist_ok=True)
-    args.out.write_text(verifier.render_spec(graph, store.dataset, objects))
-    print(f"Wrote {args.out} for axis '{verifier.name}' ({', '.join(objects)})")
-    print(f'Next: replace every "TODO" with your own values, then: attach --store {store.root} --spec {args.out}')
-    return 0
-
-
-def cmd_attach(args: argparse.Namespace) -> int:
-    store = open_store(args.store)
-    node = attach_spec(store, args.spec, args.name)
-    print(f"Attached {args.spec} as {store.spec_file(node.rsplit('/', 1)[-1])}")
-    print(f"Next: verify --store {store.root}")
-    return 0
-
-
-def cmd_detach(args: argparse.Namespace) -> int:
-    store = open_store(args.store)
-    detach_spec(store, args.spec)
-    print(f"Detached '{args.spec}' and removed its findings")
+    print(f"Next: verify --store {store.root} --spec <your spec>.ttl ...")
     return 0
 
 
 def cmd_verify(args: argparse.Namespace) -> int:
     store = open_store(args.store)
     rollouts = [] if args.no_rollouts else (args.rollout or None)
-    result = verify_store(store, specs=args.spec or None, rollouts=rollouts, extra_shapes=args.extra_shapes)
+    result = verify_store(store, args.spec, rollouts=rollouts, extra_shapes=args.extra_shapes)
     blocks = [format_check(c) for c in result.checks] + [format_comparison(c, hints=not args.no_hints) for c in result.comparisons]
     print(("\n\n" + "=" * 80 + "\n\n").join(blocks))
     print(f"\nFindings written to {store.root / 'findings'}/")
@@ -139,7 +99,7 @@ def cmd_explore(args: argparse.Namespace) -> int:
         print(f"          STALE: {change}")
 
     print("\nSpecs")
-    for name in store.spec_names() or ["(none attached)"]:
+    for name in store.spec_names() or ["(none; run verify --spec ...)"]:
         spec = spec_iri(ds, name)
         if not store.spec_file(name).is_file():
             print(f"  {name}")
@@ -210,30 +170,12 @@ def main() -> int:
     ingest.add_argument("--stores", type=Path, default=STORES, help=f"With --dataset: directory of stores (default: {STORES}).")
     ingest.set_defaults(func=cmd_ingest)
 
-    init = sub.add_parser("init", help="Write a spec skeleton to fill in.")
-    init.add_argument("--store", required=True, type=Path)
-    init.add_argument("--out", required=True, type=Path, help="Spec file to create (.ttl). Never overwritten.")
-    init.add_argument(
-        "--axis", default="object_position", choices=[v.name for v in VERIFIERS],
-        help="Generalization axis whose template to use (default: object_position).",
-    )
-    init.add_argument("--objects", help="Comma-separated object (or, for lighting, light) names instead of the ones the dataset recorded.")
-    init.set_defaults(func=cmd_init)
-
-    attach = sub.add_parser("attach", help="Check a filled-in spec and attach it to the store (again after editing it).")
-    attach.add_argument("--store", required=True, type=Path)
-    attach.add_argument("--spec", required=True, type=Path, help="Your spec (.ttl).")
-    attach.add_argument("--name", help="Name in the store (default: the file name without .ttl).")
-    attach.set_defaults(func=cmd_attach)
-
-    detach = sub.add_parser("detach", help="Remove an attached spec and its findings from the store.")
-    detach.add_argument("--store", required=True, type=Path)
-    detach.add_argument("--spec", required=True, help="Name of the attached spec.")
-    detach.set_defaults(func=cmd_detach)
-
-    verify = sub.add_parser("verify", help="Check the dataset against the attached specs and compare the rollouts; store the findings.")
+    verify = sub.add_parser("verify", help="Check the dataset against your spec files and compare the rollouts; store specs and findings.")
     verify.add_argument("--store", required=True, type=Path)
-    verify.add_argument("--spec", action="append", help="Only this attached spec; repeatable (default: all).")
+    verify.add_argument(
+        "--spec", action="append", type=Path, required=True,
+        help="Your spec (.ttl), one per axis; repeatable. The store keeps exactly the specs of the last verify.",
+    )
     verify.add_argument("--rollout", action="append", help="Only this ingested rollout; repeatable (default: all).")
     verify.add_argument("--no-rollouts", action="store_true", help="Check the dataset only.")
     verify.add_argument("--no-hints", action="store_true", help="Do not print suggested next steps (they are still stored as Info findings).")

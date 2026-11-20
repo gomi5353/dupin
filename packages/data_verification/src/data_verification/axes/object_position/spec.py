@@ -1,43 +1,10 @@
-"""Object position spec: skeleton from the template, and the checks that stop ``attach``."""
+"""Object position spec: the checks that stop ``verify`` for a spec."""
 
 from __future__ import annotations
 
 from decimal import Decimal
 
 from ...graph import CP
-
-BEGIN = "# --- BEGIN OBJECT ---\n"
-END = "# --- END OBJECT ---\n"
-PLACEHOLDER = "OBJECT_NAME"
-
-
-def render_spec(template: str, object_names: list[str], observed: dict[str, list[tuple[float, float]]] | None = None, dataset_label: str = "") -> str:
-    """Template with one object block per name, values still "TODO".
-
-    With ``observed`` (object name -> initial x, y per episode), each block
-    starts with a comment giving the range of initial placements already in the
-    dataset. That comment is information only; the requirement values stay for
-    the user to choose.
-    """
-    head, rest = template.split(BEGIN, 1)
-    block, tail = rest.split(END, 1)
-    blocks = []
-    for name in object_names:
-        note = _observed_note(name, observed, dataset_label) if observed is not None else ""
-        blocks.append(BEGIN + note + block.replace(PLACEHOLDER, name) + END)
-    return head + "\n".join(blocks) + tail
-
-
-def _observed_note(name: str, observed: dict[str, list[tuple[float, float]]], dataset_label: str) -> str:
-    points = observed.get(name, [])
-    if not points:
-        return f"# Not recorded in {dataset_label or 'the dataset'} (no object_position.{name} values).\n"
-    xs, ys = [p[0] for p in points], [p[1] for p in points]
-    return (
-        f"# Already in {dataset_label or 'the dataset'}: {len(points)} episode(s), initial "
-        f"x {min(xs):.3f}..{max(xs):.3f}, y {min(ys):.3f}..{max(ys):.3f}. For reference only.\n"
-    )
-
 
 def todo_fields(graph) -> list[str]:
     """'<object>: <property>' for every value still set to "TODO"."""

@@ -4,9 +4,8 @@ Files:
   ontology.ttl        ObjectPositionAxis, its requirement, area, grid, cells, run placements
   shapes.ttl          SHACL rules on the dataset (cell coverage, area, spec well-formed)
   rollout_shapes.ttl  SHACL rules on a rollout (every finished run has the required positions)
-  template.ttl        spec skeleton written by ``init``
-  spec.py             checks that stop ``attach`` (TODO left, values not numbers, empty area)
-  coverage.py         cells (attach), per-cell episode counts and tables (verify)
+  spec.py             checks that stop ``verify`` for a spec (TODO left, values not numbers, empty area)
+  coverage.py         cells (spec load), per-cell episode counts and tables (verify)
   compare.py          run placements, coverage of rollout runs, hints (verify)
 """
 
@@ -18,24 +17,13 @@ from ...graph import CP
 from ...verifier import AxisCheck, AxisComparison, Verifier
 from .compare import compare_object_position
 from .coverage import check_coverage, expand_cells, required_names
-from .spec import render_spec, todo_fields, value_range_errors, value_type_errors
+from .spec import todo_fields, value_range_errors, value_type_errors
 
 
 class ObjectPositionVerifier(Verifier):
     name = "object_position"
     axis_class = CP.ObjectPositionAxis
     package = __name__
-
-    def render_spec(self, store: Graph, dataset: URIRef, objects: list[str]) -> str:
-        observed: dict[str, list[tuple[float, float]]] = {}
-        for episode in store.objects(dataset, CP.hasEpisode):
-            for obj in store.objects(episode, CP.hasTaskObject):
-                p = store.value(obj, CP.hasPosition)
-                x, y = store.value(p, CP.positionX), store.value(p, CP.positionY)
-                if x is not None and y is not None:
-                    observed.setdefault(str(store.value(obj, CP.name)), []).append((float(x), float(y)))
-        label = str(store.value(dataset, CP.name) or "")
-        return render_spec(self.template(), objects, observed, label)
 
     def spec_errors(self, spec: Graph) -> list[str]:
         todo = todo_fields(spec)

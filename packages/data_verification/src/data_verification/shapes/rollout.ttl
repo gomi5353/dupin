@@ -1,6 +1,6 @@
 # SHACL rules for the rollout side of the store, independent of any axis.
 #
-# Run by verify on each ingested rollout with the dataset and one attached
+# Run by verify on each ingested rollout with the dataset and one
 # spec. The comparison starts from the cp:Rollout: its training dataset
 # (cp:hasDataset) gives the requirements, its runs (cp:hasRun) the positions.
 # Each axis adds its own rules (data_verification/axes/<axis>/rollout_shapes.ttl).

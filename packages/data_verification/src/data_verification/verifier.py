@@ -1,7 +1,7 @@
 """The verifier interface: one registered verifier per generalization axis.
 
 A verifier owns one axis: its ontology, its SHACL shapes (dataset side and
-rollout side), its spec template, and optional Python steps. ``verify`` runs
+rollout side), the checks of a student's spec, and optional Python steps. ``verify`` runs
 the SHACL shapes of every registered verifier; the Python steps add what SHACL
 cannot say well (counts, tables, run placements, hints). A verifier that only
 needs rules can leave every Python step at its default.
@@ -81,7 +81,7 @@ class Verifier:
     axis_class: URIRef
     """The cp:GeneralizationAxis subclass this verifier checks."""
     package: str = ""
-    """Package holding ontology.ttl, shapes.ttl, rollout_shapes.ttl and template.ttl (each optional)."""
+    """Package holding ontology.ttl, shapes.ttl and rollout_shapes.ttl (each optional)."""
 
     # ---- Resources -------------------------------------------------------------
 
@@ -107,10 +107,6 @@ class Verifier:
     def rollout_shapes(self) -> Graph:
         return self._graph("rollout_shapes.ttl")
 
-    def template(self) -> str | None:
-        path = self.resource("template.ttl")
-        return None if path is None else path.read_text()
-
     # ---- Steps (all optional) -------------------------------------------------
 
     def ingest_dataset(self, root: Path, graph: Graph, dataset: URIRef) -> list[str]:
@@ -126,29 +122,22 @@ class Verifier:
         return []
 
     def recorded_names(self, graph: Graph, dataset: URIRef) -> list[str]:
-        """Names ``init`` writes a block for by default: the objects (or lights) the dataset recorded this axis for."""
+        """The objects (or lights) the dataset recorded this axis for."""
         return sorted(str(n) for n in graph.objects(dataset, CP.recordedObject))
 
-    def render_spec(self, store: Graph, dataset: URIRef, objects: list[str]) -> str:
-        """Spec skeleton written by ``init``. Default: the template as is."""
-        template = self.template()
-        if template is None:
-            raise ValueError(f"verifier '{self.name}' has no template.ttl")
-        return template
-
     def spec_errors(self, spec: Graph) -> list[str]:
-        """Problems that stop ``attach`` (e.g. TODO left, values not numbers). ``spec`` is the student's file."""
+        """Problems that stop ``verify`` for this spec (e.g. TODO left, values not numbers). ``spec`` is the student's file."""
         return []
 
     def derive_spec(self, spec: Graph) -> None:
-        """Add derived nodes to the attached spec (e.g. grid cells)."""
+        """Add derived nodes to the spec in the store (e.g. grid cells)."""
 
     def dataset_errors(self, graph: Graph, dataset: URIRef) -> list[str]:
         """Problems that stop the check before SHACL runs (e.g. a required column is missing)."""
         return []
 
     def check(self, graph: Graph, dataset: URIRef) -> AxisCheck | None:
-        """Python part of the dataset check. ``graph`` holds the dataset and one attached spec."""
+        """Python part of the dataset check. ``graph`` holds the dataset and one spec."""
         return None
 
     def compare(self, graph: Graph, rollout: URIRef, dataset: URIRef, comparison: URIRef) -> AxisComparison | None:

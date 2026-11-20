@@ -13,10 +13,10 @@ from data_verification import (
     AxisComparison,
     StoreError,
     Verifier,
-    attach_spec,
     format_comparison,
     ingest_dataset,
     ingest_rollout,
+    load_spec,
     registry,
     verify_store,
 )
@@ -53,13 +53,19 @@ def full_dataset(tmp_path: Path, points=CELL_CENTERS) -> Path:
 
 def store_with(tmp_path: Path, spec: Path, dataset: Path | None = None):
     store, _ = ingest_dataset(dataset or full_dataset(tmp_path), tmp_path / "stores")
-    attach_spec(store, spec)
+    load_spec(store, spec)
     return store
+
+
+def stored_specs(store) -> list[Path]:
+    """The spec files the store was last verified with (verify needs them again)."""
+    graph = store.graph()
+    return sorted(Path(str(graph.value(s, CP.sourcePath))) for s in graph.subjects(RDF.type, CP.Spec))
 
 
 def compare(store, log: Path):
     ingest_rollout(store, log)
-    (result,) = verify_store(store, rollouts=[log.stem]).comparisons
+    (result,) = verify_store(store, stored_specs(store), rollouts=[log.stem]).comparisons
     return result
 
 
@@ -232,7 +238,7 @@ def test_every_axis_must_cover_a_run(tmp_path: Path, spec: Path, monkeypatch) ->
     spec.write_text(SPEC + f"spec:light a <{light}LightingAxis> ; cp:hasRequirement spec:dim .\nspec:dim a <{light}LightingRequirement> .\n")
     store = store_with(tmp_path, spec)
     assert len(list(Graph().parse(store.dataset_file).objects(None, URIRef(light + "lux")))) == 4, "ingest hook adds the factor"
-    (check,) = verify_store(store, rollouts=[]).checks
+    (check,) = verify_store(store, stored_specs(store), rollouts=[]).checks
     assert [(v.message, v.verifier) for v in check.violations] == [("cp:hasRequirement: Lighting needs two requirements", "lighting")]
     result = compare(store, write_log(tmp_path / "run.jsonl", [(x, y, "succeeded") for x, y in CELL_CENTERS], extra=None))
     assert len(list(Graph().parse(store.rollout_file("run")).objects(None, URIRef(light + "lux")))) == 4
@@ -263,7 +269,7 @@ def test_rollout_log_appended_after_ingest_is_stale(tmp_path: Path, spec: Path) 
     log = write_log(tmp_path / "run.jsonl", [(0.05, 0.05, "succeeded")])
     ingest_rollout(store, log)
     log.write_text(log.read_text() + json.dumps({"type": "episode", "episode": 1, "status": "failed", "factors": {}}) + "\n")
-    (result,) = verify_store(store).comparisons
+    (result,) = verify_store(store, stored_specs(store)).comparisons
     assert any("ingest --rollout-log" in e for e in result.errors)
 
 
@@ -288,12 +294,12 @@ def test_fixed_poses_in_header_are_stored_and_not_compared(tmp_path: Path, spec:
     assert str(graph.value(fixed, CP.name)) == "plate"
 
 
-def test_inverted_spec_area_is_rejected_at_attach(tmp_path: Path) -> None:
+def test_inverted_spec_area_is_rejected(tmp_path: Path) -> None:
     spec = tmp_path / "spec.ttl"
     spec.write_text(SPEC.replace("cp:areaXMin 0.0 ; cp:areaXMax 0.2", "cp:areaXMin 0.2 ; cp:areaXMax 0.0"))
     store, _ = ingest_dataset(full_dataset(tmp_path), tmp_path / "stores")
     with pytest.raises(StoreError) as exc:
-        attach_spec(store, spec)
+        load_spec(store, spec)
     assert any(e.startswith("cube: coverage area is empty") for e in exc.value.errors)
 
 

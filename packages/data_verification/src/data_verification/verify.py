@@ -1,6 +1,6 @@
-"""verify: check the dataset against every attached spec and compare every ingested rollout, then store the results.
+"""verify: check the dataset against the given spec files and compare every ingested rollout, then store the results.
 
-For each attached spec, a Verification: the dataset and the spec are checked
+For each spec, a Verification: the dataset and the spec are checked
 with the core SHACL rules and those of every registered verifier, then each
 verifier's Python step runs (e.g. per-cell counts). For each spec and each
 ingested rollout, a Comparison: each verifier places the rollout's finished
@@ -18,7 +18,7 @@ from rdflib import RDF, XSD, Graph, Literal, URIRef
 
 from .graph import CP, rollout_iri, spec_iri
 from . import registry
-from .store import Store, now, ontology, source_changes, write_graph
+from .store import Store, StoreError, drop_spec, load_spec, now, ontology, source_changes, write_graph
 from .verifier import AxisCheck, AxisComparison, Finding, Verifier, core_graph, pct, rate, run_shacl
 
 
@@ -103,18 +103,46 @@ class VerifyResult:
 
 def verify_store(
     store: Store,
-    specs: list[str] | None = None,
+    specs: list[str | Path],
     rollouts: list[str] | None = None,
     extra_shapes: list[str | Path] | None = None,
     write: bool = True,
 ) -> VerifyResult:
-    """Verify ``specs`` (default: every attached spec) and compare ``rollouts`` (default: every ingested rollout)."""
+    """Verify the dataset against the spec files ``specs`` and compare ``rollouts`` (default: every ingested rollout).
+
+    Each spec file is checked and put into the store under its file name
+    (without .ttl); a spec with problems (TODO left, wrong value types, ...)
+    gets them as errors and is not checked. Specs from an earlier verify that
+    are not in ``specs`` are dropped with their findings, so the store holds
+    exactly the specs of the last verify.
+    """
     result = VerifyResult()
-    attached = store.spec_names()
-    for name in specs if specs is not None else attached:
-        if name not in attached:
-            result.checks.append(CheckReport(str(store.root), name, errors=[f"No spec '{name}' is attached (attached: {', '.join(attached) or 'none'})"]))
-            continue
+    if not specs:
+        result.checks.append(CheckReport(str(store.root), "", errors=["No spec given; run: verify --spec <your spec>.ttl"]))
+        return result
+    paths = [Path(p) for p in specs]
+    names = [p.stem for p in paths]
+    duplicates = sorted({n for n in names if names.count(n) > 1})
+    if duplicates:
+        result.checks.append(
+            CheckReport(str(store.root), "", errors=[f"Two spec files are both named '{n}.ttl'; give each spec its own file name" for n in duplicates])
+        )
+        return result
+
+    loaded = []
+    for path, name in zip(paths, names):
+        try:
+            load_spec(store, path, name)
+            loaded.append(name)
+        except StoreError as exc:
+            drop_spec(store, name)
+            episodes = len(set(store.load(store.dataset_file).objects(store.dataset, CP.hasEpisode)))
+            result.checks.append(CheckReport(str(store.root), name, str(path), episodes, errors=list(exc.errors)))
+    if write:
+        for stale in set(store.spec_names()) - set(names):
+            drop_spec(store, stale)
+
+    for name in loaded:
         report, graph = check_spec(store, name, extra_shapes)
         result.checks.append(report)
         if write:
@@ -124,8 +152,7 @@ def verify_store(
             result.comparisons.append(comparison)
             if write and store.rollout_file(rollout).is_file():
                 write_graph(graph, store.comparison_file(name, rollout))
-    if not attached and specs is None:
-        result.checks.append(CheckReport(str(store.root), "", errors=["No spec is attached; run: attach --spec <your spec>"]))
+    result.checks.sort(key=lambda c: names.index(c.spec) if c.spec in names else -1)
     return result
 
 

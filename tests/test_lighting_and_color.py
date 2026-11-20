@@ -9,10 +9,8 @@ import pyarrow as pa
 import pyarrow.parquet as pq
 import pytest
 
-from data_verification import StoreError, attach_spec, format_check, format_comparison, ingest_dataset, ingest_rollout, verify_store
-from data_verification.axes.lighting import LightingVerifier
-from data_verification.axes.object_color import ObjectColorVerifier
-from data_verification.axes.object_color.coverage import names_color, normalized_entropy
+from data_verification import StoreError, format_check, format_comparison, ingest_dataset, ingest_rollout, load_spec, verify_store
+from data_verification.axes.object_color.coverage import names_color
 from data_verification.dataset import (
     LIGHTING_KEY_PREFIX,
     LIGHTING_NAMES,
@@ -55,8 +53,7 @@ spec:req a cp:ObjectColorAxisRequirement ;
     cp:hasTaskObject spec:cup ;
     cp:hasColorCategory spec:red , spec:blue ;
     cp:maxColorDistance 0.2 ;
-    cp:minEpisodesPerColor 1 ;
-    cp:minNormalizedEntropy 0.9 .
+    cp:minEpisodesPerColor 1 .
 spec:cup a cp:TaskObject ; cp:name "cup" .
 spec:red a cp:ColorCategory ; cp:name "red" ; cp:colorR 0.9 ; cp:colorG 0.1 ; cp:colorB 0.1 .
 spec:blue a cp:ColorCategory ; cp:name "blue" ; cp:colorR 0.1 ; cp:colorG 0.1 ; cp:colorB 0.9 .
@@ -104,8 +101,7 @@ def check(tmp_path: Path, episodes: list[dict], spec_text: str):
     store, _ = ingest_dataset(write_dataset(tmp_path / "ds", episodes), tmp_path / "stores")
     spec = tmp_path / "spec.ttl"
     spec.write_text(spec_text)
-    attach_spec(store, spec)
-    (report,) = verify_store(store, rollouts=[]).checks
+    (report,) = verify_store(store, [spec], rollouts=[]).checks
     return store, report
 
 
@@ -128,7 +124,7 @@ def compare(tmp_path: Path, spec_text: str, runs, episodes=BALANCED):
     store, _ = check(tmp_path, episodes, spec_text)
     log = write_log(tmp_path / "rollout" / "run.jsonl", runs)
     ingest_rollout(store, log)
-    (result,) = verify_store(store, rollouts=[log.stem]).comparisons
+    (result,) = verify_store(store, [tmp_path / "spec.ttl"], rollouts=[log.stem]).comparisons
     return result
 
 
@@ -154,8 +150,7 @@ def test_dataset_without_the_new_columns_still_ingests(tmp_path: Path) -> None:
     store, _ = ingest_dataset(root, tmp_path / "stores")
     spec = tmp_path / "spec.ttl"
     spec.write_text(LIGHT_SPEC)
-    attach_spec(store, spec)
-    (report,) = verify_store(store, rollouts=[]).checks
+    (report,) = verify_store(store, [spec], rollouts=[]).checks
     assert not report.passed
     assert any("no 'lighting.rect_light' column" in e for e in report.errors)
 
@@ -184,10 +179,10 @@ def test_lighting_spec_todo_and_empty_range_are_rejected(tmp_path: Path) -> None
     spec = tmp_path / "spec.ttl"
     spec.write_text(LIGHT_SPEC.replace("cp:numBinsIntensity 2", 'cp:numBinsIntensity "TODO"'))
     with pytest.raises(StoreError, match="TODO"):
-        attach_spec(store, spec)
+        load_spec(store, spec)
     spec.write_text(LIGHT_SPEC.replace("cp:intensityMax 6000.0", "cp:intensityMax 1000.0"))
     with pytest.raises(StoreError, match="intensityMin must be < intensityMax"):
-        attach_spec(store, spec)
+        load_spec(store, spec)
 
 
 def test_lighting_comparison(tmp_path: Path) -> None:
@@ -205,14 +200,12 @@ def test_color_balanced_named_passes(tmp_path: Path) -> None:
     assert report.passed, format_check(report)
     table = report.axes[0].coverage[0]
     assert table.counts == {"red": 1, "blue": 1}
-    assert table.entropy == pytest.approx(1.0)
 
 
-def test_color_low_entropy_and_missing_color_fail(tmp_path: Path) -> None:
+def test_color_missing_color_fails(tmp_path: Path) -> None:
     _, report = check(tmp_path, [episode(color=RED), episode(color=RED), episode(color=RED)], COLOR_SPEC)
     messages = [v.message for v in report.violations]
     assert any("'blue' has 0 episode" in m for m in messages), messages
-    assert any("normalized entropy 0.000" in m for m in messages), messages
 
 
 def test_color_language_check(tmp_path: Path) -> None:
@@ -240,15 +233,12 @@ def test_color_comparison_groups(tmp_path: Path) -> None:
 def test_color_spec_needs_numbers(tmp_path: Path) -> None:
     store, _ = ingest_dataset(write_dataset(tmp_path / "ds", BALANCED), tmp_path / "stores")
     spec = tmp_path / "spec.ttl"
-    spec.write_text(COLOR_SPEC.replace("cp:minNormalizedEntropy 0.9", "cp:minNormalizedEntropy 1.5"))
-    with pytest.raises(StoreError, match="between 0 and 1"):
-        attach_spec(store, spec)
+    spec.write_text(COLOR_SPEC.replace("cp:maxColorDistance 0.2", "cp:maxColorDistance -0.2"))
+    with pytest.raises(StoreError, match="must be > 0"):
+        load_spec(store, spec)
 
 
-def test_entropy_and_word_match() -> None:
-    assert normalized_entropy([5, 5]) == pytest.approx(1.0)
-    assert normalized_entropy([10, 0]) == 0.0
-    assert normalized_entropy([3]) == 0.0
+def test_word_match() -> None:
     assert names_color("Pick up the Red cup.", "red")
     assert not names_color("pick up the reddish cup.", "red")
 
@@ -271,17 +261,6 @@ def test_log_rejects_bad_lighting(tmp_path: Path) -> None:
     log.write_text(log.read_text().replace("[3000.0, 4500.0]", "[3000.0]"))
     with pytest.raises(RolloutLogError, match=r"must be \[intensity, color_temperature\]"):
         read_rollout_log(log)
-
-
-def test_init_templates_render(tmp_path: Path) -> None:
-    store, _ = ingest_dataset(write_dataset(tmp_path / "ds", BALANCED), tmp_path / "stores")
-    graph = store.load(store.dataset_file)
-    light = LightingVerifier()
-    text = light.render_spec(graph, store.dataset, light.recorded_names(graph, store.dataset))
-    assert 'cp:lightName "rect_light"' in text and "Already in the dataset: 2 episode(s)" in text
-    color = ObjectColorVerifier()
-    text = color.render_spec(graph, store.dataset, color.recorded_names(graph, store.dataset))
-    assert 'cp:name "cup"' in text and "2 distinct color(s)" in text
 
 
 # ---- Shipped specs ----------------------------------------------------------------------

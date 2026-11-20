@@ -1,6 +1,6 @@
 # SHACL rules for the dataset side of the store, independent of any axis.
 #
-# Run by verify on the dataset and one attached spec. Each axis adds its own
+# Run by verify on the dataset and one spec. Each axis adds its own
 # rules (data_verification/axes/<axis>/shapes.ttl).
 #
 # Severity:

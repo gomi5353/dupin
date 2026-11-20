@@ -1,24 +1,10 @@
-"""Helpers for an axis's spec template and the checks that stop ``attach``.
-
-A template (``axes/<axis>/template.ttl``) has a header and one block between
-``# --- BEGIN <KIND> ---`` and ``# --- END <KIND> ---`` that ``init`` repeats
-once per name (object or light), with the placeholder replaced by the name.
-"""
+"""Helpers for the checks that stop ``verify`` for a spec (TODO left, values not numbers)."""
 
 from __future__ import annotations
 
 from decimal import Decimal
 
 from rdflib import Graph, URIRef
-
-
-def render_blocks(template: str, kind: str, placeholder: str, names: list[str], notes: dict[str, str] | None = None) -> str:
-    """``template`` with its block repeated per name; ``notes[name]`` (comment lines) goes on top of that block."""
-    begin, end = f"# --- BEGIN {kind} ---\n", f"# --- END {kind} ---\n"
-    head, rest = template.split(begin, 1)
-    block, tail = rest.split(end, 1)
-    blocks = [begin + (notes or {}).get(name, "") + block.replace(placeholder, name) + end for name in names]
-    return head + "\n".join(blocks) + tail
 
 
 def todo_fields(graph: Graph, label) -> list[str]:

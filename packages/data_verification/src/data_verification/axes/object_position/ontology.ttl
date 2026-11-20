@@ -7,7 +7,7 @@
 # and episode objects are matched by name.
 #
 # Derived by the verifier, never written by hand:
-#   attach  the Cells of each grid, with their bounds.
+#   verify  the Cells of each grid, with their bounds (when the spec is loaded).
 #   verify  each Cell's episodeCount in the dataset (Verification), and one
 #           RunPlacement per finished run and requirement (Comparison): the
 #           lattice cell the run started in and whether the dataset covers it.
@@ -66,7 +66,7 @@ cp:Cell a owl:Class ;
         [ a owl:Restriction ; owl:onProperty cp:index ; owl:qualifiedCardinality "1"^^xsd:nonNegativeInteger ; owl:onDataRange xsd:nonNegativeInteger ] ,
         [ a owl:Restriction ; owl:onProperty [ owl:inverseOf cp:hasCell ] ; owl:qualifiedCardinality "1"^^xsd:nonNegativeInteger ; owl:onClass cp:CoverageGrid ] ;
     rdfs:label "Coverage Cell"@en ;
-    rdfs:comment "One grid cell, identified by its row-major index k = j * numCellW + i, with column i along X from areaXMin and row j along Y from areaYMin. Generated at attach with its bounds (cellXMin ... cellYMax, column cellI, row cellJ); its episodeCount is added by verify."@en .
+    rdfs:comment "One grid cell, identified by its row-major index k = j * numCellW + i, with column i along X from areaXMin and row j along Y from areaYMin. Generated when verify loads the spec, with its bounds (cellXMin ... cellYMax, column cellI, row cellJ); its episodeCount is added by verify."@en .
 
 cp:RunPlacement a owl:Class ;
     rdfs:subClassOf

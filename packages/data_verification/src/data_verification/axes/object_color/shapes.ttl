@@ -5,7 +5,7 @@
 #   sh:Warning   - reported, does not fail unless --strict
 #
 # Which category an episode's color belongs to (nearest reference), the
-# per-category counts, the entropy and the language check are computed in
+# per-category counts and the language check are computed in
 # Python (coverage.py) and reported as findings.
 
 @prefix cp:   <http://taica.course/cp/ontology#> .
@@ -76,7 +76,6 @@ cp:ObjectColorAxisRequirementShape a sh:NodeShape ;
     sh:property [ sh:path cp:hasColorCategory ; sh:class cp:ColorCategory ; sh:minCount 1 ] ;
     sh:property [ sh:path cp:maxColorDistance ; sh:minCount 1 ; sh:maxCount 1 ; sh:minExclusive 0 ] ;
     sh:property [ sh:path cp:minEpisodesPerColor ; sh:minCount 1 ; sh:maxCount 1 ; sh:minInclusive 1 ] ;
-    sh:property [ sh:path cp:minNormalizedEntropy ; sh:minCount 1 ; sh:maxCount 1 ; sh:minInclusive 0 ; sh:maxInclusive 1 ] ;
     sh:property [
         sh:path [ sh:inversePath cp:hasRequirement ] ; sh:maxCount 1 ;
         sh:message "Requirement is linked from more than one axis (cp:hasRequirement); give each axis its own requirement" ;
@@ -102,12 +101,12 @@ cp:ObjectColorAxisRequirementShape a sh:NodeShape ;
         """ ;
     ] .
 
-# One category cannot spread: its entropy is 0 by definition.
+# One category cannot vary the color.
 cp:ObjectColorCategoryCountShape a sh:NodeShape ;
     sh:targetClass cp:ObjectColorAxisRequirement ;
     sh:severity sh:Warning ;
     sh:sparql [
-        sh:message "Requirement has only one color category; the dataset cannot vary this object's color and its entropy is 0" ;
+        sh:message "Requirement has only one color category; the dataset cannot vary this object's color" ;
         sh:prefixes cp: ;
         sh:select """
             SELECT $this WHERE {

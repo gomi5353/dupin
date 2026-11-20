@@ -1,10 +1,11 @@
-"""Object position coverage through the store (ingest, attach, verify) on synthetic LeRobot v3 layouts (no simulator)."""
+"""Object position coverage through the store (ingest, verify --spec) on synthetic LeRobot v3 layouts (no simulator)."""
 
 from __future__ import annotations
 
 import ast
 import json
 import os
+import re
 from pathlib import Path
 
 import pyarrow as pa
@@ -12,9 +13,7 @@ import pyarrow.parquet as pq
 import pytest
 from rdflib import RDF, Graph, URIRef
 
-from data_verification import StoreError, attach_spec, format_check, ingest_dataset, verify_store
-from data_verification.axes.object_position import ObjectPositionVerifier
-from data_verification.axes.object_position.spec import render_spec
+from data_verification import StoreError, format_check, ingest_dataset, load_spec, verify_store
 from data_verification.dataset import OBJECT_POSITION_KEY_PREFIX, OBJECT_POSITION_NAMES
 from data_verification.graph import CP
 
@@ -39,7 +38,7 @@ spec:cube_grid a cp:CoverageGrid ; cp:numCellW 2 ; cp:numCellH 2 .
 # One point per cell of the 2x2 grid over [0, 0.2]^2.
 CELL_CENTERS = [(0.05, 0.05), (0.15, 0.05), (0.05, 0.15), (0.15, 0.15)]
 
-# The attached spec "spec" renames spec:<x> to <dataset>/spec/spec/<x>.
+# The spec "spec" (file spec.ttl) renames spec:<x> to <dataset>/spec/spec/<x>.
 SPEC_NODE = "http://taica.course/cp/data/ds/spec/spec/"
 
 
@@ -76,12 +75,11 @@ def dataset_of(tmp_path: Path, points=CELL_CENTERS, name: str = "cube") -> Path:
 
 
 def check(tmp_path: Path, dataset: Path, spec_text: str = SPEC, extra_shapes=None):
-    """Ingest ``dataset``, attach ``spec_text`` as spec "spec", verify the dataset only."""
+    """Ingest ``dataset``, verify the dataset only against ``spec_text`` as spec "spec"."""
     store, _ = ingest_dataset(dataset, tmp_path / "stores")
     spec = tmp_path / "spec.ttl"
     spec.write_text(spec_text)
-    attach_spec(store, spec)
-    (report,) = verify_store(store, rollouts=[], extra_shapes=extra_shapes).checks
+    (report,) = verify_store(store, [spec], rollouts=[], extra_shapes=extra_shapes).checks
     return report
 
 
@@ -90,7 +88,7 @@ def attach_errors(tmp_path: Path, spec_text: str, dataset: Path | None = None) -
     spec = tmp_path / "spec.ttl"
     spec.write_text(spec_text)
     with pytest.raises(StoreError) as exc:
-        attach_spec(store, spec)
+        load_spec(store, spec)
     return exc.value.errors
 
 
@@ -214,10 +212,10 @@ def test_ingest_records_episodes_metadata_and_provenance(tmp_path: Path) -> None
     assert str(graph.value(ds, CP.task)) == "Test-Cube-v0" and str(graph.value(ds, CP.robotType)) == "franka_panda"
     assert [str(v) for v in graph.objects(ds, CP.recordedObject)] == ["cube"]
     assert graph.value(ds, CP.sourcePath) is not None and len(str(graph.value(ds, CP.sourceSha256))) == 64
-    assert not list(graph.objects(ds, CP.hasGeneralizationAxis)), "no axis before a spec is attached"
+    assert not list(graph.objects(ds, CP.hasGeneralizationAxis)), "no axis before the first verify"
 
 
-# ---- Spec: attach -----------------------------------------------------------------------
+# ---- Spec: load -----------------------------------------------------------------------
 
 
 def _fill(spec_text: str, values: dict[str, str]) -> str:
@@ -232,34 +230,17 @@ FILLED = {
 }
 
 
-def template() -> str:
-    return ObjectPositionVerifier().template()
+# SPEC with every value "TODO", as in the shipped specs.
+TEMPLATE = re.sub(r"(cp:(?:areaXMin|areaXMax|areaYMin|areaYMax|numCellW|numCellH|minEpisodesPerCell)) [0-9.]+", r'\1 "TODO"', SPEC)
 
 
-def test_raw_template_parses_and_asks_for_todos(tmp_path: Path) -> None:
-    errors = attach_errors(tmp_path, template())
-    assert errors[0].startswith("Spec still has TODO values: OBJECT_NAME: areaXMax")
-
-
-def test_init_from_store_then_fill_then_check(tmp_path: Path) -> None:
-    dataset = write_dataset(tmp_path / "ds", {i: {"cube": [xy], "lid": [(1.0, 1.0)]} for i, xy in enumerate(CELL_CENTERS)})
-    store, _ = ingest_dataset(dataset, tmp_path / "stores")
-    text = ObjectPositionVerifier().render_spec(store.load(store.dataset_file), store.dataset, ["cube", "lid"])
-    assert text.count("# --- BEGIN OBJECT ---") == 2
-    assert "Already in ds: 4 episode(s), initial x 0.050..0.150, y 0.050..0.150" in text
-
-    # Check only the cube: drop the lid block, fill the cube block.
-    head, cube, _ = text.split("# --- BEGIN OBJECT ---")
-    spec = tmp_path / "spec.ttl"
-    spec.write_text(_fill(head + "# --- BEGIN OBJECT ---" + cube, FILLED))
-    attach_spec(store, spec)
-    (report,) = verify_store(store).checks
-    assert report.passed, format_check(report)
-    assert [t.object_name for t in coverage(report)] == ["cube"]
+def test_unfilled_spec_parses_and_asks_for_todos(tmp_path: Path) -> None:
+    errors = attach_errors(tmp_path, TEMPLATE)
+    assert errors[0].startswith("Spec still has TODO values: cube: areaXMax")
 
 
 def test_quoted_numbers_are_rejected(tmp_path: Path) -> None:
-    errors = attach_errors(tmp_path, _fill(render_spec(template(), ["cube"]), {**FILLED, "cp:areaXMin": '"0.0"', "cp:numCellW": "2.5"}))
+    errors = attach_errors(tmp_path, _fill(TEMPLATE, {**FILLED, "cp:areaXMin": '"0.0"', "cp:numCellW": "2.5"}))
     assert errors == [
         'cube: areaXMin must be a number without quotes, got "0.0"',
         "cube: numCellW must be a whole number without quotes, got 2.5",
@@ -271,17 +252,17 @@ def test_invalid_turtle_is_reported(tmp_path: Path) -> None:
 
 
 def test_empty_area_is_reported(tmp_path: Path) -> None:
-    errors = attach_errors(tmp_path, _fill(render_spec(template(), ["cube"]), {**FILLED, "cp:areaXMin": "0.3"}))
+    errors = attach_errors(tmp_path, _fill(TEMPLATE, {**FILLED, "cp:areaXMin": "0.3"}))
     assert errors == ["cube: coverage area is empty: areaXMin must be < areaXMax and areaYMin < areaYMax, got x 0.3..0.2, y 0.0..0.2"]
 
 
 def test_zero_cells_is_reported(tmp_path: Path) -> None:
-    errors = attach_errors(tmp_path, _fill(render_spec(template(), ["cube"]), {**FILLED, "cp:numCellW": "0"}))
+    errors = attach_errors(tmp_path, _fill(TEMPLATE, {**FILLED, "cp:numCellW": "0"}))
     assert errors == ["cube: numCellW must be at least 1, got 0"]
 
 
 def test_min_episodes_per_cell_must_be_at_least_one(tmp_path: Path) -> None:
-    errors = attach_errors(tmp_path, _fill(render_spec(template(), ["cube"]), {**FILLED, "cp:minEpisodesPerCell": "0"}))
+    errors = attach_errors(tmp_path, _fill(TEMPLATE, {**FILLED, "cp:minEpisodesPerCell": "0"}))
     assert errors == ["cube: minEpisodesPerCell must be at least 1, got 0"]
 
 
@@ -298,7 +279,7 @@ def test_attached_spec_is_renamed_with_cells_and_provenance(tmp_path: Path) -> N
     store, _ = ingest_dataset(dataset_of(tmp_path), tmp_path / "stores")
     spec = tmp_path / "spec.ttl"
     spec.write_text(SPEC)
-    node = attach_spec(store, spec)
+    node = load_spec(store, spec)
     graph = Graph().parse(store.spec_file("spec"))
     assert str(node) == SPEC_NODE.rstrip("/")
     assert graph.value(store.dataset, CP.hasGeneralizationAxis) == URIRef(SPEC_NODE + "axis")
@@ -391,8 +372,7 @@ def test_verify_stores_verification_findings_and_cell_counts(tmp_path: Path) -> 
     store, _ = ingest_dataset(dataset_of(tmp_path, CELL_CENTERS[:3]), tmp_path / "stores")
     spec = tmp_path / "spec.ttl"
     spec.write_text(SPEC)
-    attach_spec(store, spec)
-    verify_store(store)
+    verify_store(store, [spec])
     graph = store.graph()
     (verification,) = graph.subjects(RDF.type, CP.Verification)
     assert graph.value(verification, CP.passed).toPython() is False
@@ -406,11 +386,11 @@ def test_verify_stores_verification_findings_and_cell_counts(tmp_path: Path) -> 
 
 def test_several_specs_live_in_one_store_and_are_verified_separately(tmp_path: Path) -> None:
     store, _ = ingest_dataset(dataset_of(tmp_path, CELL_CENTERS[:3]), tmp_path / "stores")
+    paths = []
     for name, text in (("coarse", SPEC.replace("cp:numCellW 2 ; cp:numCellH 2", "cp:numCellW 1 ; cp:numCellH 1")), ("fine", SPEC)):
-        path = tmp_path / f"{name}.ttl"
-        path.write_text(text)  # same template IRIs in both files
-        attach_spec(store, path)
-    result = verify_store(store)
+        paths.append(tmp_path / f"{name}.ttl")
+        paths[-1].write_text(text)  # same IRIs in both files
+    result = verify_store(store, paths)
     assert [(c.spec, c.passed) for c in result.checks] == [("coarse", True), ("fine", False)]
     assert sorted(p.name for p in (store.root / "findings").iterdir()) == ["coarse.ttl", "fine.ttl"]
     graph = store.graph()
@@ -418,27 +398,55 @@ def test_several_specs_live_in_one_store_and_are_verified_separately(tmp_path: P
     assert len(list(graph.subjects(RDF.type, CP.Cell))) == 1 + 4
 
 
-def test_changed_sources_must_be_ingested_or_attached_again(tmp_path: Path) -> None:
+def test_verify_reads_the_spec_files_each_time(tmp_path: Path) -> None:
+    dataset = dataset_of(tmp_path, CELL_CENTERS[:3])
+    store, _ = ingest_dataset(dataset, tmp_path / "stores")
+    spec = tmp_path / "spec.ttl"
+    spec.write_text(SPEC)
+    assert not verify_store(store, [spec]).passed  # cell (1, 1) is empty
+    spec.write_text(SPEC.replace("cp:numCellW 2 ; cp:numCellH 2", "cp:numCellW 1 ; cp:numCellH 1"))
+    assert verify_store(store, [spec]).passed, "an edited spec is used at the next verify"
+
+    other = tmp_path / "other.ttl"
+    other.write_text(SPEC)
+    verify_store(store, [spec, other])
+    assert store.spec_names() == ["other", "spec"]
+    verify_store(store, [spec])
+    assert store.spec_names() == ["spec"], "the store keeps exactly the specs of the last verify"
+    assert sorted(p.name for p in (store.root / "findings").iterdir()) == ["spec.ttl"]
+
+
+def test_verify_reports_spec_problems_and_checks_the_other_specs(tmp_path: Path) -> None:
+    store, _ = ingest_dataset(dataset_of(tmp_path), tmp_path / "stores")
+    good, todo = tmp_path / "good.ttl", tmp_path / "todo.ttl"
+    good.write_text(SPEC)
+    todo.write_text(TEMPLATE)
+    result = verify_store(store, [todo, good])
+    assert [(c.spec, c.passed) for c in result.checks] == [("todo", False), ("good", True)]
+    assert result.checks[0].errors[0].startswith("Spec still has TODO values")
+    assert store.spec_names() == ["good"]
+    (report,) = verify_store(store, []).checks
+    assert report.errors == ["No spec given; run: verify --spec <your spec>.ttl"]
+    sub = tmp_path / "sub"
+    sub.mkdir()
+    (sub / "good.ttl").write_text(SPEC)
+    (report,) = verify_store(store, [good, sub / "good.ttl"]).checks
+    assert report.errors == ["Two spec files are both named 'good.ttl'; give each spec its own file name"]
+
+
+def test_changed_dataset_must_be_ingested_again(tmp_path: Path) -> None:
     dataset = dataset_of(tmp_path)
     store, _ = ingest_dataset(dataset, tmp_path / "stores")
     spec = tmp_path / "spec.ttl"
     spec.write_text(SPEC)
-    attach_spec(store, spec)
-    assert verify_store(store).passed
-
-    spec.write_text(SPEC + "\n# edited\n")
-    (report,) = verify_store(store).checks
-    assert report.errors == [f"The spec {spec.resolve()} changed after it entered the store; run: attach --spec {spec.resolve()}"]
-    attach_spec(store, spec)
-    assert verify_store(store).passed
-
+    assert verify_store(store, [spec]).passed
     shard = dataset / "data" / "chunk-000" / "file-000.parquet"
     os.utime(shard, ns=(0, 0))
-    (report,) = verify_store(store).checks
+    (report,) = verify_store(store, [spec]).checks
     assert report.errors and "ingest --dataset" in report.errors[0]
     ingest_dataset(dataset, tmp_path / "stores")
     assert not (store.root / "findings").exists(), "re-ingest drops every result of the previous ingest"
-    assert store.spec_names() == ["spec"] and verify_store(store).passed
+    assert verify_store(store, [spec]).passed
 
 
 def test_query_over_the_store(tmp_path: Path) -> None:
@@ -447,8 +455,7 @@ def test_query_over_the_store(tmp_path: Path) -> None:
     store, _ = ingest_dataset(dataset_of(tmp_path, CELL_CENTERS[:3]), tmp_path / "stores")
     spec = tmp_path / "spec.ttl"
     spec.write_text(SPEC)
-    attach_spec(store, spec)
-    verify_store(store)
+    verify_store(store, [spec])
     text = query(store, (ROOT / "queries" / "uncovered_cells.rq").read_text(), "csv")
     assert text.splitlines() == ["spec,object,i,j,xMin,xMax,yMin,yMax,episodes,needed", "spec,cube,1,1,0.1,0.2,0.1,0.2,0,1"]
     assert query(store, "ASK { ?e a cp:Episode ; cp:index ?i . FILTER (?i = 2) }") == "true"
@@ -506,22 +513,22 @@ def test_command_line_end_to_end(tmp_path: Path) -> None:
 
     assert cli("ingest", "--dataset", str(dataset)).returncode == 0
     assert (tmp_path / "stores" / "ds" / "dataset.ttl").is_file()
-    assert cli("init", "--store", "stores/ds", "--out", "specs/mine.ttl").returncode == 0
-    refused = cli("init", "--store", "stores/ds", "--out", "specs/mine.ttl")
-    assert refused.returncode == 1 and "already exists" in refused.stderr
-    todo = cli("attach", "--store", "stores/ds", "--spec", "specs/mine.ttl")
-    assert todo.returncode == 1 and "TODO" in todo.stderr
-    (tmp_path / "specs" / "mine.ttl").write_text(_fill((tmp_path / "specs" / "mine.ttl").read_text(), FILLED))
-    assert cli("attach", "--store", "stores/ds", "--spec", "specs/mine.ttl").returncode == 0
+    mine = tmp_path / "specs" / "mine.ttl"
+    mine.parent.mkdir()
+    mine.write_text(TEMPLATE)
+    todo = cli("verify", "--store", "stores/ds", "--spec", "specs/mine.ttl")
+    assert todo.returncode == 1 and "TODO" in todo.stdout, todo.stdout
+    assert cli("verify", "--store", "stores/ds").returncode == 2, "--spec is required"
+    mine.write_text(_fill(TEMPLATE, FILLED))
     assert cli("ingest", "--store", "stores/ds", "--rollout-log", str(log)).returncode == 0
-    verify = cli("verify", "--store", "stores/ds", "--json", "out/result.json")
+    verify = cli("verify", "--store", "stores/ds", "--spec", "specs/mine.ttl", "--json", "out/result.json")
     assert verify.returncode == 1, verify.stdout  # cell (1, 1) is empty
     assert "RESULT: coverage spec NOT met" in verify.stdout and "Record more episodes here" in verify.stdout
-    assert "Record more episodes here" not in cli("verify", "--store", "stores/ds", "--no-hints").stdout
+    assert "Record more episodes here" not in cli("verify", "--store", "stores/ds", "--spec", "specs/mine.ttl", "--no-hints").stdout
     assert json.loads((tmp_path / "out" / "result.json").read_text())["passed"] is False
     explore = cli("explore", "--store", "stores/ds")
     assert explore.returncode == 0 and "NOT passed" in explore.stdout and "0 run(s) in distribution" in explore.stdout
     q = cli("query", "--store", "stores/ds", "--query-file", str(ROOT / "queries" / "uncovered_cells.rq"), "--format", "csv")
     assert q.returncode == 0 and q.stdout.splitlines()[1] == "mine,cube,1,1,0.1,0.2,0.1,0.2,0,1"
-    assert cli("detach", "--store", "stores/ds", "--spec", "mine").returncode == 0
-    assert not list((tmp_path / "stores" / "ds" / "findings").glob("mine*"))
+    for removed in ("init", "attach", "detach"):
+        assert cli(removed, "--store", "stores/ds").returncode == 2

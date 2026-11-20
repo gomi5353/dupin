@@ -8,15 +8,15 @@
 #                          Position (first recorded frame, env-local, metres).
 #   ingest  --rollout-log  a Rollout of a policy trained on the Dataset, with
 #                          its Runs (status and initial positions).
-#   attach  --spec         a Spec: the student's GeneralizationAxes, each with
-#                          its AxisRequirements. The Dataset then has the axes
-#                          (cp:hasGeneralizationAxis).
-#   verify                 a Verification per spec (dataset vs requirements)
+#   verify  --spec         a Spec per given file: the student's
+#                          GeneralizationAxes, each with its AxisRequirements.
+#                          The Dataset then has the axes (cp:hasGeneralizationAxis).
+#                          Then a Verification per spec (dataset vs requirements)
 #                          and a Comparison per spec and rollout (rollout runs
 #                          vs dataset coverage), each with its Findings.
 #
 # Ingested facts are never derived; verification results are separate nodes
-# that point at the facts they are about. Every ingested or attached source
+# that point at the facts they are about. Every ingested source and spec file
 # records its path, a content hash and the time it entered the store.
 #
 # This file holds the axis-independent terms. Each generalization axis adds its
@@ -50,7 +50,7 @@ cp:Dataset a owl:Class ;
         [ a owl:Restriction ; owl:onProperty cp:hasEpisode ; owl:allValuesFrom cp:Episode ] ,
         [ a owl:Restriction ; owl:onProperty cp:name ; owl:qualifiedCardinality "1"^^xsd:nonNegativeInteger ; owl:onDataRange xsd:string ] ;
     rdfs:label "Dataset"@en ;
-    rdfs:comment "A LeRobot dataset, ingested into its own store. It has its recorded episodes, the names of the objects it recorded positions for (cp:recordedObject), and, once a spec is attached, the generalization axes it is checked against."@en .
+    rdfs:comment "A LeRobot dataset, ingested into its own store. It has its recorded episodes, the names of the objects it recorded positions for (cp:recordedObject), and, once verified against specs, the generalization axes it is checked against."@en .
 
 cp:Episode a owl:Class ;
     rdfs:subClassOf
@@ -101,7 +101,7 @@ cp:Spec a owl:Class ;
         [ a owl:Restriction ; owl:onProperty cp:declaresAxis ; owl:someValuesFrom cp:GeneralizationAxis ] ,
         [ a owl:Restriction ; owl:onProperty cp:declaresAxis ; owl:allValuesFrom cp:GeneralizationAxis ] ;
     rdfs:label "Spec"@en ;
-    rdfs:comment "A coverage spec file written by the student and attached to the store. Its individuals are renamed under the spec's IRI so that several specs can live in one store."@en .
+    rdfs:comment "A coverage spec file filled in by the student and put into the store by verify. Its individuals are renamed under the spec's IRI so that several specs can live in one store."@en .
 
 cp:GeneralizationAxis a owl:Class ;
     rdfs:subClassOf
@@ -125,7 +125,7 @@ cp:Verification a owl:Class ;
         [ a owl:Restriction ; owl:onProperty cp:passed ; owl:qualifiedCardinality "1"^^xsd:nonNegativeInteger ; owl:onDataRange xsd:boolean ] ,
         [ a owl:Restriction ; owl:onProperty cp:hasFinding ; owl:allValuesFrom cp:Finding ] ;
     rdfs:label "Verification"@en ;
-    rdfs:comment "One check of the dataset against one attached spec. It passed when it has no finding of severity Error or Violation. Replaced by the next verify."@en .
+    rdfs:comment "One check of the dataset against one spec. It passed when it has no finding of severity Error or Violation. Replaced by the next verify."@en .
 
 cp:Comparison a owl:Class ;
     rdfs:subClassOf
@@ -151,7 +151,7 @@ cp:Finding a owl:Class ;
 
 cp:hasGeneralizationAxis a owl:ObjectProperty ;
     rdfs:label "has generalization axis"@en ;
-    rdfs:comment "A dataset has the axes of its attached specs: the axes it is checked against."@en .
+    rdfs:comment "A dataset has the axes of its specs: the axes it is checked against."@en .
 
 cp:hasRequirement a owl:ObjectProperty ;
     rdfs:label "has requirement"@en .

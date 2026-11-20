@@ -4,8 +4,7 @@ Files:
   ontology.ttl        ObjectColorAxis, its requirement, color categories, object colors, run placements
   shapes.ttl          SHACL rules on the dataset (every episode has the color, spec well-formed)
   rollout_shapes.ttl  SHACL rules on a rollout (every finished run has the color)
-  template.ttl        spec skeleton written by ``init``
-  coverage.py         categories, counts, entropy, language check (verify) and run groups (compare)
+  coverage.py         categories, counts, language check (verify) and run groups (compare)
 """
 
 from __future__ import annotations
@@ -18,11 +17,11 @@ from rdflib import Graph, Literal, URIRef
 from ...dataset import OBJECT_COLOR_KEY_PREFIX, OBJECT_COLOR_NAMES, read_first_frame_vectors
 from ...graph import CP, add_object_color
 from ...rollout_log import RolloutLog
-from ...spec_template import number, render_blocks, todo_fields, value_type_errors
+from ...spec_template import number, todo_fields, value_type_errors
 from ...verifier import AxisCheck, AxisComparison, Verifier
 from .coverage import check_object_color, compare_object_color, required_objects
 
-_NUMBER_FIELDS = [CP.maxColorDistance, CP.minNormalizedEntropy, CP.colorR, CP.colorG, CP.colorB]
+_NUMBER_FIELDS = [CP.maxColorDistance, CP.colorR, CP.colorG, CP.colorB]
 _WHOLE_FIELDS = [CP.minEpisodesPerColor]
 
 
@@ -63,22 +62,6 @@ class ObjectColorVerifier(Verifier):
                 add_object_color(graph, URIRef(f"{rollout}/run/{run.index}"), obj, rgb)
         return []
 
-    def render_spec(self, store: Graph, dataset: URIRef, names: list[str]) -> str:
-        notes = {}
-        for obj in names:
-            seen: dict[tuple[float, float, float], int] = {}
-            for e in store.objects(dataset, CP.hasEpisode):
-                for c in store.objects(e, CP.hasObjectColor):
-                    if str(store.value(c, CP.name)) == obj:
-                        rgb = tuple(round(float(store.value(c, p)), 3) for p in (CP.colorR, CP.colorG, CP.colorB))
-                        seen[rgb] = seen.get(rgb, 0) + 1
-            if seen:
-                listed = ", ".join(f"({r:g}, {g:g}, {b:g}) x{n}" for (r, g, b), n in sorted(seen.items(), key=lambda kv: -kv[1])[:8])
-                notes[obj] = f"# Already in the dataset: {len(seen)} distinct color(s): {listed}. For reference only.\n"
-            else:
-                notes[obj] = f"# Not recorded in the dataset (no object_color.{obj} values).\n"
-        return render_blocks(self.template(), "OBJECT", "OBJECT_NAME", names, notes)
-
     def spec_errors(self, spec: Graph) -> list[str]:
         if not any(spec.subjects(None, CP.ObjectColorAxis)):
             return []
@@ -90,11 +73,9 @@ class ObjectColorVerifier(Verifier):
             return errors
         for req in spec.subjects(None, CP.ObjectColorAxisRequirement):
             name = _owner(spec, req) or req
-            distance, entropy, minimum = (number(spec, req, p) for p in (CP.maxColorDistance, CP.minNormalizedEntropy, CP.minEpisodesPerColor))
+            distance, minimum = (number(spec, req, p) for p in (CP.maxColorDistance, CP.minEpisodesPerColor))
             if distance is not None and distance <= 0:
                 errors.append(f"{name}: maxColorDistance must be > 0, got {distance:g}")
-            if entropy is not None and not 0 <= entropy <= 1:
-                errors.append(f"{name}: minNormalizedEntropy must be between 0 and 1, got {entropy:g}")
             if minimum is not None and minimum < 1:
                 errors.append(f"{name}: minEpisodesPerColor must be at least 1, got {minimum:g}")
             if not any(spec.objects(req, CP.hasColorCategory)):

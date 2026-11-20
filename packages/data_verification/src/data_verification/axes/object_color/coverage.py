@@ -1,4 +1,4 @@
-"""Object color axis: episodes per color category, their entropy, the language check, and the rollout runs' colors.
+"""Object color axis: episodes per color category, the language check, and the rollout runs' colors.
 
 An episode's (or run's) color of an object belongs to the requirement's
 nearest category by Euclidean RGB distance, if that distance is at most
@@ -13,19 +13,18 @@ import math
 import re
 from collections import Counter
 from dataclasses import dataclass, field
-from decimal import Decimal
 
-from rdflib import RDF, XSD, Graph, Literal, URIRef
+from rdflib import RDF, Graph, Literal, URIRef
 
 from ...graph import CP, index_literal
 from ...verifier import AxisCheck, AxisComparison, Finding, pct, rate
 
 REQUIREMENTS_QUERY = """
-SELECT ?req ?name ?dist ?min ?entropy WHERE {
+SELECT ?req ?name ?dist ?min WHERE {
     ?dataset cp:hasGeneralizationAxis ?axis .
     ?axis cp:hasRequirement ?req .
     ?req a cp:ObjectColorAxisRequirement ; cp:hasTaskObject ?obj ;
-         cp:maxColorDistance ?dist ; cp:minEpisodesPerColor ?min ; cp:minNormalizedEntropy ?entropy .
+         cp:maxColorDistance ?dist ; cp:minEpisodesPerColor ?min .
     ?obj cp:name ?name .
 }
 """
@@ -63,7 +62,6 @@ class Requirement:
     obj: str
     max_distance: float
     min_episodes: int
-    min_entropy: float
     categories: list[Category]
 
     def classify(self, rgb: RGB) -> Category | None:
@@ -80,7 +78,7 @@ def requirements(graph: Graph, dataset: URIRef) -> list[Requirement]:
             for c in graph.query(CATEGORIES_QUERY, initNs={"cp": CP}, initBindings={"req": row.req})
         ]
         result.append(
-            Requirement(row.req, str(row.name), float(row.dist), int(row.min), float(row.entropy), sorted(categories, key=lambda c: c.name))
+            Requirement(row.req, str(row.name), float(row.dist), int(row.min), sorted(categories, key=lambda c: c.name))
         )
     return sorted(result, key=lambda r: r.obj)
 
@@ -110,15 +108,6 @@ def episode_texts(graph: Graph, dataset: URIRef) -> dict[int, str]:
     return texts
 
 
-def normalized_entropy(counts: list[int]) -> float:
-    """Shannon entropy of ``counts`` divided by log(len(counts)); 0 for fewer than two categories or no episodes."""
-    total = sum(counts)
-    if len(counts) < 2 or total == 0:
-        return 0.0
-    h = sum(n / total * math.log(total / n) for n in counts if n)
-    return h / math.log(len(counts))
-
-
 def names_color(text: str, word: str) -> bool:
     """Whether ``text`` contains ``word`` as a whole word (case-insensitive)."""
     return re.search(rf"(?<![A-Za-z]){re.escape(word)}(?![A-Za-z])", text, flags=re.IGNORECASE) is not None
@@ -134,7 +123,6 @@ class ObjectColorCoverage:
     counts: dict[str, int]
     """category name -> episodes."""
     uncategorized: int
-    entropy: float
 
 
 @dataclass
@@ -147,8 +135,7 @@ class ObjectColorCheck(AxisCheck):
             r = table.req
             ok = sum(n >= r.min_episodes for n in table.counts.values())
             lines.append(
-                f"[{table.obj}] {ok}/{len(r.categories)} colors with >= {r.min_episodes} episodes; "
-                f"normalized entropy {table.entropy:.2f} (needs >= {r.min_entropy:g})"
+                f"[{table.obj}] {ok}/{len(r.categories)} colors with >= {r.min_episodes} episodes"
             )
             for c in r.categories:
                 n = table.counts.get(c.name, 0)
@@ -177,25 +164,14 @@ def check_object_color(graph: Graph, dataset: URIRef, axis: str) -> ObjectColorC
             counts[category.name] += 1
             if index in texts and not names_color(texts[index], category.name):
                 unnamed.setdefault(category.name, []).append(index)
-        entropy = normalized_entropy([counts[c.name] for c in req.categories])
-        result.coverage.append(ObjectColorCoverage(req.obj, req, dict(counts), len(uncategorized), entropy))
+        result.coverage.append(ObjectColorCoverage(req.obj, req, dict(counts), len(uncategorized)))
 
-        result.derived.add((req.iri, CP.normalizedEntropy, Literal(Decimal(str(round(entropy, 6))), datatype=XSD.decimal)))
         for c in req.categories:
             result.derived.add((c.iri, CP.episodeCount, index_literal(counts[c.name])))
             if counts[c.name] < req.min_episodes:
                 result.findings.append(
                     Finding("Violation", f"'{req.obj}' color '{c.name}' has {counts[c.name]} episode(s); needs at least {req.min_episodes}", [str(c.iri)], axis)
                 )
-        if entropy < req.min_entropy:
-            result.findings.append(
-                Finding(
-                    "Violation",
-                    f"'{req.obj}' colors are spread with normalized entropy {entropy:.3f}; needs at least {req.min_entropy:g}",
-                    [str(req.iri)],
-                    axis,
-                )
-            )
         for name, episodes in sorted(unnamed.items()):
             result.findings.append(
                 Finding(

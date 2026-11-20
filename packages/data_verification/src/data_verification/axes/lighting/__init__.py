@@ -4,7 +4,6 @@ Files:
   ontology.ttl        LightingAxis, its requirement, light conditions, cells, run placements
   shapes.ttl          SHACL rules on the dataset (every episode has the light, spec well-formed)
   rollout_shapes.ttl  SHACL rules on a rollout (every finished run has the light)
-  template.ttl        spec skeleton written by ``init``
   coverage.py         per-cell episode counts (verify) and run placements (compare)
 """
 
@@ -18,7 +17,7 @@ from rdflib import Graph, Literal, URIRef
 from ...dataset import LIGHTING_KEY_PREFIX, LIGHTING_NAMES, read_first_frame_vectors
 from ...graph import CP, add_light_condition
 from ...rollout_log import RolloutLog
-from ...spec_template import number, render_blocks, todo_fields, value_type_errors
+from ...spec_template import number, todo_fields, value_type_errors
 from ...verifier import AxisCheck, AxisComparison, Verifier
 from .coverage import check_lighting, compare_lighting, required_lights
 
@@ -51,25 +50,6 @@ class LightingVerifier(Verifier):
             for light, (intensity, temperature) in run.lighting.items():
                 add_light_condition(graph, URIRef(f"{rollout}/run/{run.index}"), light, intensity, temperature)
         return []
-
-    def render_spec(self, store: Graph, dataset: URIRef, names: list[str]) -> str:
-        notes = {}
-        for light in names:
-            values = [
-                (float(store.value(c, CP.lightIntensity)), float(store.value(c, CP.colorTemperature)))
-                for e in store.objects(dataset, CP.hasEpisode)
-                for c in store.objects(e, CP.hasLightCondition)
-                if str(store.value(c, CP.name)) == light
-            ]
-            if values:
-                notes[light] = (
-                    f"# Already in the dataset: {len(values)} episode(s), intensity {min(v[0] for v in values):g}.."
-                    f"{max(v[0] for v in values):g}, temperature {min(v[1] for v in values):g}..{max(v[1] for v in values):g} K. "
-                    "For reference only.\n"
-                )
-            else:
-                notes[light] = f"# Not recorded in the dataset (no lighting.{light} values).\n"
-        return render_blocks(self.template(), "LIGHT", "LIGHT_NAME", names, notes)
 
     def spec_errors(self, spec: Graph) -> list[str]:
         if not any(spec.subjects(None, CP.LightingAxis)):
