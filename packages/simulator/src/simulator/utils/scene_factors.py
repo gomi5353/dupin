@@ -42,6 +42,25 @@ def object_color_features(object_names: list[str]) -> dict[str, dict]:
     }
 
 
+def pick_color_words(rng, palettes: dict[str, dict], distinct: bool = True) -> dict[str, str]:
+    """One color word per object of ``palettes``, drawn with ``rng`` (a ``random.Random``).
+
+    With ``distinct``, no two objects get the same word, so the task text never names two objects
+    by the same color ("the red cup on the red cup"). The objects pick in a random order, each among
+    the words still free; an object whose words are all taken falls back to its whole palette.
+    """
+    order = list(palettes)
+    rng.shuffle(order)
+    taken: set[str] = set()
+    picked: dict[str, str] = {}
+    for name in order:
+        words = sorted(palettes[name])
+        free = [word for word in words if word not in taken] if distinct else words
+        picked[name] = rng.choice(free or words)
+        taken.add(picked[name])
+    return {name: picked[name] for name in palettes}
+
+
 def _env_prim(prims: list, env_id: int):
     """The prim of ``env_id``; a global (not env-scoped) asset has one prim shared by all envs."""
     return prims[0] if len(prims) == 1 else prims[env_id]

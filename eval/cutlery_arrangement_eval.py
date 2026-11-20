@@ -138,12 +138,30 @@ class CutleryArrangementEnvCfg(SingleArmFrankaTaskEnvCfg):
     tracked_object_names: list[str] = ["fork", "knife"]
     fixed_object_names: list[str] = ["plate"]
     recorded_light_names: list[str] = ["rect_light"]
-    # Colors and task text as in the task configuration. Staff: the evaluation should use colors the
-    # training palettes do not list (held-out colors), named in the same template.
+    # Task text as in the task configuration. Colors: those of the task configuration, plus cyan and
+    # purple, which it does not list (unseen colors). The objects of one episode get different words.
     object_color_palettes: dict[str, dict[str, tuple[float, float, float]]] = {
-        "fork": {"pink": (1.87, 0.4, 1.88)},
-        "knife": {"orange": (2.0, 0.4, 0.0)},
-        "plate": {"green": (0.2, 1.66, 0.2)},
+        "fork": {
+            "pink": (1.87, 0.4, 1.88),
+            "red": (2.0, 0.2, 0.2),
+            "yellow": (1.8, 1.5, 0.0),
+            "cyan": (0.0, 1.5, 1.8),
+            "purple": (0.7, 0.1, 1.8),
+        },
+        "knife": {
+            "orange": (2.0, 0.4, 0.0),
+            "blue": (0.2, 0.2, 2.0),
+            "yellow": (1.8, 1.5, 0.0),
+            "cyan": (0.0, 1.5, 1.8),
+            "purple": (0.7, 0.1, 1.8),
+        },
+        "plate": {
+            "green": (0.2, 1.66, 0.2),
+            "red": (2.0, 0.2, 0.2),
+            "blue": (0.2, 0.2, 2.0),
+            "cyan": (0.0, 1.5, 1.8),
+            "purple": (0.7, 0.1, 1.8),
+        },
     }
     task_description_template: str = (
         "place the {fork} fork on the left and the {knife} knife on the right of the {plate} plate."

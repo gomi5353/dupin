@@ -300,3 +300,40 @@ def test_shipped_specs_parse_and_only_lack_values(path: Path) -> None:
     assert any(spec.subjects(None, verifier.axis_class)), f"{path.name} declares no {verifier.axis_class}"
     errors = verifier.spec_errors(spec)
     assert len(errors) == 1 and errors[0].startswith("Spec still has TODO values"), errors
+
+
+# ---- Color sampling (simulator/utils/scene_factors.py, loaded without the simulator) ----------
+
+
+def _scene_factors():
+    import importlib.util
+
+    path = Path(__file__).resolve().parents[1] / "packages/simulator/src/simulator/utils/scene_factors.py"
+    spec = importlib.util.spec_from_file_location("scene_factors_under_test", path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def test_pick_color_words_distinct_and_covering() -> None:
+    import random
+
+    pick = _scene_factors().pick_color_words
+    palettes = {"blue_cup": {"blue": 0, "red": 0, "yellow": 0}, "pink_cup": {"pink": 0, "red": 0, "yellow": 0}}
+    rng = random.Random(0)
+    draws = [pick(rng, palettes) for _ in range(400)]
+    assert all(d["blue_cup"] != d["pink_cup"] for d in draws), "the objects of one episode get different words"
+    for name, palette in palettes.items():
+        assert {d[name] for d in draws} == set(palette), "every color of a palette is drawn"
+    assert list(draws[0]) == list(palettes), "keys in palette order"
+
+
+def test_pick_color_words_falls_back_and_can_repeat() -> None:
+    import random
+
+    pick = _scene_factors().pick_color_words
+    same = {"a": {"red": 0}, "b": {"red": 0}}
+    assert pick(random.Random(1), same) == {"a": "red", "b": "red"}, "no free word: fall back to the palette"
+    palettes = {"a": {"red": 0, "blue": 0}, "b": {"red": 0, "blue": 0}}
+    rng = random.Random(2)
+    assert any(len(set(pick(rng, palettes, distinct=False).values())) == 1 for _ in range(100))

@@ -104,7 +104,8 @@ class randomize_object_colors(ManagerTermBase):
     word is what the task text says (``task_description_template``); the RGB is written to the
     diffuse color of every material bound to the object (OmniPBR ``diffuse_color_constant``, the
     material the task assets use; values above 1 are allowed and look brighter). An object without
-    such a material gets a UsdPreviewSurface material at start-up.
+    such a material gets a UsdPreviewSurface material at start-up. With ``distinct`` (default), the
+    objects of one episode get different color words (``scene_factors.pick_color_words``).
 
     Samples come from a private RNG seeded with ``env.cfg.seed``, as in ``randomize_light``.
     The chosen words are kept in ``env.object_color_names[env_id][object]``, which
@@ -152,13 +153,15 @@ class randomize_object_colors(ManagerTermBase):
         env: ManagerBasedEnv,
         env_ids: torch.Tensor | None,
         palettes: dict[str, dict[str, tuple[float, float, float]]],
+        distinct: bool = True,
     ):
+        from simulator.utils.scene_factors import pick_color_words
+
         ids = range(env.num_envs) if env_ids is None else sorted(env_ids.tolist())
         for env_id in ids:
-            for name, palette in palettes.items():
-                word = self._rng.choice(sorted(palette))
+            for name, word in pick_color_words(self._rng, palettes, distinct).items():
                 env.object_color_names[env_id][name] = word
-                self._apply(name, env_id, palette[word])
+                self._apply(name, env_id, palettes[name][word])
 
 
 def _add_preview_material(stage, object_path: str) -> list:
@@ -180,9 +183,15 @@ def _add_preview_material(stage, object_path: str) -> list:
     return [shader.GetPrim()]
 
 
-def randomize_object_color_palettes(palettes: dict[str, dict[str, tuple[float, float, float]]]) -> EventTerm:
-    """Reset event: each object in ``palettes`` gets one of its colors (see ``randomize_object_colors``)."""
-    return EventTerm(func=randomize_object_colors, mode="reset", params={"palettes": palettes})
+def randomize_object_color_palettes(
+    palettes: dict[str, dict[str, tuple[float, float, float]]], distinct: bool = True
+) -> EventTerm:
+    """Reset event: each object in ``palettes`` gets one of its colors (see ``randomize_object_colors``).
+
+    With ``distinct`` (the default), the objects of one episode get different color words, so the
+    task text stays unambiguous; see ``scene_factors.pick_color_words``.
+    """
+    return EventTerm(func=randomize_object_colors, mode="reset", params={"palettes": palettes, "distinct": distinct})
 
 
 _POSE_KEYS = ("x", "y", "z", "roll", "pitch", "yaw")

@@ -102,10 +102,19 @@ class CupStackingEnvCfg(SingleArmFrankaTaskEnvCfg):
     tracked_object_names: list[str] = ["blue_cup", "pink_cup"]
     recorded_light_names: list[str] = ["rect_light"]
     # Colors per object: {color word: diffuse (r, g, b)}; each reset picks one per object, and the task
-    # text names it. Add colors to vary them, e.g. "red": (0.9, 0.1, 0.1). Values above 1 look brighter.
+    # text names it. The objects of one episode get different color words. Add, remove or change colors
+    # to vary them differently; the first color is the default. Values above 1 look brighter.
     object_color_palettes: dict[str, dict[str, tuple[float, float, float]]] = {
-        "blue_cup": {"blue": (0.2549, 0.4118, 0.8824)},
-        "pink_cup": {"pink": (1.0, 0.0784, 0.5765)},
+        "blue_cup": {
+            "blue": (0.2549, 0.4118, 0.8824),
+            "red": (2.0, 0.2, 0.2),
+            "yellow": (1.8, 1.5, 0.0),
+        },
+        "pink_cup": {
+            "pink": (1.0, 0.0784, 0.5765),
+            "red": (2.0, 0.2, 0.2),
+            "yellow": (1.8, 1.5, 0.0),
+        },
     }
     task_description_template: str = "pick up the {blue_cup} cup and place it on the {pink_cup} cup."
 

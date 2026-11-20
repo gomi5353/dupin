@@ -170,12 +170,25 @@ class ToyBlocksCollectionEnvCfg(SingleArmFrankaTaskEnvCfg):
     fixed_object_names: list[str] = ["storage_box"]
     recorded_light_names: list[str] = ["rect_light"]
     # Colors per object: {color word: diffuse (r, g, b)}; each reset picks one per object, and the task
-    # text names it. Add colors to vary them, e.g. "red": (0.9, 0.1, 0.1). Values above 1 look brighter.
+    # text names it. The objects of one episode get different color words. Add, remove or change colors
+    # to vary them differently; the first color is the default. Values above 1 look brighter.
     # The storage box has no material of its own; listing it here gives it one.
     object_color_palettes: dict[str, dict[str, tuple[float, float, float]]] = {
-        "green_block": {"green": (0.0, 1.01, 0.0)},
-        "blue_block": {"blue": (0.2, 0.2, 2.0)},
-        "red_block": {"red": (2.0, 0.2, 0.2)},
+        "green_block": {
+            "green": (0.0, 1.01, 0.0),
+            "yellow": (1.8, 1.5, 0.0),
+            "orange": (2.0, 0.4, 0.0),
+        },
+        "blue_block": {
+            "blue": (0.2, 0.2, 2.0),
+            "yellow": (1.8, 1.5, 0.0),
+            "orange": (2.0, 0.4, 0.0),
+        },
+        "red_block": {
+            "red": (2.0, 0.2, 0.2),
+            "yellow": (1.8, 1.5, 0.0),
+            "orange": (2.0, 0.4, 0.0),
+        },
     }
     task_description_template: str = (
         "pick up the {green_block}, {blue_block} and {red_block} toys and place them into the storage box."

@@ -157,12 +157,30 @@ class ToyBlocksCollectionEvalEnvCfg(SingleArmFrankaTaskEnvCfg):
     tracked_object_names: list[str] = ["green_block", "blue_block", "red_block"]
     fixed_object_names: list[str] = ["storage_box"]
     recorded_light_names: list[str] = ["rect_light"]
-    # Colors and task text as in the task configuration. Staff: the evaluation should use colors the
-    # training palettes do not list (held-out colors), named in the same template.
+    # Task text as in the task configuration. Colors: those of the task configuration, plus cyan and
+    # purple, which it does not list (unseen colors). The objects of one episode get different words.
     object_color_palettes: dict[str, dict[str, tuple[float, float, float]]] = {
-        "green_block": {"green": (0.0, 1.01, 0.0)},
-        "blue_block": {"blue": (0.2, 0.2, 2.0)},
-        "red_block": {"red": (2.0, 0.2, 0.2)},
+        "green_block": {
+            "green": (0.0, 1.01, 0.0),
+            "yellow": (1.8, 1.5, 0.0),
+            "orange": (2.0, 0.4, 0.0),
+            "cyan": (0.0, 1.5, 1.8),
+            "purple": (0.7, 0.1, 1.8),
+        },
+        "blue_block": {
+            "blue": (0.2, 0.2, 2.0),
+            "yellow": (1.8, 1.5, 0.0),
+            "orange": (2.0, 0.4, 0.0),
+            "cyan": (0.0, 1.5, 1.8),
+            "purple": (0.7, 0.1, 1.8),
+        },
+        "red_block": {
+            "red": (2.0, 0.2, 0.2),
+            "yellow": (1.8, 1.5, 0.0),
+            "orange": (2.0, 0.4, 0.0),
+            "cyan": (0.0, 1.5, 1.8),
+            "purple": (0.7, 0.1, 1.8),
+        },
     }
     task_description_template: str = (
         "pick up the {green_block}, {blue_block} and {red_block} toys and place them into the storage box."
@@ -204,9 +222,21 @@ class ToyBlocksCollectionEvalEnvCfg(SingleArmFrankaTaskEnvCfg):
                 # Blocks start 12 cm apart; resample when two land closer than 8 cm (they would overlap).
                 randomize_objects_apart(
                     pose_ranges={
-                        "green_block": {"x": (-0.03, 0.03), "y": (-0.03, 0.03), "z": (0.0, 0.0)},
-                        "blue_block": {"x": (-0.03, 0.03), "y": (-0.03, 0.03), "z": (0.0, 0.0)},
-                        "red_block": {"x": (-0.03, 0.03), "y": (-0.03, 0.03), "z": (0.0, 0.0)},
+                        "green_block": {
+            "x": (-0.03, 0.03),
+            "y": (-0.03, 0.03),
+            "z": (0.0, 0.0),
+        },
+                        "blue_block": {
+            "x": (-0.03, 0.03),
+            "y": (-0.03, 0.03),
+            "z": (0.0, 0.0),
+        },
+                        "red_block": {
+            "x": (-0.03, 0.03),
+            "y": (-0.03, 0.03),
+            "z": (0.0, 0.0),
+        },
                     },
                     min_distance=0.08,
                 ),

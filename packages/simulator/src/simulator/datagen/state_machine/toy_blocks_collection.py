@@ -52,7 +52,7 @@ _GRIPPER_DOWN_YAW_OFFSET_RANGE = (-0.15, 0.15)
 # lives in env_cfg's ``per_object_yaw_offset``.
 #_GRASP_YAW_OFFSET: float = math.pi / 2.0
 _GRASP_YAW_OFFSET_PER_OBJECT: dict[str, float] = {
-    "green_block": 0.2209485961,
+    "green_block": 0.378,
     "blue_block": math.pi / 2.0,
     "red_block": 0.0,
 }

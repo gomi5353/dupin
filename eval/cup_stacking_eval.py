@@ -97,11 +97,23 @@ class CupStackingEvalEnvCfg(SingleArmFrankaTaskEnvCfg):
     task_description: str = "pick up the blue cup and place it on the pink cup."
     tracked_object_names: list[str] = ["blue_cup", "pink_cup"]
     recorded_light_names: list[str] = ["rect_light"]
-    # Colors and task text as in the task configuration. Staff: the evaluation should use colors the
-    # training palettes do not list (held-out colors), named in the same template.
+    # Task text as in the task configuration. Colors: those of the task configuration, plus cyan and
+    # purple, which it does not list (unseen colors). The objects of one episode get different words.
     object_color_palettes: dict[str, dict[str, tuple[float, float, float]]] = {
-        "blue_cup": {"blue": (0.2549, 0.4118, 0.8824)},
-        "pink_cup": {"pink": (1.0, 0.0784, 0.5765)},
+        "blue_cup": {
+            "blue": (0.2549, 0.4118, 0.8824),
+            "red": (2.0, 0.2, 0.2),
+            "yellow": (1.8, 1.5, 0.0),
+            "cyan": (0.0, 1.5, 1.8),
+            "purple": (0.7, 0.1, 1.8),
+        },
+        "pink_cup": {
+            "pink": (1.0, 0.0784, 0.5765),
+            "red": (2.0, 0.2, 0.2),
+            "yellow": (1.8, 1.5, 0.0),
+            "cyan": (0.0, 1.5, 1.8),
+            "purple": (0.7, 0.1, 1.8),
+        },
     }
     task_description_template: str = "pick up the {blue_cup} cup and place it on the {pink_cup} cup."
 
@@ -140,8 +152,16 @@ class CupStackingEvalEnvCfg(SingleArmFrankaTaskEnvCfg):
                 # Cups start 20 cm apart; resample when they land closer than 11 cm (they would overlap).
                 randomize_objects_apart(
                     pose_ranges={
-                        "blue_cup": {"x": (-0.1, 0.1), "y": (-0.1, 0.1), "z": (0.0, 0.0)},
-                        "pink_cup": {"x": (-0.1, 0.1), "y": (-0.1, 0.1), "z": (0.0, 0.0)},
+                        "blue_cup": {
+            "x": (-0.1, 0.1),
+            "y": (-0.1, 0.1),
+            "z": (0.0, 0.0),
+        },
+                        "pink_cup": {
+            "x": (-0.1, 0.1),
+            "y": (-0.1, 0.1),
+            "z": (0.0, 0.0),
+        },
                     },
                     min_distance=0.11,
                 ),

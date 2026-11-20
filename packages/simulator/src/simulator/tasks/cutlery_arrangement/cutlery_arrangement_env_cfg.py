@@ -144,11 +144,24 @@ class CutleryArrangementEnvCfg(SingleArmFrankaTaskEnvCfg):
     fixed_object_names: list[str] = ["plate"]
     recorded_light_names: list[str] = ["rect_light"]
     # Colors per object: {color word: diffuse (r, g, b)}; each reset picks one per object, and the task
-    # text names it. Add colors to vary them, e.g. "red": (0.9, 0.1, 0.1). Values above 1 look brighter.
+    # text names it. The objects of one episode get different color words. Add, remove or change colors
+    # to vary them differently; the first color is the default. Values above 1 look brighter.
     object_color_palettes: dict[str, dict[str, tuple[float, float, float]]] = {
-        "fork": {"pink": (1.87, 0.4, 1.88)},
-        "knife": {"orange": (2.0, 0.4, 0.0)},
-        "plate": {"green": (0.2, 1.66, 0.2)},
+        "fork": {
+            "pink": (1.87, 0.4, 1.88),
+            "red": (2.0, 0.2, 0.2),
+            "yellow": (1.8, 1.5, 0.0),
+        },
+        "knife": {
+            "orange": (2.0, 0.4, 0.0),
+            "blue": (0.2, 0.2, 2.0),
+            "yellow": (1.8, 1.5, 0.0),
+        },
+        "plate": {
+            "green": (0.2, 1.66, 0.2),
+            "red": (2.0, 0.2, 0.2),
+            "blue": (0.2, 0.2, 2.0),
+        },
     }
     task_description_template: str = (
         "place the {fork} fork on the left and the {knife} knife on the right of the {plate} plate."
