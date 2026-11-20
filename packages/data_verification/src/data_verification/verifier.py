@@ -125,6 +125,10 @@ class Verifier:
         """Add this axis's per-run facts from the rollout log (``log.runs[k].factors[<factor>]``; run IRIs: ``<rollout>/run/<i>``)."""
         return []
 
+    def recorded_names(self, graph: Graph, dataset: URIRef) -> list[str]:
+        """Names ``init`` writes a block for by default: the objects (or lights) the dataset recorded this axis for."""
+        return sorted(str(n) for n in graph.objects(dataset, CP.recordedObject))
+
     def render_spec(self, store: Graph, dataset: URIRef, objects: list[str]) -> str:
         """Spec skeleton written by ``init``. Default: the template as is."""
         template = self.template()

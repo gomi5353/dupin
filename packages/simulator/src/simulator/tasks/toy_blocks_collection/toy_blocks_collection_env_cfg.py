@@ -14,7 +14,11 @@ from leisaac.utils.domain_randomization import domain_randomization
 from leisaac.utils.general_assets import parse_usd_and_create_subassets
 from simulator import ASSETS_ROOT
 from simulator.assets.scenes.living_room import LIVING_ROOM_CFG, LIVING_ROOM_USD_PATH
-from simulator.utils.domain_randomization import randomize_light_conditions, randomize_objects_apart
+from simulator.utils.domain_randomization import (
+    randomize_light_conditions,
+    randomize_object_color_palettes,
+    randomize_objects_apart,
+)
 
 from simulator.tasks.template.single_arm_franka_cfg import (
     SingleArmFrankaObservationsCfg,
@@ -41,6 +45,10 @@ class ToyBlocksCollectionSceneCfg(SingleArmFrankaTaskSceneCfg):
     """Scene configuration for the toy blocks collection task."""
 
     scene: AssetBaseCfg = LIVING_ROOM_CFG.replace(prim_path="{ENV_REGEX_NS}/Scene")
+
+    # RectLight baked into the scene USD (/root/RectLight), as in eval/; wrap the existing prim so it can be
+    # randomized and recorded (recorded_light_names).
+    rect_light: AssetBaseCfg = AssetBaseCfg(prim_path="{ENV_REGEX_NS}/Scene/RectLight")
 
     # Static table (no rigid body). Surface collider is convexHull -> objects rest flush.
     table: AssetBaseCfg = AssetBaseCfg(
@@ -160,6 +168,18 @@ class ToyBlocksCollectionEnvCfg(SingleArmFrankaTaskEnvCfg):
     task_description: str = "pick up the toys and place them into the storage box."
     tracked_object_names: list[str] = ["green_block", "blue_block", "red_block"]
     fixed_object_names: list[str] = ["storage_box"]
+    recorded_light_names: list[str] = ["rect_light"]
+    # Colors per object: {color word: diffuse (r, g, b)}; each reset picks one per object, and the task
+    # text names it. Add colors to vary them, e.g. "red": (0.9, 0.1, 0.1). Values above 1 look brighter.
+    # The storage box has no material of its own; listing it here gives it one.
+    object_color_palettes: dict[str, dict[str, tuple[float, float, float]]] = {
+        "green_block": {"green": (0.0, 1.01, 0.0)},
+        "blue_block": {"blue": (0.2, 0.2, 2.0)},
+        "red_block": {"red": (2.0, 0.2, 0.2)},
+    }
+    task_description_template: str = (
+        "pick up the {green_block}, {blue_block} and {red_block} toys and place them into the storage box."
+    )
 
     def __post_init__(self) -> None:
         super().__post_init__()
@@ -215,6 +235,15 @@ class ToyBlocksCollectionEnvCfg(SingleArmFrankaTaskEnvCfg):
                     },
                     min_distance=0.08,
                 ),
-                randomize_light_conditions("light", textures=[], intensity_range=(1100, 1300)),
+                # The scene's RectLight, the light the evaluation files randomize. Choose the ranges your data
+                # should cover; the evaluation files use intensity 2500-8000 and 3000-6500 K.
+                randomize_light_conditions(
+                    "rect_light",
+                    intensity_range=(4500.0, 5500.0),
+                    color_variation=0.0,
+                    textures=[],
+                    color_temperature_range=(5300.0, 5900.0),
+                ),
+                randomize_object_color_palettes(self.object_color_palettes),
             ],
         )

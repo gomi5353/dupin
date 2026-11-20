@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import math
 from collections import Counter
 from dataclasses import dataclass, field
 from decimal import Decimal
@@ -10,6 +9,7 @@ from decimal import Decimal
 from rdflib import RDF, XSD, Graph, Literal, URIRef
 
 from ...graph import CP, index_literal
+from ...grid import cell_edge, dec, lattice_index  # noqa: F401  (re-exported for compare.py)
 from ...verifier import AxisCheck
 
 AREA_BOUNDS = (CP.areaXMin, CP.areaXMax, CP.areaYMin, CP.areaYMax)
@@ -115,27 +115,6 @@ def cell_counts(graph: Graph, dataset: URIRef) -> dict[str, Counter]:
             if 0 <= i < nw and 0 <= j < nh:
                 counter[j * nw + i] += 1
     return counts
-
-
-def cell_edge(lo: Decimal, hi: Decimal, n: int, i: int) -> Decimal:
-    """The i-th cell edge of [lo, hi] split into n, as cp:CellCoverageShape computes it; edge n is exactly hi."""
-    return hi if i == n else lo + i * (hi - lo) / n
-
-
-def lattice_index(v: Decimal, lo: Decimal, hi: Decimal, n: int) -> int:
-    """Index i of the interval [edge i, edge i+1) holding v, extended beyond [lo, hi]; hi belongs to cell n - 1."""
-    if v == hi:
-        return n - 1
-    i = math.floor((v - lo) * n / (hi - lo))
-    while v < cell_edge(lo, hi, n, i):  # guard against rounding at an edge
-        i -= 1
-    while v >= cell_edge(lo, hi, n, i + 1):
-        i += 1
-    return i
-
-
-def dec(literal) -> Decimal:
-    return Decimal(str(literal.toPython()))
 
 
 @dataclass

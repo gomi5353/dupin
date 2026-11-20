@@ -73,8 +73,10 @@ def cmd_init(args: argparse.Namespace) -> int:
     if verifier is None:
         raise StoreError(f"No registered verifier '{args.axis}' (registered: {', '.join(v.name for v in VERIFIERS)})")
     graph = store.load(store.dataset_file)
-    recorded = sorted(str(n) for n in graph.objects(store.dataset, CP.recordedObject))
+    recorded = verifier.recorded_names(graph, store.dataset)
     objects = [n.strip() for n in args.objects.split(",") if n.strip()] if args.objects else recorded
+    if not objects:
+        raise StoreError(f"The dataset recorded nothing for axis '{verifier.name}'; name the objects or lights with --objects")
     if args.out.exists():
         raise StoreError(f"{args.out} already exists; not overwriting")
     args.out.parent.mkdir(parents=True, exist_ok=True)
@@ -127,6 +129,9 @@ def cmd_explore(args: argparse.Namespace) -> int:
     print(f"Store   : {store.root}")
     print(f"Dataset : {graph.value(ds, CP.sourcePath)}  (ingested {graph.value(ds, CP.ingestedAt)})")
     print(f"          {len(episodes)} episode(s); objects {', '.join(sorted(str(n) for n in graph.objects(ds, CP.recordedObject)))}")
+    lights, colored = sorted(str(n) for n in graph.objects(ds, CP.recordedLight)), sorted(str(n) for n in graph.objects(ds, CP.recordedColorObject))
+    if lights or colored:
+        print(f"          lights {', '.join(lights) or '-'}; object colors {', '.join(colored) or '-'}")
     for label, prop in (("task", CP.task), ("task text", CP.taskDescription), ("robot", CP.robotType), ("fps", CP.fps)):
         for value in graph.objects(ds, prop):
             print(f"          {label}: {value}")
@@ -208,8 +213,11 @@ def main() -> int:
     init = sub.add_parser("init", help="Write a spec skeleton to fill in.")
     init.add_argument("--store", required=True, type=Path)
     init.add_argument("--out", required=True, type=Path, help="Spec file to create (.ttl). Never overwritten.")
-    init.add_argument("--axis", default="object_position", help="Registered verifier whose template to use (default: object_position).")
-    init.add_argument("--objects", help="Comma-separated object names instead of the dataset's recorded objects.")
+    init.add_argument(
+        "--axis", default="object_position", choices=[v.name for v in VERIFIERS],
+        help="Generalization axis whose template to use (default: object_position).",
+    )
+    init.add_argument("--objects", help="Comma-separated object (or, for lighting, light) names instead of the ones the dataset recorded.")
     init.set_defaults(func=cmd_init)
 
     attach = sub.add_parser("attach", help="Check a filled-in spec and attach it to the store (again after editing it).")

@@ -29,7 +29,7 @@ from urllib.parse import quote
 import pyarrow.parquet as pq
 from rdflib import OWL, RDF, RDFS, XSD, BNode, Graph, Literal, Namespace, URIRef
 
-from .dataset import DatasetError, DatasetPlacements, read_initial_placements
+from .dataset import DatasetError, DatasetPlacements, read_episode_tasks, read_initial_placements
 from .graph import CP, DATA, add_dataset, add_rollout, dataset_iri, rollout_iri, spec_iri
 from . import registry
 from .rollout_log import RolloutLogError, read_rollout_log
@@ -157,6 +157,8 @@ def ingest_dataset(dataset_root: str | Path, stores: str | Path = STORES, name: 
         graph.add((dataset, CP.fps, Literal(info["fps"], datatype=XSD.nonNegativeInteger)))
     for description in _task_descriptions(root):
         graph.add((dataset, CP.taskDescription, Literal(description)))
+    for episode_index, text in read_episode_tasks(root).items():
+        graph.add((URIRef(f"{dataset}/episode/{episode_index}"), CP.taskDescription, Literal(text)))
     if task:
         graph.add((dataset, CP.task, Literal(task)))
     for verifier in registry.VERIFIERS:

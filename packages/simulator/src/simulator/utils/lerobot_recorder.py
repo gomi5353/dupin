@@ -1,8 +1,9 @@
 """LeRobot recorder with extra columns for offline data verification.
 
 This is the repository's base extension of leisaac's ``LeRobotRecorderManager``.
-It adds one verification factor, the object position; groups that verify further
-factors append them here (see ``docs/adding_coverage_factor.md``).
+It adds the columns of three verification factors: the object position, the
+lighting and the object color; groups that verify further factors append them
+here (see ``docs/adding_coverage_factor.md``).
 
 Every tracked object gets its own dataset column ``object_position.<name>``:
 float32 ``(3,)`` = ``[x, y, z]``, position relative to the env origin, metres.
@@ -19,8 +20,13 @@ and are read back by ``packages/data_verification``. New factors use their own
 non-``observation.`` prefix, such as ``factor.<name>``, for the same reason.
 
 A factor needs two additions: its feature spec in ``build_with_factors`` below,
-and its per-frame value in ``SingleArmFrankaTaskEnvCfg.build_lerobot_frame``
-(``tasks/template/single_arm_franka_cfg.py``), next to the object positions.
+and its per-frame value, either from the episode buffer in
+``SingleArmFrankaTaskEnvCfg.build_lerobot_frame``
+(``tasks/template/single_arm_franka_cfg.py``), like the object positions, or
+read from the scene in ``scene_frame`` below, like the lighting
+(``lighting.<light>``) and the object colors (``object_color.<name>``,
+``scene_factors.py``). The recorder also writes each episode's own task text
+(``task_text``), which names the object colors.
 
 Record with ``LeRobotRecorderManager`` from this module, not leisaac's original
 class, which writes no verification columns.
@@ -35,6 +41,8 @@ from functools import cache
 from typing import TYPE_CHECKING
 
 import numpy as np
+
+from .scene_factors import lighting_features, object_color_features
 
 if TYPE_CHECKING:
     from isaaclab.utils.datasets.episode_data import EpisodeData
@@ -72,6 +80,18 @@ def object_positions_from_episode(episode_data: EpisodeData, dataset_features: d
     return frame
 
 
+def scene_frame(env, light_names: list[str], color_names: list[str], env_id: int = 0) -> dict[str, np.ndarray]:
+    """``lighting.<name>`` and ``object_color.<name>`` values of ``env_id``, read from the scene now."""
+    from .scene_factors import LIGHTING_KEY_PREFIX, OBJECT_COLOR_KEY_PREFIX, light_values, object_colors
+
+    frame = {}
+    for name in light_names:
+        frame[f"{LIGHTING_KEY_PREFIX}{name}"] = np.asarray(light_values(env.scene, name, [env_id])[0], dtype=np.float32)
+    for name, values in object_colors(env.scene, color_names, [env_id]).items():
+        frame[f"{OBJECT_COLOR_KEY_PREFIX}{name}"] = np.asarray(values[0], dtype=np.float32)
+    return frame
+
+
 @cache
 def _make_recorder_manager_class():
     import leisaac.enhance.managers.lerobot_recorder_manager as leisaac_recorder
@@ -92,11 +112,15 @@ def _make_recorder_manager_class():
                     f"{type(env.cfg).__name__}.tracked_object_names is empty: no object positions would be recorded "
                     "and the dataset could not be verified. List the task's rigid objects there."
                 )
+            light_names = list(getattr(env.cfg, "recorded_light_names", []))
+            color_names = list(getattr(env.cfg, "object_color_palettes", {}))
             base_build = leisaac_recorder.build_feature_from_env
 
             def build_with_factors(env, dataset_cfg):
                 features = base_build(env, dataset_cfg)
                 features.update(object_position_features(object_names))
+                features.update(lighting_features(light_names))
+                features.update(object_color_features(color_names))
                 # Append the feature specs of further verification factors here.
                 return features
 
@@ -114,6 +138,19 @@ def _make_recorder_manager_class():
             # leisaac's handler raises NotImplementedError here; the collection scripts read it on resume.
             if dataset is not None:
                 self._dataset_file_handler.get_num_episodes = lambda: dataset.meta.total_episodes
+
+            # leisaac adds env 0's frame through the handler; add the values read from the scene and the
+            # episode's own task text there, so the frame builder needs no access to the env.
+            handler = self._dataset_file_handler
+            base_add_frame = handler.add_frame
+
+            def add_frame(frame: dict) -> None:
+                frame.update(scene_frame(env, light_names, color_names))
+                if hasattr(env.cfg, "task_text"):
+                    frame["task"] = env.cfg.task_text(env, 0)
+                base_add_frame(frame)
+
+            handler.add_frame = add_frame
 
     return LeRobotRecorderManager
 

@@ -289,7 +289,9 @@ def test_spec_without_registered_axis_is_rejected(tmp_path: Path) -> None:
     errors = attach_errors(tmp_path, SPEC.replace("spec:axis a cp:ObjectPositionAxis", "spec:axis a cp:GeneralizationAxis"))
     assert any("typed cp:GeneralizationAxis" in e for e in errors)
     errors = attach_errors(tmp_path / "b", SPEC.replace("spec:axis a cp:ObjectPositionAxis", "spec:axis a <http://example/LightAxis>"))
-    assert errors == ["Spec declares no generalization axis with a registered verifier (cp:ObjectPositionAxis)"]
+    assert errors == [
+        "Spec declares no generalization axis with a registered verifier (cp:ObjectPositionAxis, cp:LightingAxis, cp:ObjectColorAxis)"
+    ]
 
 
 def test_attached_spec_is_renamed_with_cells_and_provenance(tmp_path: Path) -> None:

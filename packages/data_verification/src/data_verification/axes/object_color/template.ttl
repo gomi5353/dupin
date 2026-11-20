@@ -1,0 +1,60 @@
+# Object color spec (template).
+#
+# You decide which colors each object must appear in, and how evenly. Fill in
+# every "TODO" below, then attach it to your dataset's store and verify:
+#
+#   uv run python scripts/store.py attach --store stores/<dataset_repo> --spec <this file>
+#   uv run python scripts/store.py verify --store stores/<dataset_repo>
+#
+# Each episode's color of an object is read from the dataset column
+# object_color.<name> = [r, g, b] at its first frame: the diffuse color the
+# task's color palette set (object_color_palettes in the task configuration).
+# It belongs to the nearest color category below, if it is within
+# maxColorDistance of that category's reference; otherwise to none.
+#
+# The checks: every category has at least minEpisodesPerColor episodes; the
+# episodes are spread over the categories with a normalized entropy of at
+# least minNormalizedEntropy (1 = evenly, 0 = all in one category); and every
+# episode's task text names the category of the object's color.
+#
+# One block per object you want checked. Delete a block to stop checking that
+# object; copy a block to check another one.
+
+@prefix cp:   <http://taica.course/cp/ontology#> .
+@prefix spec: <http://taica.course/cp/spec/mine#> .
+
+# The object color axis. Each block below adds one requirement to it.
+spec:object_color_axis a cp:ObjectColorAxis .
+
+# --- BEGIN OBJECT ---
+spec:object_color_axis cp:hasRequirement spec:OBJECT_NAME_color_requirement .
+
+spec:OBJECT_NAME_color_requirement a cp:ObjectColorAxisRequirement ;
+    cp:hasTaskObject spec:OBJECT_NAME_color_object ;
+    cp:hasColorCategory spec:OBJECT_NAME_color_1 , spec:OBJECT_NAME_color_2 ;
+
+    # Largest RGB distance from a reference to still count as that color.
+    # Number, e.g. 0.2 (not quoted).
+    cp:maxColorDistance "TODO" ;
+
+    # Minimum number of episodes per color category. Whole number, e.g. 5.
+    cp:minEpisodesPerColor "TODO" ;
+
+    # Minimum normalized entropy over the categories, between 0 and 1, e.g. 0.9.
+    cp:minNormalizedEntropy "TODO" .
+
+spec:OBJECT_NAME_color_object a cp:TaskObject ;
+    # Must match the dataset column name object_color.OBJECT_NAME.
+    cp:name "OBJECT_NAME" .
+
+# One category per color. Add more (spec:OBJECT_NAME_color_3, ...) and list
+# them in cp:hasColorCategory above. The name is the color word used in the
+# task text; the reference is the RGB of that color in the task's palette.
+spec:OBJECT_NAME_color_1 a cp:ColorCategory ;
+    cp:name "TODO" ;
+    cp:colorR "TODO" ; cp:colorG "TODO" ; cp:colorB "TODO" .
+
+spec:OBJECT_NAME_color_2 a cp:ColorCategory ;
+    cp:name "TODO" ;
+    cp:colorR "TODO" ; cp:colorG "TODO" ; cp:colorB "TODO" .
+# --- END OBJECT ---
