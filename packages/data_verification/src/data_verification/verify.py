@@ -5,7 +5,9 @@ with the core SHACL rules and those of every registered verifier, then each
 verifier's Python step runs (e.g. per-cell counts). For each spec and each
 ingested rollout, a Comparison: each verifier places the rollout's finished
 runs against the dataset's coverage; a run is in distribution when every axis
-of the spec covers it. Results, with their findings and derived nodes, are
+of the spec covers it. With several spec files (e.g. one per axis), each
+rollout also gets a combined result: a run is in distribution overall when
+every compared spec puts it in distribution. Results, with their findings and derived nodes, are
 written to findings/ in the store, replacing the previous ones.
 """
 
@@ -59,6 +61,8 @@ class RolloutComparison:
     axes: list[AxisComparison] = field(default_factory=list)
     runs_in_distribution: int = 0
     successes_in_distribution: int = 0
+    statuses: dict[int, str] = field(default_factory=dict, repr=False)
+    inside_runs: list[int] = field(default_factory=list)
 
     @property
     def passed(self) -> bool:
@@ -76,15 +80,68 @@ class RolloutComparison:
 
     def to_dict(self) -> dict:
         result = asdict(self)
+        result.pop("statuses")
         result["axes"] = [{k: v for k, v in asdict(a).items() if k != "derived"} for a in self.axes]
         result.update(passed=self.passed, fully_covered=self.fully_covered, hints=self.hint_lines())
         return result
 
 
 @dataclass
+class CombinedComparison:
+    """One rollout against all compared specs together: a run is in distribution
+    overall when every spec in ``specs`` puts it in distribution."""
+
+    rollout: str
+    specs: list[str] = field(default_factory=list)
+    axes: list[str] = field(default_factory=list)
+    skipped: list[str] = field(default_factory=list)
+    runs: int = 0
+    successes: int = 0
+    runs_in_distribution: int = 0
+    successes_in_distribution: int = 0
+    inside_runs: list[int] = field(default_factory=list)
+
+    @property
+    def fully_covered(self) -> bool:
+        return self.runs > 0 and self.runs_in_distribution == self.runs and not self.skipped
+
+    def to_dict(self) -> dict:
+        return {**asdict(self), "fully_covered": self.fully_covered}
+
+
+def combine_comparisons(comparisons: list[RolloutComparison], rejected_specs: list[str] = ()) -> list[CombinedComparison]:
+    """Per rollout, intersect the in-distribution runs of every spec compared without errors.
+
+    Only rollouts compared against two or more specs (counting ``rejected_specs``,
+    which were not compared at all) get a combined result; specs that could not
+    be compared are listed as skipped."""
+    combined = []
+    for rollout in dict.fromkeys(c.rollout for c in comparisons):
+        group = [c for c in comparisons if c.rollout == rollout]
+        if len(group) + len(rejected_specs) < 2:
+            continue
+        ok = [c for c in group if c.passed and c.axes]
+        skipped = [c.spec for c in group if c not in ok] + list(rejected_specs)
+        result = CombinedComparison(rollout, [c.spec for c in ok], skipped=skipped)
+        result.axes = list(dict.fromkeys(a.axis for c in ok for a in c.axes))
+        if ok:
+            statuses = ok[0].statuses
+            finished = [i for i, s in statuses.items() if s != "aborted"]
+            inside = sorted(i for i in finished if all(i in c.inside_runs for c in ok))
+            result.runs = len(finished)
+            result.successes = sum(statuses[i] == "succeeded" for i in finished)
+            result.inside_runs = inside
+            result.runs_in_distribution = len(inside)
+            result.successes_in_distribution = sum(statuses[i] == "succeeded" for i in inside)
+        combined.append(result)
+    return combined
+
+
+@dataclass
 class VerifyResult:
     checks: list[CheckReport] = field(default_factory=list)
     comparisons: list[RolloutComparison] = field(default_factory=list)
+    combined: list[CombinedComparison] = field(default_factory=list)
 
     @property
     def passed(self) -> bool:
@@ -98,6 +155,7 @@ class VerifyResult:
             "passed": self.passed,
             "checks": [c.to_dict() for c in self.checks],
             "comparisons": [c.to_dict() for c in self.comparisons],
+            "combined": [c.to_dict() for c in self.combined],
         }
 
 
@@ -153,6 +211,7 @@ def verify_store(
             if write and store.rollout_file(rollout).is_file():
                 write_graph(graph, store.comparison_file(name, rollout))
     result.checks.sort(key=lambda c: names.index(c.spec) if c.spec in names else -1)
+    result.combined = combine_comparisons(result.comparisons, [n for n in names if n not in loaded])
     return result
 
 
@@ -231,6 +290,7 @@ def compare_rollout(store: Store, name: str, rollout_name: str) -> tuple[Rollout
         return result, out
     graph = store.load(store.dataset_file, store.spec_file(name), store.rollout_file(rollout_name))
     statuses = {int(graph.value(r, CP["index"])): str(graph.value(r, CP.status)) for r in graph.objects(rollout, CP.hasRun)}
+    result.statuses = statuses
     result.eval_file = str(graph.value(rollout, CP.evalFile) or "")
     seed = graph.value(rollout, CP.seed)
     result.seed = None if seed is None else int(seed)
@@ -268,6 +328,7 @@ def compare_rollout(store: Store, name: str, rollout_name: str) -> tuple[Rollout
     if not result.errors:
         finished = [i for i, s in statuses.items() if s != "aborted"]
         inside = [i for i in finished if all(axis.run_covered.get(i, False) for axis in result.axes)]
+        result.inside_runs = sorted(inside)
         result.runs_in_distribution = len(inside)
         result.successes_in_distribution = sum(statuses[i] == "succeeded" for i in inside)
         for i in sorted(inside):
@@ -369,6 +430,38 @@ def format_comparison(result: RolloutComparison, hints: bool = True, max_nodes: 
         lines.append("RESULT: the dataset covers every rollout run")
     else:
         lines.append("RESULT: the dataset does NOT cover every rollout run; see above")
+    return "\n".join(lines)
+
+
+def format_combined(result: CombinedComparison) -> str:
+    lines = [
+        "COMBINED (all spec files together)",
+        f"Rollout : {result.rollout}",
+        f"Specs   : {', '.join(result.specs) or 'none'}",
+        "",
+    ]
+    if result.skipped:
+        lines.append(
+            f"NOTE      Not combined (comparison failed or has no axis): {', '.join(result.skipped)}; "
+            "fix those specs to get a verdict over every axis"
+        )
+    if result.specs and result.runs:
+        out = result.runs - result.runs_in_distribution
+        lines.append(
+            f"In distribution on every axis ({', '.join(result.axes)}): "
+            f"{result.runs_in_distribution}/{result.runs} runs ({pct(result.runs_in_distribution, result.runs)})"
+        )
+        lines.append(
+            f"  success {rate(result.successes_in_distribution, result.runs_in_distribution)} in distribution vs "
+            f"{rate(result.successes - result.successes_in_distribution, out)} outside"
+        )
+    lines.append("")
+    if not result.specs:
+        lines.append("RESULT: no spec could be compared; nothing to combine")
+    elif result.fully_covered:
+        lines.append("RESULT: the dataset covers every rollout run on every axis")
+    else:
+        lines.append("RESULT: the dataset does NOT cover every rollout run on every axis" + (" given" if result.skipped else ""))
     return "\n".join(lines)
 
 

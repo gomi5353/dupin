@@ -13,6 +13,7 @@ from data_verification import (
     AxisComparison,
     StoreError,
     Verifier,
+    format_combined,
     format_comparison,
     ingest_dataset,
     ingest_rollout,
@@ -465,3 +466,41 @@ def test_rollout_shape_run_index_and_object_names_are_unique() -> None:
     errors = _rollout_errors([(0, "failed", ["cube", "cube"]), (0, "succeeded", ["cube"])])
     assert "Rollout has more than one run with index 0" in errors
     assert "Run has more than one task object named 'cube'" in errors
+
+
+def test_several_spec_files_get_a_combined_verdict(tmp_path: Path) -> None:
+    loose, strict = tmp_path / "loose.ttl", tmp_path / "strict.ttl"
+    loose.write_text(SPEC)
+    strict.write_text(SPEC.replace("cp:minEpisodesPerCell 1", "cp:minEpisodesPerCell 2"))
+    store, _ = ingest_dataset(full_dataset(tmp_path, CELL_CENTERS + [CELL_CENTERS[0]]), tmp_path / "stores")
+    log = write_log(tmp_path / "rollout" / "run.jsonl", [(x, y, "succeeded") for x, y in CELL_CENTERS])
+    ingest_rollout(store, log)
+    result = verify_store(store, [loose, strict])
+    by_spec = {c.spec: c for c in result.comparisons}
+    assert by_spec["loose"].inside_runs == [0, 1, 2, 3]
+    assert by_spec["strict"].inside_runs == [0]
+    (combined,) = result.combined
+    assert combined.specs == ["loose", "strict"] and not combined.skipped
+    assert combined.inside_runs == [0] and combined.runs == 4 and not combined.fully_covered
+    text = format_combined(combined)
+    assert "1/4 runs" in text and "NOT cover" in text
+    assert result.to_dict()["combined"][0]["inside_runs"] == [0]
+
+
+def test_one_spec_file_has_no_combined_verdict(tmp_path: Path, spec: Path) -> None:
+    store = store_with(tmp_path, spec)
+    ingest_rollout(store, write_log(tmp_path / "rollout" / "run.jsonl", [(0.05, 0.05, "succeeded")]))
+    assert verify_store(store, [spec]).combined == []
+
+
+def test_failed_spec_is_left_out_of_the_combined_verdict(tmp_path: Path, spec: Path) -> None:
+    broken = tmp_path / "broken.ttl"
+    broken.write_text(SPEC.replace("cp:minEpisodesPerCell 1", 'cp:minEpisodesPerCell "TODO"'))
+    store = store_with(tmp_path, spec)
+    ingest_rollout(store, write_log(tmp_path / "rollout" / "run.jsonl", [(0.05, 0.05, "succeeded")]))
+    result = verify_store(store, [spec, broken])
+    assert [c.spec for c in result.comparisons] == ["spec"]
+    (combined,) = result.combined
+    assert combined.specs == ["spec"] and combined.skipped == ["broken"]
+    assert combined.inside_runs == [0] and not combined.fully_covered
+    assert "Not combined" in format_combined(combined) and "every axis given" in format_combined(combined)

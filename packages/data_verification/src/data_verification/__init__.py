@@ -11,7 +11,7 @@ from .query import query
 from .registry import VERIFIERS
 from .store import Store, StoreError, ingest_dataset, ingest_rollout, load_spec, open_store
 from .verifier import AxisCheck, AxisComparison, Finding, Verifier
-from .verify import CheckReport, RolloutComparison, VerifyResult, format_check, format_comparison, verify_store
+from .verify import CheckReport, CombinedComparison, RolloutComparison, VerifyResult, format_check, format_combined, format_comparison, verify_store
 
 __all__ = [
     "VERIFIERS",
@@ -26,7 +26,9 @@ __all__ = [
     "Verifier",
     "VerifyResult",
     "format_check",
+    "format_combined",
     "format_comparison",
+    "CombinedComparison",
     "ingest_dataset",
     "ingest_rollout",
     "load_spec",

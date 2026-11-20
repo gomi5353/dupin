@@ -22,6 +22,8 @@
 #
 # One block per object you want checked. Delete a block to stop checking that
 # object; copy a block to check another one.
+#
+# Guide: docs/object_property.md
 
 @prefix cp:   <http://taica.course/cp/ontology#> .
 @prefix spec: <http://taica.course/cp/spec/mine#> .

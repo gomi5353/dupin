@@ -3,20 +3,20 @@
 
 One store per dataset, under stores/<dataset>/. Reads only meta/ and data/ of
 the dataset (no simulator, no videos) and the rollout logs.
-Guide: docs/object_position_coverage.md
+Guide: docs/data_verification.md
 
   # 1. Put the dataset into a new store (again after recording more episodes)
   uv run python scripts/store.py ingest --dataset datasets/${HF_USER}/<dataset_repo>
 
   # 2. Copy the specs of the axes you want checked (specs/<task>/), replace every "TODO"
-  cp specs/<task>/object_position.ttl specs/<task>/lighting.ttl my_specs/
+  cp specs/<task>/object_pose.ttl specs/<task>/image_augmentation.ttl my_specs/
 
   # 3. After a rollout (scripts/rollout.py writes outputs/rollout/<timestamp>.jsonl), put it into the store
   uv run python scripts/store.py ingest --store stores/<dataset_repo> --rollout-log outputs/rollout/<timestamp>.jsonl
 
   # 4. Check the dataset against your specs and compare every rollout; specs and results go into the store
   uv run python scripts/store.py verify --store stores/<dataset_repo> \\
-      --spec my_specs/object_position.ttl my_specs/lighting.ttl
+      --spec my_specs/object_pose.ttl my_specs/image_augmentation.ttl
 
   # 5. Ask the store
   uv run python scripts/store.py explore --store stores/<dataset_repo>
@@ -35,6 +35,7 @@ from rdflib import RDF, URIRef
 from data_verification import (
     StoreError,
     format_check,
+    format_combined,
     format_comparison,
     ingest_dataset,
     ingest_rollout,
@@ -66,6 +67,7 @@ def cmd_verify(args: argparse.Namespace) -> int:
     rollouts = [] if args.no_rollouts else (args.rollout or None)
     result = verify_store(store, args.spec, rollouts=rollouts, extra_shapes=args.extra_shapes)
     blocks = [format_check(c) for c in result.checks] + [format_comparison(c, hints=not args.no_hints) for c in result.comparisons]
+    blocks += [format_combined(c) for c in result.combined]
     print(("\n\n" + "=" * 80 + "\n\n").join(blocks))
     print(f"\nFindings written to {store.root / 'findings'}/")
     if args.json:

@@ -16,7 +16,7 @@
 # verify renames the individuals below (spec:...) under the store's IRI for
 # this spec, so several copies of this file can share one store.
 #
-# Guide: docs/object_position_coverage.md
+# Guide: docs/object_pose.md
 #
 # Units and frame: metres, env-local frame (the same frame as the
 # object_position.<name> dataset columns and the task cfg's init_state.pos).

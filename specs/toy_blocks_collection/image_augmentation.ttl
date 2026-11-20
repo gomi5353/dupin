@@ -18,6 +18,8 @@
 # Units: intensity as USD inputs:intensity (the evaluation files use
 # 2500-8000); color temperature in kelvin (lower = warmer/orange, higher =
 # cooler/blue; the evaluation files use 3000-6500).
+#
+# Guide: docs/image_augmentation.md
 
 @prefix cp:   <http://taica.course/cp/ontology#> .
 @prefix spec: <http://taica.course/cp/spec/mine#> .

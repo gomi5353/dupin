@@ -196,7 +196,7 @@ class SingleArmFrankaTaskEnvCfg(ManagerBasedRLEnvCfg):
     the verifier can check that it stays the same."""
     reference_weights: dict[str, float] = {"name": 1.0}
     """Form -> how often an episode's task text uses it, e.g. ``{"name": 0.5, "color": 0.5}``. One form
-    per episode, for every object (``choose_object_references``, added by the task)."""
+    per episode, for every object (``choose_object_reference_forms``, added by the task)."""
     task_description_template: str = ""
     """Task text with one ``{object}`` field per object in ``object_references``, filled with the phrase of
     the episode's form, e.g. ``"place the {fork} on the left ..."``. Empty: the task text is always

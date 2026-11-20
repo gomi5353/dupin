@@ -351,16 +351,19 @@ def test_episode_index_must_be_unique(tmp_path: Path) -> None:
 
 
 def _doc_extra_shape_example() -> str:
-    doc = (ROOT / "docs" / "object_position_coverage.md").read_text()
+    doc = (ROOT / "docs" / "object_pose.md").read_text()
     return doc.split("```turtle\n@prefix cp:", 1)[1].split("```", 1)[0].join(["@prefix cp:", ""])
 
 
 def test_extra_shapes_example_from_docs(tmp_path: Path) -> None:
     rules = tmp_path / "rules.ttl"
-    rules.write_text(_doc_extra_shape_example())
+    # The doc uses the cup-stacking robot base (y 6.0); the synthetic dataset lies in [0, 0.2].
+    example = _doc_extra_shape_example()
+    assert 'sh:minInclusive "6.0"' in example
+    rules.write_text(example.replace('"6.0"', '"0.0"'))
     assert check(tmp_path / "a", dataset_of(tmp_path / "a"), extra_shapes=[rules]).passed
 
-    rules.write_text(_doc_extra_shape_example().replace('"0.0"', '"0.1"'))
+    rules.write_text(example.replace('"6.0"', '"0.1"'))
     report = check(tmp_path / "b", dataset_of(tmp_path / "b"), extra_shapes=[rules])
     assert [(v.message, v.count) for v in report.violations] == [("cp:positionY: Object starts behind the robot", 2)]
 
