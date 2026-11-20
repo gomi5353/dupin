@@ -209,6 +209,13 @@ cp:ofRequirement a owl:ObjectProperty ; rdfs:label "of requirement"@en .
 
 # ---- Datatype properties ------------------------------------------------------
 
+cp:starGenAxis a owl:AnnotationProperty ;
+    rdfs:label "STAR-Gen axis"@en ;
+    rdfs:comment "The STAR-Gen axis id a GeneralizationAxis subclass stands for (e.g. VB-POSE, V-AUG, S-PROP; Gao et al., A Taxonomy for Evaluating Generalist Robot Manipulation Policies, arXiv:2503.01238)."@en .
+cp:starGenFactor a owl:AnnotationProperty ;
+    rdfs:label "STAR-Gen factor"@en ;
+    rdfs:comment "The STAR-Gen factor an AxisRequirement subclass checks (e.g. lighting)."@en .
+
 cp:name a owl:DatatypeProperty ;
     rdfs:range xsd:string ;
     rdfs:label "name"@en ;
@@ -246,7 +253,7 @@ cp:fps a owl:DatatypeProperty ; rdfs:range xsd:nonNegativeInteger ; rdfs:label "
 cp:taskDescription a owl:DatatypeProperty ;
     rdfs:range xsd:string ;
     rdfs:label "task description"@en ;
-    rdfs:comment "A natural-language task: on a dataset, each task text in meta/tasks.parquet; on an episode, the task text of its first frame (the instruction the episode was recorded with)."@en .
+    rdfs:comment "A natural-language task: on a dataset, each task text in meta/tasks.parquet; on an episode, the task text of its first frame (the instruction the episode was recorded with); on a run, the instruction the policy was given."@en .
 cp:task a owl:DatatypeProperty ;
     rdfs:range xsd:string ;
     rdfs:label "task"@en ;

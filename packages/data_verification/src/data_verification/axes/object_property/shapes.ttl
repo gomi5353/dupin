@@ -1,12 +1,12 @@
-# SHACL rules of the object color axis (dataset side; extends shapes/dataset.ttl).
+# SHACL rules of the Object Properties axis (dataset side; extends shapes/dataset.ttl).
 #
 # Severity:
 #   sh:Violation - dataset fails verification (malformed data or spec)
 #   sh:Warning   - reported, does not fail unless --strict
 #
-# Which category an episode's color belongs to (nearest reference), the
-# per-category counts and the language check are computed in
-# Python (coverage.py) and reported as findings.
+# Which reference an episode's task text uses, the per-reference counts and the
+# unchanged-color check are computed in Python (coverage.py) and reported as
+# findings.
 
 @prefix cp:   <http://taica.course/cp/ontology#> .
 @prefix sh:   <http://www.w3.org/ns/shacl#> .
@@ -16,9 +16,9 @@
 cp: a owl:Ontology ;
     sh:declare [ sh:prefix "cp" ; sh:namespace "http://taica.course/cp/ontology#"^^xsd:anyURI ] .
 
-# ---- Dataset: one color per required object ----------------------------------
+# ---- Dataset: a color and a task text per episode ----------------------------
 
-cp:ObjectColorDatasetShape a sh:NodeShape ;
+cp:ObjectPropertyDatasetShape a sh:NodeShape ;
     sh:targetClass cp:Dataset ;
     sh:sparql [
         sh:message "Episode {?index} has no color for required object '{?name}'" ;
@@ -28,7 +28,7 @@ cp:ObjectColorDatasetShape a sh:NodeShape ;
                 $this cp:hasEpisode ?episode ; cp:hasGeneralizationAxis ?axis .
                 ?episode cp:index ?index .
                 ?axis cp:hasRequirement ?req .
-                ?req a cp:ObjectColorAxisRequirement ; cp:hasTaskObject ?reqObj .
+                ?req a cp:ColorReferenceRequirement ; cp:hasTaskObject ?reqObj .
                 ?reqObj cp:name ?name .
                 FILTER NOT EXISTS {
                     ?episode cp:hasObjectColor ?color .
@@ -38,16 +38,16 @@ cp:ObjectColorDatasetShape a sh:NodeShape ;
         """ ;
     ] .
 
-cp:ObjectColorTaskTextShape a sh:NodeShape ;
+cp:ObjectPropertyTaskTextShape a sh:NodeShape ;
     sh:targetClass cp:Dataset ;
     sh:severity sh:Warning ;
     sh:sparql [
-        sh:message "Episode {?index} has no task text; the language check skips it" ;
+        sh:message "Episode {?index} has no task text; it uses no reference" ;
         sh:prefixes cp: ;
         sh:select """
             SELECT $this ?index WHERE {
                 $this cp:hasEpisode ?episode ; cp:hasGeneralizationAxis ?axis .
-                ?axis a cp:ObjectColorAxis .
+                ?axis a cp:ObjectPropertyAxis .
                 ?episode cp:index ?index .
                 FILTER NOT EXISTS { ?episode cp:taskDescription ?text . }
             }
@@ -63,78 +63,76 @@ cp:ObjectColorShape a sh:NodeShape ;
 
 # ---- Axis and requirement: well-formed spec ----------------------------------
 
-cp:ObjectColorAxisShape a sh:NodeShape ;
-    sh:targetClass cp:ObjectColorAxis ;
-    sh:property [ sh:path cp:hasRequirement ; sh:class cp:ObjectColorAxisRequirement ; sh:minCount 1 ] .
+cp:ObjectPropertyAxisShape a sh:NodeShape ;
+    sh:targetClass cp:ObjectPropertyAxis ;
+    sh:property [ sh:path cp:hasRequirement ; sh:class cp:ColorReferenceRequirement ; sh:minCount 1 ] .
 
-cp:ObjectColorAxisRequirementShape a sh:NodeShape ;
-    sh:targetClass cp:ObjectColorAxisRequirement ;
+cp:ColorReferenceRequirementShape a sh:NodeShape ;
+    sh:targetClass cp:ColorReferenceRequirement ;
     sh:property [
         sh:path cp:hasTaskObject ; sh:class cp:TaskObject ; sh:minCount 1 ; sh:maxCount 1 ;
-        sh:node cp:ColorRequirementTaskObjectShape ;
+        sh:node cp:ReferenceTaskObjectShape ;
     ] ;
-    sh:property [ sh:path cp:hasColorCategory ; sh:class cp:ColorCategory ; sh:minCount 1 ] ;
-    sh:property [ sh:path cp:maxColorDistance ; sh:minCount 1 ; sh:maxCount 1 ; sh:minExclusive 0 ] ;
-    sh:property [ sh:path cp:minEpisodesPerColor ; sh:minCount 1 ; sh:maxCount 1 ; sh:minInclusive 1 ] ;
+    sh:property [ sh:path cp:hasReference ; sh:class cp:ObjectReference ; sh:minCount 1 ] ;
+    sh:property [ sh:path cp:minEpisodesPerReference ; sh:minCount 1 ; sh:maxCount 1 ; sh:minInclusive 1 ] ;
     sh:property [
         sh:path [ sh:inversePath cp:hasRequirement ] ; sh:maxCount 1 ;
         sh:message "Requirement is linked from more than one axis (cp:hasRequirement); give each axis its own requirement" ;
     ] ;
     sh:sparql [
-        sh:message "Requirement is not linked from an ObjectColorAxis (cp:hasRequirement)" ;
+        sh:message "Requirement is not linked from an ObjectPropertyAxis (cp:hasRequirement)" ;
         sh:prefixes cp: ;
         sh:select """
             SELECT $this WHERE {
-                FILTER NOT EXISTS { ?axis a cp:ObjectColorAxis ; cp:hasRequirement $this . }
+                FILTER NOT EXISTS { ?axis a cp:ObjectPropertyAxis ; cp:hasRequirement $this . }
             }
         """ ;
     ] ;
     sh:sparql [
-        sh:message "Two color categories are both named '{?name}'; give each color its own word" ;
+        sh:message "Two references both use the phrase '{?phrase}'; give each reference its own phrase" ;
         sh:prefixes cp: ;
         sh:select """
-            SELECT DISTINCT $this ?name WHERE {
-                $this cp:hasColorCategory ?c1, ?c2 .
-                ?c1 cp:name ?name . ?c2 cp:name ?name .
-                FILTER (?c1 != ?c2)
+            SELECT DISTINCT $this ?phrase WHERE {
+                $this cp:hasReference ?r1, ?r2 .
+                ?r1 cp:phrase ?p1 . ?r2 cp:phrase ?p2 .
+                FILTER (?r1 != ?r2 && LCASE(STR(?p1)) = LCASE(STR(?p2)))
+                BIND (?p1 AS ?phrase)
             }
         """ ;
     ] .
 
-# One category cannot vary the color.
-cp:ObjectColorCategoryCountShape a sh:NodeShape ;
-    sh:targetClass cp:ObjectColorAxisRequirement ;
+# The factor is referencing objects by color: a requirement without a color
+# reference checks the name form only.
+cp:ColorReferencePresentShape a sh:NodeShape ;
+    sh:targetClass cp:ColorReferenceRequirement ;
     sh:severity sh:Warning ;
     sh:sparql [
-        sh:message "Requirement has only one color category; the dataset cannot vary this object's color" ;
+        sh:message "Requirement has no cp:ColorReference; it only checks how often the object is referred to by name" ;
         sh:prefixes cp: ;
         sh:select """
             SELECT $this WHERE {
-                $this cp:hasColorCategory ?c .
+                FILTER NOT EXISTS { $this cp:hasReference ?r . ?r a cp:ColorReference . }
             }
-            GROUP BY $this
-            HAVING (COUNT(DISTINCT ?c) < 2)
         """ ;
     ] .
 
-cp:ColorRequirementTaskObjectShape a sh:NodeShape ;
+cp:ObjectReferenceShape a sh:NodeShape ;
+    sh:targetClass cp:ObjectReference ;
+    sh:property [ sh:path cp:phrase ; sh:datatype xsd:string ; sh:minCount 1 ; sh:maxCount 1 ; sh:minLength 1 ] ;
+    sh:property [ sh:path cp:minEpisodesPerReference ; sh:maxCount 1 ; sh:minInclusive 1 ] ;
+    sh:sparql [
+        sh:message "A reference must be a cp:NameReference or a cp:ColorReference" ;
+        sh:prefixes cp: ;
+        sh:select """
+            SELECT $this WHERE {
+                FILTER NOT EXISTS { $this a ?kind . FILTER (?kind IN (cp:NameReference, cp:ColorReference)) }
+            }
+        """ ;
+    ] .
+
+cp:ReferenceTaskObjectShape a sh:NodeShape ;
     sh:property [ sh:path cp:name ; sh:minCount 1 ; sh:maxCount 1 ] ;
     sh:property [
         sh:path cp:hasPosition ; sh:maxCount 0 ;
         sh:message "A requirement's task object names the object only; it has no position" ;
-    ] .
-
-cp:ColorCategoryShape a sh:NodeShape ;
-    sh:targetClass cp:ColorCategory ;
-    sh:property [
-        sh:path cp:name ; sh:datatype xsd:string ; sh:minCount 1 ; sh:maxCount 1 ;
-        sh:pattern "^[A-Za-z][A-Za-z -]*$" ;
-        sh:message "A color category's name is the color word of the task text (letters, spaces and '-')" ;
-    ] ;
-    sh:property [ sh:path cp:colorR ; sh:minCount 1 ; sh:maxCount 1 ; sh:minInclusive 0 ] ;
-    sh:property [ sh:path cp:colorG ; sh:minCount 1 ; sh:maxCount 1 ; sh:minInclusive 0 ] ;
-    sh:property [ sh:path cp:colorB ; sh:minCount 1 ; sh:maxCount 1 ; sh:minInclusive 0 ] ;
-    sh:property [
-        sh:path [ sh:inversePath cp:hasColorCategory ] ; sh:class cp:ObjectColorAxisRequirement ; sh:minCount 1 ; sh:maxCount 1 ;
-        sh:message "Color category must belong to exactly one requirement (cp:hasColorCategory)" ;
     ] .

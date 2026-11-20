@@ -1,6 +1,12 @@
-# OWL vocabulary of the object position axis (extends ontology/core.ttl).
+# OWL vocabulary of the Object Poses axis (extends ontology/core.ttl).
 #
-# An ObjectPositionAxis has ObjectPositionAxisRequirements. A requirement names
+# STAR-Gen axis VB-POSE, Object Poses (Visual + Behavioral): "changes to
+# task-relevant object poses in the scene". Its STAR-Gen factor is the
+# manipulated object pose. This repository considers the position only (not
+# the orientation), so the factor is called object position here; the
+# "manipulated" qualifier is omitted for brevity.
+#
+# An ObjectPoseAxis has ObjectPositionRequirements. A requirement names
 # one TaskObject and an AreaConfiguration whose CoverageGrid splits the area
 # into Cells; every Cell needs at least minEpisodesPerCell episodes of the
 # dataset whose initial position of that object falls inside it. Requirement
@@ -18,28 +24,30 @@
 @prefix xsd:     <http://www.w3.org/2001/XMLSchema#> .
 @prefix dcterms: <http://purl.org/dc/terms/> .
 
-<http://taica.course/cp/ontology/object_position> a owl:Ontology ;
-    dcterms:title "Object position axis"@en ;
+<http://taica.course/cp/ontology/object_pose> a owl:Ontology ;
+    dcterms:title "Object Poses axis (STAR-Gen VB-POSE)"@en ;
     owl:imports <http://taica.course/cp/ontology> ;
-    owl:versionIRI <http://taica.course/cp/ontology/object_position/4.0.0> .
+    owl:versionIRI <http://taica.course/cp/ontology/object_pose/5.0.0> .
 
 # ---- Classes ----------------------------------------------------------------
 
-cp:ObjectPositionAxis a owl:Class ;
+cp:ObjectPoseAxis a owl:Class ;
     rdfs:subClassOf
         cp:GeneralizationAxis ,
-        [ a owl:Restriction ; owl:onProperty cp:hasRequirement ; owl:allValuesFrom cp:ObjectPositionAxisRequirement ] ;
-    rdfs:label "Object Position Axis"@en ;
-    rdfs:comment "The axis of object initial positions. Its requirements are object position requirements."@en .
+        [ a owl:Restriction ; owl:onProperty cp:hasRequirement ; owl:allValuesFrom cp:ObjectPositionRequirement ] ;
+    rdfs:label "Object Poses"@en ;
+    cp:starGenAxis "VB-POSE" ;
+    rdfs:comment "STAR-Gen axis Object Poses (Visual + Behavioral): changes to task-relevant object poses in the scene. Its requirements are object position requirements."@en .
 
-cp:ObjectPositionAxisRequirement a owl:Class ;
+cp:ObjectPositionRequirement a owl:Class ;
     rdfs:subClassOf
         cp:AxisRequirement ,
         [ a owl:Restriction ; owl:onProperty cp:hasTaskObject ; owl:qualifiedCardinality "1"^^xsd:nonNegativeInteger ; owl:onClass cp:TaskObject ] ,
         [ a owl:Restriction ; owl:onProperty cp:hasAreaConfiguration ; owl:qualifiedCardinality "1"^^xsd:nonNegativeInteger ; owl:onClass cp:AreaConfiguration ] ,
         [ a owl:Restriction ; owl:onProperty cp:minEpisodesPerCell ; owl:qualifiedCardinality "1"^^xsd:nonNegativeInteger ; owl:onDataRange xsd:positiveInteger ] ;
-    rdfs:label "Object Position Axis Requirement"@en ;
-    rdfs:comment "One task object, one area with a grid, and the minimum number of dataset episodes per cell."@en .
+    rdfs:label "Object Position Requirement"@en ;
+    cp:starGenFactor "manipulated object pose (position only)" ;
+    rdfs:comment "Factor object position (STAR-Gen: manipulated object pose; position only). One task object, one area with a grid, and the minimum number of dataset episodes per cell."@en .
 
 cp:AreaConfiguration a owl:Class ;
     rdfs:subClassOf
@@ -48,7 +56,7 @@ cp:AreaConfiguration a owl:Class ;
         [ a owl:Restriction ; owl:onProperty cp:areaYMin ; owl:qualifiedCardinality "1"^^xsd:nonNegativeInteger ; owl:onDataRange xsd:decimal ] ,
         [ a owl:Restriction ; owl:onProperty cp:areaYMax ; owl:qualifiedCardinality "1"^^xsd:nonNegativeInteger ; owl:onDataRange xsd:decimal ] ,
         [ a owl:Restriction ; owl:onProperty cp:hasCoverageGrid ; owl:qualifiedCardinality "1"^^xsd:nonNegativeInteger ; owl:onClass cp:CoverageGrid ] ,
-        [ a owl:Restriction ; owl:onProperty [ owl:inverseOf cp:hasAreaConfiguration ] ; owl:qualifiedCardinality "1"^^xsd:nonNegativeInteger ; owl:onClass cp:ObjectPositionAxisRequirement ] ;
+        [ a owl:Restriction ; owl:onProperty [ owl:inverseOf cp:hasAreaConfiguration ] ; owl:qualifiedCardinality "1"^^xsd:nonNegativeInteger ; owl:onClass cp:ObjectPositionRequirement ] ;
     rdfs:label "Area Configuration"@en ;
     rdfs:comment "An axis-aligned rectangle on the table plane, split by one coverage grid."@en .
 
@@ -71,14 +79,14 @@ cp:Cell a owl:Class ;
 cp:RunPlacement a owl:Class ;
     rdfs:subClassOf
         [ a owl:Restriction ; owl:onProperty cp:ofRun ; owl:qualifiedCardinality "1"^^xsd:nonNegativeInteger ; owl:onClass cp:Run ] ,
-        [ a owl:Restriction ; owl:onProperty cp:ofRequirement ; owl:qualifiedCardinality "1"^^xsd:nonNegativeInteger ; owl:onClass cp:ObjectPositionAxisRequirement ] ,
+        [ a owl:Restriction ; owl:onProperty cp:ofRequirement ; owl:qualifiedCardinality "1"^^xsd:nonNegativeInteger ; owl:onClass cp:ObjectPositionRequirement ] ,
         [ a owl:Restriction ; owl:onProperty cp:inCell ; owl:maxQualifiedCardinality "1"^^xsd:nonNegativeInteger ; owl:onClass cp:Cell ] ,
         [ a owl:Restriction ; owl:onProperty cp:covered ; owl:qualifiedCardinality "1"^^xsd:nonNegativeInteger ; owl:onDataRange xsd:boolean ] ;
     rdfs:label "Run Placement"@en ;
     rdfs:comment "Where a finished run started for one requirement: the lattice column and row (cellI, cellJ; outside the area they run past the grid), the grid cell when inside the area (cp:inCell), and whether that cell has at least minEpisodesPerCell dataset episodes (cp:covered)."@en .
 
 [] a owl:AllDisjointClasses ;
-    owl:members ( cp:ObjectPositionAxisRequirement cp:AreaConfiguration cp:CoverageGrid cp:Cell cp:RunPlacement
+    owl:members ( cp:ObjectPositionRequirement cp:AreaConfiguration cp:CoverageGrid cp:Cell cp:RunPlacement
                   cp:Dataset cp:Episode cp:Rollout cp:Run cp:TaskObject cp:Position cp:Finding ) .
 
 # ---- Object properties --------------------------------------------------------

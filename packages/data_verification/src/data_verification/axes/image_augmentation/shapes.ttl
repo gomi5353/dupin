@@ -1,4 +1,4 @@
-# SHACL rules of the lighting axis (dataset side; extends shapes/dataset.ttl).
+# SHACL rules of the Image Augmentations axis, factor lighting (dataset side; extends shapes/dataset.ttl).
 #
 # Severity:
 #   sh:Violation - dataset fails verification (malformed data or spec)
@@ -27,7 +27,7 @@ cp:LightingDatasetShape a sh:NodeShape ;
                 $this cp:hasEpisode ?episode ; cp:hasGeneralizationAxis ?axis .
                 ?episode cp:index ?index .
                 ?axis cp:hasRequirement ?req .
-                ?req a cp:LightingAxisRequirement ; cp:lightName ?name .
+                ?req a cp:LightingRequirement ; cp:lightName ?name .
                 FILTER NOT EXISTS {
                     ?episode cp:hasLightCondition ?light .
                     ?light cp:name ?name .
@@ -45,11 +45,11 @@ cp:LightConditionShape a sh:NodeShape ;
 # ---- Axis and requirement: well-formed spec ----------------------------------
 
 cp:LightingAxisShape a sh:NodeShape ;
-    sh:targetClass cp:LightingAxis ;
-    sh:property [ sh:path cp:hasRequirement ; sh:class cp:LightingAxisRequirement ; sh:minCount 1 ] .
+    sh:targetClass cp:ImageAugmentationAxis ;
+    sh:property [ sh:path cp:hasRequirement ; sh:class cp:LightingRequirement ; sh:minCount 1 ] .
 
 cp:LightingAxisRequirementShape a sh:NodeShape ;
-    sh:targetClass cp:LightingAxisRequirement ;
+    sh:targetClass cp:LightingRequirement ;
     sh:property [ sh:path cp:lightName ; sh:datatype xsd:string ; sh:minCount 1 ; sh:maxCount 1 ] ;
     sh:property [ sh:path cp:intensityMin ; sh:minCount 1 ; sh:maxCount 1 ; sh:minInclusive 0 ] ;
     sh:property [ sh:path cp:intensityMax ; sh:minCount 1 ; sh:maxCount 1 ] ;
@@ -63,11 +63,11 @@ cp:LightingAxisRequirementShape a sh:NodeShape ;
         sh:message "Requirement is linked from more than one axis (cp:hasRequirement); give each axis its own requirement" ;
     ] ;
     sh:sparql [
-        sh:message "Requirement is not linked from a LightingAxis (cp:hasRequirement)" ;
+        sh:message "Requirement is not linked from a ImageAugmentationAxis (cp:hasRequirement)" ;
         sh:prefixes cp: ;
         sh:select """
             SELECT $this WHERE {
-                FILTER NOT EXISTS { ?axis a cp:LightingAxis ; cp:hasRequirement $this . }
+                FILTER NOT EXISTS { ?axis a cp:ImageAugmentationAxis ; cp:hasRequirement $this . }
             }
         """ ;
     ] ;
@@ -87,7 +87,7 @@ cp:LightingAxisRequirementShape a sh:NodeShape ;
         sh:select """
             SELECT DISTINCT $this ?name WHERE {
                 ?axis cp:hasRequirement $this, ?other .
-                $this cp:lightName ?name . ?other a cp:LightingAxisRequirement ; cp:lightName ?name .
+                $this cp:lightName ?name . ?other a cp:LightingRequirement ; cp:lightName ?name .
                 FILTER ($this != ?other)
             }
         """ ;
@@ -106,7 +106,7 @@ cp:LightingRangeShape a sh:NodeShape ;
                 $this cp:hasGeneralizationAxis ?axis ; cp:hasEpisode ?episode .
                 ?episode cp:index ?index ; cp:hasLightCondition ?light .
                 ?axis cp:hasRequirement ?req .
-                ?req a cp:LightingAxisRequirement ; cp:lightName ?name ;
+                ?req a cp:LightingRequirement ; cp:lightName ?name ;
                      cp:intensityMin ?i0 ; cp:intensityMax ?i1 ; cp:colorTemperatureMin ?t0 ; cp:colorTemperatureMax ?t1 .
                 ?light cp:name ?name ; cp:lightIntensity ?i ; cp:colorTemperature ?t .
                 FILTER (?i < ?i0 || ?i > ?i1 || ?t < ?t0 || ?t > ?t1)

@@ -1,0 +1,131 @@
+# OWL vocabulary of the Object Properties axis (extends ontology/core.ttl).
+#
+# STAR-Gen axis S-PROP, Object Properties (Semantic): "changes to instruction
+# that require additional knowledge about physical properties of a
+# task-relevant object". Only the instruction changes; the scene and the
+# objects stay the same ("put carrot on plate" -> "put the orange object on
+# the plate"). Factor: referencing objects based on color (STAR-Gen also lists
+# mass and size; this repository has color only).
+#
+# An ObjectPropertyAxis has ColorReferenceRequirements. A requirement names one
+# TaskObject and the ObjectReferences the task text may use for it: a
+# NameReference ("fork") or a ColorReference ("pink object"), each a phrase.
+# An episode uses the reference whose phrase its task text contains. The
+# requirement asks for at least minEpisodesPerReference episodes per
+# reference (coverage of the reference forms); a reference may set its own
+# minEpisodesPerReference instead. A reference with enough episodes is seen,
+# otherwise unseen. Because S-PROP keeps the
+# object unchanged, the verifier also checks that the object's recorded color
+# is the same in every episode.
+#
+# Recorded facts (ingest):
+#   an Episode has an ObjectColor per recorded object (first frame) and its
+#   task text (cp:taskDescription); a Run has its instruction (cp:taskDescription).
+# Derived by the verifier, never written by hand:
+#   verify  each reference's episodeCount (Verification), and one
+#           ReferencePlacement per finished run and requirement (Comparison).
+
+@prefix cp:      <http://taica.course/cp/ontology#> .
+@prefix owl:     <http://www.w3.org/2002/07/owl#> .
+@prefix rdfs:    <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix xsd:     <http://www.w3.org/2001/XMLSchema#> .
+@prefix dcterms: <http://purl.org/dc/terms/> .
+
+<http://taica.course/cp/ontology/object_property> a owl:Ontology ;
+    dcterms:title "Object Properties axis (STAR-Gen S-PROP)"@en ;
+    owl:imports <http://taica.course/cp/ontology> ;
+    owl:versionIRI <http://taica.course/cp/ontology/object_property/1.0.0> .
+
+# ---- Recorded facts -----------------------------------------------------------
+
+cp:ObjectColor a owl:Class ;
+    rdfs:subClassOf
+        [ a owl:Restriction ; owl:onProperty cp:name ; owl:qualifiedCardinality "1"^^xsd:nonNegativeInteger ; owl:onDataRange xsd:string ] ,
+        [ a owl:Restriction ; owl:onProperty cp:colorR ; owl:qualifiedCardinality "1"^^xsd:nonNegativeInteger ; owl:onDataRange xsd:decimal ] ,
+        [ a owl:Restriction ; owl:onProperty cp:colorG ; owl:qualifiedCardinality "1"^^xsd:nonNegativeInteger ; owl:onDataRange xsd:decimal ] ,
+        [ a owl:Restriction ; owl:onProperty cp:colorB ; owl:qualifiedCardinality "1"^^xsd:nonNegativeInteger ; owl:onDataRange xsd:decimal ] ;
+    rdfs:label "Object Color"@en ;
+    rdfs:comment "The diffuse color of one object (its IsaacLab scene name) at the start of an episode, as set on its material (OmniPBR diffuse_color_constant; values above 1 are allowed)."@en .
+
+# ---- Requirements -------------------------------------------------------------
+
+cp:ObjectPropertyAxis a owl:Class ;
+    rdfs:subClassOf
+        cp:GeneralizationAxis ,
+        [ a owl:Restriction ; owl:onProperty cp:hasRequirement ; owl:allValuesFrom cp:ColorReferenceRequirement ] ;
+    rdfs:label "Object Properties"@en ;
+    cp:starGenAxis "S-PROP" ;
+    rdfs:comment "STAR-Gen axis Object Properties (Semantic): the instruction refers to a task-relevant object by a physical property instead of its name; the object itself does not change. In this repository its only factor is color; its requirements are color reference requirements."@en .
+
+cp:ColorReferenceRequirement a owl:Class ;
+    rdfs:subClassOf
+        cp:AxisRequirement ,
+        [ a owl:Restriction ; owl:onProperty cp:hasTaskObject ; owl:qualifiedCardinality "1"^^xsd:nonNegativeInteger ; owl:onClass cp:TaskObject ] ,
+        [ a owl:Restriction ; owl:onProperty cp:hasReference ; owl:someValuesFrom cp:ObjectReference ] ,
+        [ a owl:Restriction ; owl:onProperty cp:hasReference ; owl:allValuesFrom cp:ObjectReference ] ,
+        [ a owl:Restriction ; owl:onProperty cp:minEpisodesPerReference ; owl:qualifiedCardinality "1"^^xsd:nonNegativeInteger ; owl:onDataRange xsd:positiveInteger ] ;
+    rdfs:label "Color Reference Requirement"@en ;
+    cp:starGenFactor "referencing objects based on color" ;
+    rdfs:comment "Factor referencing objects based on color. One task object, the references the task text may use for it, and the minimum number of dataset episodes per reference."@en .
+
+cp:ObjectReference a owl:Class ;
+    rdfs:subClassOf
+        [ a owl:Restriction ; owl:onProperty cp:phrase ; owl:qualifiedCardinality "1"^^xsd:nonNegativeInteger ; owl:onDataRange xsd:string ] ,
+        [ a owl:Restriction ; owl:onProperty [ owl:inverseOf cp:hasReference ] ; owl:qualifiedCardinality "1"^^xsd:nonNegativeInteger ; owl:onClass cp:ColorReferenceRequirement ] ,
+        [ a owl:Restriction ; owl:onProperty cp:minEpisodesPerReference ; owl:maxQualifiedCardinality "1"^^xsd:nonNegativeInteger ; owl:onDataRange xsd:positiveInteger ] ;
+    rdfs:label "Object Reference"@en ;
+    rdfs:comment "One way the task text refers to the requirement's object: a phrase, matched as whole words, case-insensitive. Its episodeCount is added by verify."@en .
+
+cp:NameReference a owl:Class ;
+    rdfs:subClassOf cp:ObjectReference ;
+    rdfs:label "Name Reference"@en ;
+    rdfs:comment "Refers to the object by its name (e.g. \"fork\"): the base instruction."@en .
+
+cp:ColorReference a owl:Class ;
+    rdfs:subClassOf cp:ObjectReference ;
+    rdfs:label "Color Reference"@en ;
+    rdfs:comment "Refers to the object by its color only (e.g. \"pink object\"): the S-PROP instruction."@en .
+
+[] a owl:AllDisjointClasses ;
+    owl:members ( cp:NameReference cp:ColorReference ) .
+
+# ---- Verification results -----------------------------------------------------
+
+cp:ReferencePlacement a owl:Class ;
+    rdfs:subClassOf
+        [ a owl:Restriction ; owl:onProperty cp:ofRun ; owl:qualifiedCardinality "1"^^xsd:nonNegativeInteger ; owl:onClass cp:Run ] ,
+        [ a owl:Restriction ; owl:onProperty cp:ofRequirement ; owl:qualifiedCardinality "1"^^xsd:nonNegativeInteger ; owl:onClass cp:ColorReferenceRequirement ] ,
+        [ a owl:Restriction ; owl:onProperty cp:inReference ; owl:maxQualifiedCardinality "1"^^xsd:nonNegativeInteger ; owl:onClass cp:ObjectReference ] ,
+        [ a owl:Restriction ; owl:onProperty cp:covered ; owl:qualifiedCardinality "1"^^xsd:nonNegativeInteger ; owl:onDataRange xsd:boolean ] ;
+    rdfs:label "Reference Placement"@en ;
+    rdfs:comment "The reference a finished run's instruction used for one requirement's object (none when no listed phrase appears: an unrecognized reference), and whether that reference has at least minEpisodesPerReference dataset episodes."@en .
+
+[] a owl:AllDisjointClasses ;
+    owl:members ( cp:ObjectColor cp:ColorReferenceRequirement cp:ObjectReference cp:ReferencePlacement
+                  cp:Dataset cp:Episode cp:Rollout cp:Run cp:TaskObject cp:Position cp:Finding ) .
+
+# ---- Object properties --------------------------------------------------------
+
+cp:hasObjectColor a owl:ObjectProperty ;
+    rdfs:label "has object color"@en ;
+    rdfs:comment "An episode has the color of each recorded object at its start."@en .
+cp:hasReference a owl:ObjectProperty ; rdfs:label "has reference"@en .
+cp:inReference a owl:ObjectProperty ; rdfs:label "in reference"@en .
+
+# ---- Datatype properties ------------------------------------------------------
+
+cp:colorR a owl:DatatypeProperty ; rdfs:range xsd:decimal ; rdfs:label "red"@en .
+cp:colorG a owl:DatatypeProperty ; rdfs:range xsd:decimal ; rdfs:label "green"@en .
+cp:colorB a owl:DatatypeProperty ; rdfs:range xsd:decimal ; rdfs:label "blue"@en .
+cp:recordedColorObject a owl:DatatypeProperty ;
+    rdfs:range xsd:string ;
+    rdfs:label "recorded color object"@en ;
+    rdfs:comment "The name of an object a dataset has an object_color.<name> column for."@en .
+cp:phrase a owl:DatatypeProperty ;
+    rdfs:range xsd:string ;
+    rdfs:label "phrase"@en ;
+    rdfs:comment "The words of a reference as they appear in the task text, e.g. \"pink object\"."@en .
+cp:minEpisodesPerReference a owl:DatatypeProperty ;
+    rdfs:range xsd:positiveInteger ;
+    rdfs:label "minimum episodes per reference"@en ;
+    rdfs:comment "On a ColorReferenceRequirement: the dataset episodes every one of its references needs to be seen. On an ObjectReference (optional): that reference's own minimum, replacing the requirement's."@en .

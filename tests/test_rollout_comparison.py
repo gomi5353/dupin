@@ -126,7 +126,7 @@ def test_hints_can_be_left_out_of_the_report_but_are_stored(tmp_path: Path, spec
     graph = store.graph()
     infos = [str(graph.value(f, CP.message)) for f in graph.subjects(CP.severity, None) if str(graph.value(f, CP.severity)) == "Info"]
     assert any(m.startswith("Record more episodes here") for m in infos)
-    assert {str(graph.value(f, CP.verifier)) for f in graph.subjects(CP.severity, None)} == {"object_position"}
+    assert {str(graph.value(f, CP.verifier)) for f in graph.subjects(CP.severity, None)} == {"object_pose"}
 
 
 def test_area_upper_edge_and_inner_edges_follow_the_check(tmp_path: Path, spec: Path) -> None:
@@ -206,18 +206,18 @@ def test_every_axis_must_cover_a_run(tmp_path: Path, spec: Path, monkeypatch) ->
 
     class LightingVerifier(Verifier):
         name = "lighting"
-        axis_class = URIRef(light + "LightingAxis")
+        axis_class = URIRef(light + "ImageAugmentationAxis")
 
         def ontology(self) -> Graph:
             return Graph().parse(data=f"""
                 @prefix cp: <http://taica.course/cp/ontology#> . @prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
-                <{light}LightingAxis> rdfs:subClassOf cp:GeneralizationAxis .
+                <{light}ImageAugmentationAxis> rdfs:subClassOf cp:GeneralizationAxis .
                 <{light}LightingRequirement> rdfs:subClassOf cp:AxisRequirement .""", format="turtle")
 
         def shapes(self) -> Graph:
             return Graph().parse(data=f"""
                 @prefix sh: <http://www.w3.org/ns/shacl#> . @prefix cp: <http://taica.course/cp/ontology#> .
-                <{light}AxisShape> a sh:NodeShape ; sh:targetClass <{light}LightingAxis> ;
+                <{light}AxisShape> a sh:NodeShape ; sh:targetClass <{light}ImageAugmentationAxis> ;
                     sh:property [ sh:path cp:hasRequirement ; sh:minCount 2 ; sh:message "Lighting needs two requirements" ] .""", format="turtle")
 
         def ingest_dataset(self, root, graph, dataset):
@@ -235,14 +235,14 @@ def test_every_axis_must_cover_a_run(tmp_path: Path, spec: Path, monkeypatch) ->
             return AxisComparison(self.name, {i: i % 2 == 0 for i in indices})
 
     monkeypatch.setattr(registry, "VERIFIERS", [*registry.VERIFIERS, LightingVerifier()])
-    spec.write_text(SPEC + f"spec:light a <{light}LightingAxis> ; cp:hasRequirement spec:dim .\nspec:dim a <{light}LightingRequirement> .\n")
+    spec.write_text(SPEC + f"spec:light a <{light}ImageAugmentationAxis> ; cp:hasRequirement spec:dim .\nspec:dim a <{light}LightingRequirement> .\n")
     store = store_with(tmp_path, spec)
     assert len(list(Graph().parse(store.dataset_file).objects(None, URIRef(light + "lux")))) == 4, "ingest hook adds the factor"
     (check,) = verify_store(store, stored_specs(store), rollouts=[]).checks
     assert [(v.message, v.verifier) for v in check.violations] == [("cp:hasRequirement: Lighting needs two requirements", "lighting")]
     result = compare(store, write_log(tmp_path / "run.jsonl", [(x, y, "succeeded") for x, y in CELL_CENTERS], extra=None))
     assert len(list(Graph().parse(store.rollout_file("run")).objects(None, URIRef(light + "lux")))) == 4
-    assert [a.axis for a in result.axes] == ["object_position", "lighting"]
+    assert [a.axis for a in result.axes] == ["object_pose", "lighting"]
     assert result.runs_in_distribution == 2 and not result.fully_covered
 
 
@@ -402,19 +402,28 @@ def _dict_attr(path: Path, name: str):
 
 
 @pytest.mark.parametrize("task_file", TASK_FILES)
-def test_color_template_names_every_palette_object(task_file: str) -> None:
+def test_task_text_refers_to_objects_by_name_or_color(task_file: str) -> None:
+    """Object Properties (STAR-Gen S-PROP): only the words change; the color form names no object kind."""
     import string
 
     path = ROOT / task_file
-    palettes, template = _dict_attr(path, "object_color_palettes"), _dict_attr(path, "task_description_template")
-    assert palettes and template, "every task names its object colors in the task text"
+    refs, template = _dict_attr(path, "object_references"), _dict_attr(path, "task_description_template")
+    weights = _dict_attr(path, "reference_weights")
+    assert refs and template, "every task refers to its objects through the template"
     fields = {f for _, f, _, _ in string.Formatter().parse(template) if f}
-    assert fields == set(palettes), "the template must have one {field} per palette object"
-    assert all(len(rgb) == 3 for palette in palettes.values() for rgb in palette.values())
+    assert fields == set(refs), "the template must have one {field} per referenced object"
+    kinds = {"cup", "fork", "knife", "bridge", "cylinder", "triangle", "block", "toy"}
+    for name, forms in refs.items():
+        assert set(forms) == {"name", "color"}, name
+        assert forms["color"].endswith(" object") and not kinds & set(forms["color"].split()), (name, forms["color"])
+        assert kinds & set(forms["name"].split()), (name, forms["name"])
+    expected = {"name": 0.5, "color": 0.5} if task_file.startswith("eval/") else {"name": 1.0, "color": 0.0}
+    assert weights == expected
+    assert "object_color_palettes" not in path.read_text(), "S-PROP never recolors the objects"
     assert _list_attr(path, "recorded_light_names") == ["rect_light"]
     source = path.read_text()
     assert 'rect_light: AssetBaseCfg = AssetBaseCfg(prim_path="{ENV_REGEX_NS}/Scene/RectLight")' in source
-    assert "randomize_object_color_palettes(self.object_color_palettes)" in source
+    assert "choose_object_reference_forms(self.reference_weights)" in source
     assert 'randomize_light_conditions("light"' not in source, "the RectLight is the randomized light, as in evaluation"
 
 

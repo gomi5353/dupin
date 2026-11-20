@@ -1,4 +1,4 @@
-"""Object position axis, rollout side: place each finished run in the lattice of each requirement's grid.
+"""Object Poses axis, factor object position, rollout side: place each finished run in the lattice of each requirement's grid.
 
 Each run is placed into the lattice of the requirement's grid: column
 i = floor((x - areaXMin) / cell width), row j likewise, with the area's upper

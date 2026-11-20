@@ -1,4 +1,4 @@
-"""Object position axis, dataset side: grid cells, per-cell episode counts and coverage tables."""
+"""Object Poses axis, factor object position, dataset side: grid cells, per-cell episode counts and coverage tables."""
 
 from __future__ import annotations
 
@@ -19,7 +19,7 @@ REQUIREMENTS_QUERY = """
 SELECT ?req ?name ?grid ?x0 ?x1 ?y0 ?y1 ?nx ?ny ?min WHERE {
     ?dataset cp:hasGeneralizationAxis ?axis .
     ?axis cp:hasRequirement ?req .
-    ?req a cp:ObjectPositionAxisRequirement ; cp:hasTaskObject ?reqObj ;
+    ?req a cp:ObjectPositionRequirement ; cp:hasTaskObject ?reqObj ;
          cp:minEpisodesPerCell ?min ; cp:hasAreaConfiguration ?area .
     ?reqObj cp:name ?name .
     ?area cp:areaXMin ?x0 ; cp:areaXMax ?x1 ; cp:areaYMin ?y0 ; cp:areaYMax ?y1 ;
@@ -32,7 +32,7 @@ REQUIRED_NAMES_QUERY = """
 SELECT DISTINCT ?name WHERE {
     ?dataset cp:hasGeneralizationAxis ?axis .
     ?axis cp:hasRequirement ?req .
-    ?req a cp:ObjectPositionAxisRequirement ; cp:hasTaskObject ?reqObj .
+    ?req a cp:ObjectPositionRequirement ; cp:hasTaskObject ?reqObj .
     ?reqObj cp:name ?name .
 }
 """

@@ -23,9 +23,9 @@ SPEC = """
 @prefix cp:   <http://taica.course/cp/ontology#> .
 @prefix spec: <http://taica.course/cp/spec/test#> .
 
-spec:axis a cp:ObjectPositionAxis ; cp:hasRequirement spec:cube_requirement .
+spec:axis a cp:ObjectPoseAxis ; cp:hasRequirement spec:cube_requirement .
 spec:cube a cp:TaskObject ; cp:name "cube" .
-spec:cube_requirement a cp:ObjectPositionAxisRequirement ;
+spec:cube_requirement a cp:ObjectPositionRequirement ;
     cp:hasTaskObject spec:cube ;
     cp:minEpisodesPerCell 1 ;
     cp:hasAreaConfiguration spec:cube_area .
@@ -83,7 +83,7 @@ def check(tmp_path: Path, dataset: Path, spec_text: str = SPEC, extra_shapes=Non
     return report
 
 
-def attach_errors(tmp_path: Path, spec_text: str, dataset: Path | None = None) -> list[str]:
+def spec_load_errors(tmp_path: Path, spec_text: str, dataset: Path | None = None) -> list[str]:
     store, _ = ingest_dataset(dataset or write_dataset(tmp_path / "ds", {0: {"cube": [(0.05, 0.05)]}}), tmp_path / "stores")
     spec = tmp_path / "spec.ttl"
     spec.write_text(spec_text)
@@ -112,7 +112,7 @@ def test_empty_cell_is_a_violation(tmp_path: Path) -> None:
     [finding] = report.violations
     assert finding.message == "'cube' cell (i=1, j=1) x=[0.1, 0.2] y=[0.1, 0.2] has 0 episode(s); needs at least 1"
     assert finding.focus_nodes == [SPEC_NODE + "cube_grid/cell/3"]
-    assert finding.verifier == "object_position"
+    assert finding.verifier == "object_pose"
     assert coverage(report)[0].cells_covered == 3
 
 
@@ -235,12 +235,12 @@ TEMPLATE = re.sub(r"(cp:(?:areaXMin|areaXMax|areaYMin|areaYMax|numCellW|numCellH
 
 
 def test_unfilled_spec_parses_and_asks_for_todos(tmp_path: Path) -> None:
-    errors = attach_errors(tmp_path, TEMPLATE)
+    errors = spec_load_errors(tmp_path, TEMPLATE)
     assert errors[0].startswith("Spec still has TODO values: cube: areaXMax")
 
 
 def test_quoted_numbers_are_rejected(tmp_path: Path) -> None:
-    errors = attach_errors(tmp_path, _fill(TEMPLATE, {**FILLED, "cp:areaXMin": '"0.0"', "cp:numCellW": "2.5"}))
+    errors = spec_load_errors(tmp_path, _fill(TEMPLATE, {**FILLED, "cp:areaXMin": '"0.0"', "cp:numCellW": "2.5"}))
     assert errors == [
         'cube: areaXMin must be a number without quotes, got "0.0"',
         "cube: numCellW must be a whole number without quotes, got 2.5",
@@ -248,34 +248,34 @@ def test_quoted_numbers_are_rejected(tmp_path: Path) -> None:
 
 
 def test_invalid_turtle_is_reported(tmp_path: Path) -> None:
-    assert attach_errors(tmp_path, "this is not turtle")[0].startswith("Spec is not valid Turtle")
+    assert spec_load_errors(tmp_path, "this is not turtle")[0].startswith("Spec is not valid Turtle")
 
 
 def test_empty_area_is_reported(tmp_path: Path) -> None:
-    errors = attach_errors(tmp_path, _fill(TEMPLATE, {**FILLED, "cp:areaXMin": "0.3"}))
+    errors = spec_load_errors(tmp_path, _fill(TEMPLATE, {**FILLED, "cp:areaXMin": "0.3"}))
     assert errors == ["cube: coverage area is empty: areaXMin must be < areaXMax and areaYMin < areaYMax, got x 0.3..0.2, y 0.0..0.2"]
 
 
 def test_zero_cells_is_reported(tmp_path: Path) -> None:
-    errors = attach_errors(tmp_path, _fill(TEMPLATE, {**FILLED, "cp:numCellW": "0"}))
+    errors = spec_load_errors(tmp_path, _fill(TEMPLATE, {**FILLED, "cp:numCellW": "0"}))
     assert errors == ["cube: numCellW must be at least 1, got 0"]
 
 
 def test_min_episodes_per_cell_must_be_at_least_one(tmp_path: Path) -> None:
-    errors = attach_errors(tmp_path, _fill(TEMPLATE, {**FILLED, "cp:minEpisodesPerCell": "0"}))
+    errors = spec_load_errors(tmp_path, _fill(TEMPLATE, {**FILLED, "cp:minEpisodesPerCell": "0"}))
     assert errors == ["cube: minEpisodesPerCell must be at least 1, got 0"]
 
 
 def test_spec_without_registered_axis_is_rejected(tmp_path: Path) -> None:
-    errors = attach_errors(tmp_path, SPEC.replace("spec:axis a cp:ObjectPositionAxis", "spec:axis a cp:GeneralizationAxis"))
+    errors = spec_load_errors(tmp_path, SPEC.replace("spec:axis a cp:ObjectPoseAxis", "spec:axis a cp:GeneralizationAxis"))
     assert any("typed cp:GeneralizationAxis" in e for e in errors)
-    errors = attach_errors(tmp_path / "b", SPEC.replace("spec:axis a cp:ObjectPositionAxis", "spec:axis a <http://example/LightAxis>"))
+    errors = spec_load_errors(tmp_path / "b", SPEC.replace("spec:axis a cp:ObjectPoseAxis", "spec:axis a <http://example/LightAxis>"))
     assert errors == [
-        "Spec declares no generalization axis with a registered verifier (cp:ObjectPositionAxis, cp:LightingAxis, cp:ObjectColorAxis)"
+        "Spec declares no generalization axis with a registered verifier (cp:ObjectPoseAxis, cp:ImageAugmentationAxis, cp:ObjectPropertyAxis)"
     ]
 
 
-def test_attached_spec_is_renamed_with_cells_and_provenance(tmp_path: Path) -> None:
+def test_loaded_spec_is_renamed_with_cells_and_provenance(tmp_path: Path) -> None:
     store, _ = ingest_dataset(dataset_of(tmp_path), tmp_path / "stores")
     spec = tmp_path / "spec.ttl"
     spec.write_text(SPEC)
@@ -302,7 +302,7 @@ def _violations(tmp_path: Path, spec_text: str, points=CELL_CENTERS) -> list[str
 
 def test_requirement_must_hang_off_an_axis(tmp_path: Path) -> None:
     messages = _violations(tmp_path, SPEC.replace("cp:hasRequirement spec:cube_requirement", "cp:hasRequirement spec:other"))
-    assert "Requirement is not linked from an ObjectPositionAxis (cp:hasRequirement)" in messages
+    assert "Requirement is not linked from an ObjectPoseAxis (cp:hasRequirement)" in messages
 
 
 def test_grid_cell_count_must_match_width_times_height(tmp_path: Path) -> None:
@@ -312,14 +312,14 @@ def test_grid_cell_count_must_match_width_times_height(tmp_path: Path) -> None:
 
 
 def test_requirement_belongs_to_one_axis(tmp_path: Path) -> None:
-    messages = _violations(tmp_path, SPEC + "spec:axis2 a cp:ObjectPositionAxis ; cp:hasRequirement spec:cube_requirement .\n")
+    messages = _violations(tmp_path, SPEC + "spec:axis2 a cp:ObjectPoseAxis ; cp:hasRequirement spec:cube_requirement .\n")
     assert "Requirement is linked from more than one axis (cp:hasRequirement); give each axis its own requirement" in messages
 
 
 def test_area_and_grid_belong_to_one_owner(tmp_path: Path) -> None:
     second = """
 spec:axis cp:hasRequirement spec:cube2_requirement .
-spec:cube2_requirement a cp:ObjectPositionAxisRequirement ;
+spec:cube2_requirement a cp:ObjectPositionRequirement ;
     cp:hasTaskObject [ a cp:TaskObject ; cp:name "cube" ] ;
     cp:minEpisodesPerCell 1 ;
     cp:hasAreaConfiguration spec:cube_area .
@@ -519,6 +519,8 @@ def test_command_line_end_to_end(tmp_path: Path) -> None:
     todo = cli("verify", "--store", "stores/ds", "--spec", "specs/mine.ttl")
     assert todo.returncode == 1 and "TODO" in todo.stdout, todo.stdout
     assert cli("verify", "--store", "stores/ds").returncode == 2, "--spec is required"
+    both = cli("verify", "--store", "stores/ds", "--spec", "specs/mine.ttl", "specs/mine.ttl")
+    assert "both named 'mine.ttl'" in both.stdout, "--spec takes several files"
     mine.write_text(_fill(TEMPLATE, FILLED))
     assert cli("ingest", "--store", "stores/ds", "--rollout-log", str(log)).returncode == 0
     verify = cli("verify", "--store", "stores/ds", "--spec", "specs/mine.ttl", "--json", "out/result.json")

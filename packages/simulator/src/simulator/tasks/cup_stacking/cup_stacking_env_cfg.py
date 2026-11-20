@@ -15,7 +15,7 @@ from simulator import ASSETS_ROOT
 from simulator.assets.scenes.kitchen import KITCHEN_CFG, KITCHEN_USD_PATH
 from simulator.utils.domain_randomization import (
     randomize_light_conditions,
-    randomize_object_color_palettes,
+    choose_object_reference_forms,
     randomize_objects_apart,
 )
 
@@ -98,25 +98,18 @@ class CupStackingEnvCfg(SingleArmFrankaTaskEnvCfg):
     scene: CupStackingSceneCfg = CupStackingSceneCfg(env_spacing=8.0)
     observations: SingleArmFrankaObservationsCfg = SingleArmFrankaObservationsCfg()
     terminations: TerminationsCfg = TerminationsCfg()
-    task_description: str = "pick up the blue cup and place it on the pink cup."
+    task_description: str = "pick up the blue cup and place it on the pink cup."  # set from the template
     tracked_object_names: list[str] = ["blue_cup", "pink_cup"]
     recorded_light_names: list[str] = ["rect_light"]
-    # Colors per object: {color word: diffuse (r, g, b)}; each reset picks one per object, and the task
-    # text names it. The objects of one episode get different color words. Add, remove or change colors
-    # to vary them differently; the first color is the default. Values above 1 look brighter.
-    object_color_palettes: dict[str, dict[str, tuple[float, float, float]]] = {
-        "blue_cup": {
-            "blue": (0.2549, 0.4118, 0.8824),
-            "red": (2.0, 0.2, 0.2),
-            "yellow": (1.8, 1.5, 0.0),
-        },
-        "pink_cup": {
-            "pink": (1.0, 0.0784, 0.5765),
-            "red": (2.0, 0.2, 0.2),
-            "yellow": (1.8, 1.5, 0.0),
-        },
+    # Object Properties axis (STAR-Gen S-PROP): how the task text refers to each object, {form: phrase}.
+    # The objects never change; only the words do. "name" refers by name, "color" by color only.
+    # reference_weights sets how often each form is used (one form per episode, for every object).
+    object_references: dict[str, dict[str, str]] = {
+        "blue_cup": {"name": "blue cup", "color": "blue object"},
+        "pink_cup": {"name": "pink cup", "color": "pink object"},
     }
-    task_description_template: str = "pick up the {blue_cup} cup and place it on the {pink_cup} cup."
+    reference_weights: dict[str, float] = {"name": 1.0, "color": 0.0}
+    task_description_template: str = "pick up the {blue_cup} and place it on the {pink_cup}."
 
     def __post_init__(self) -> None:
         super().__post_init__()
@@ -185,6 +178,6 @@ class CupStackingEnvCfg(SingleArmFrankaTaskEnvCfg):
                     textures=[],
                     color_temperature_range=(5300.0, 5900.0),
                 ),
-                randomize_object_color_palettes(self.object_color_palettes),
+                choose_object_reference_forms(self.reference_weights),
             ],
         )

@@ -13,7 +13,7 @@ from leisaac.utils.general_assets import parse_usd_and_create_subassets
 from leisaac.utils.domain_randomization import domain_randomization, randomize_object_uniform
 from simulator import ASSETS_ROOT
 from simulator.assets.scenes.dining_room import DINING_ROOM_CFG, DINING_ROOM_USD_PATH
-from simulator.utils.domain_randomization import randomize_light_conditions, randomize_object_color_palettes
+from simulator.utils.domain_randomization import choose_object_reference_forms, randomize_light_conditions
 
 from simulator.tasks.template.single_arm_franka_cfg import (
     SingleArmFrankaObservationsCfg,
@@ -139,33 +139,19 @@ class CutleryArrangementEnvCfg(SingleArmFrankaTaskEnvCfg):
     scene: CutleryArrangementSceneCfg = CutleryArrangementSceneCfg(env_spacing=8.0)
     observations: SingleArmFrankaObservationsCfg = SingleArmFrankaObservationsCfg()
     terminations: TerminationsCfg = TerminationsCfg()
-    task_description: str = "place the fork on the left and knife on the right of the plate."
+    task_description: str = "place the fork on the left and the knife on the right of the plate."  # set from the template
     tracked_object_names: list[str] = ["fork", "knife"]
     fixed_object_names: list[str] = ["plate"]
     recorded_light_names: list[str] = ["rect_light"]
-    # Colors per object: {color word: diffuse (r, g, b)}; each reset picks one per object, and the task
-    # text names it. The objects of one episode get different color words. Add, remove or change colors
-    # to vary them differently; the first color is the default. Values above 1 look brighter.
-    object_color_palettes: dict[str, dict[str, tuple[float, float, float]]] = {
-        "fork": {
-            "pink": (1.87, 0.4, 1.88),
-            "red": (2.0, 0.2, 0.2),
-            "yellow": (1.8, 1.5, 0.0),
-        },
-        "knife": {
-            "orange": (2.0, 0.4, 0.0),
-            "blue": (0.2, 0.2, 2.0),
-            "yellow": (1.8, 1.5, 0.0),
-        },
-        "plate": {
-            "green": (0.2, 1.66, 0.2),
-            "red": (2.0, 0.2, 0.2),
-            "blue": (0.2, 0.2, 2.0),
-        },
+    # Object Properties axis (STAR-Gen S-PROP): how the task text refers to each object, {form: phrase}.
+    # The objects never change; only the words do. "name" refers by name, "color" by color only.
+    # reference_weights sets how often each form is used (one form per episode, for every object).
+    object_references: dict[str, dict[str, str]] = {
+        "fork": {"name": "fork", "color": "pink object"},
+        "knife": {"name": "knife", "color": "orange object"},
     }
-    task_description_template: str = (
-        "place the {fork} fork on the left and the {knife} knife on the right of the {plate} plate."
-    )
+    reference_weights: dict[str, float] = {"name": 1.0, "color": 0.0}
+    task_description_template: str = "place the {fork} on the left and the {knife} on the right of the plate."
 
     def __post_init__(self) -> None:
         super().__post_init__()
@@ -229,6 +215,6 @@ class CutleryArrangementEnvCfg(SingleArmFrankaTaskEnvCfg):
                     textures=[],
                     color_temperature_range=(5300.0, 5900.0),
                 ),
-                randomize_object_color_palettes(self.object_color_palettes),
+                choose_object_reference_forms(self.reference_weights),
             ],
         )

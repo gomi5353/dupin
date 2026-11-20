@@ -1,7 +1,7 @@
-"""Lighting axis (STAR-Gen: Visual): is the scene light varied over the intensity and color temperature the student requires?
+"""Image Augmentations axis (STAR-Gen V-AUG), factor lighting: is the scene light varied over the intensity and color temperature the student requires?
 
 Files:
-  ontology.ttl        LightingAxis, its requirement, light conditions, cells, run placements
+  ontology.ttl        ImageAugmentationAxis, its requirement, light conditions, cells, run placements
   shapes.ttl          SHACL rules on the dataset (every episode has the light, spec well-formed)
   rollout_shapes.ttl  SHACL rules on a rollout (every finished run has the light)
   coverage.py         per-cell episode counts (verify) and run placements (compare)
@@ -25,9 +25,9 @@ _NUMBER_FIELDS = [CP.intensityMin, CP.intensityMax, CP.colorTemperatureMin, CP.c
 _WHOLE_FIELDS = [CP.numBinsIntensity, CP.numBinsColorTemperature, CP.minEpisodesPerCell]
 
 
-class LightingVerifier(Verifier):
-    name = "lighting"
-    axis_class = CP.LightingAxis
+class ImageAugmentationVerifier(Verifier):
+    name = "image_augmentation"
+    axis_class = CP.ImageAugmentationAxis
     package = __name__
 
     def recorded_names(self, graph: Graph, dataset: URIRef) -> list[str]:
@@ -52,7 +52,7 @@ class LightingVerifier(Verifier):
         return []
 
     def spec_errors(self, spec: Graph) -> list[str]:
-        if not any(spec.subjects(None, CP.LightingAxis)):
+        if not any(spec.subjects(None, CP.ImageAugmentationAxis)):
             return []
         todo = todo_fields(spec, lambda n: spec.value(n, CP.lightName))
         if todo:
@@ -60,7 +60,7 @@ class LightingVerifier(Verifier):
         errors = value_type_errors(spec, _NUMBER_FIELDS, _WHOLE_FIELDS, lambda n: spec.value(n, CP.lightName))
         if errors:
             return errors
-        for req in spec.subjects(None, CP.LightingAxisRequirement):
+        for req in spec.subjects(None, CP.LightingRequirement):
             name = spec.value(req, CP.lightName) or req
             i0, i1, t0, t1 = (number(spec, req, p) for p in _NUMBER_FIELDS)
             if None not in (i0, i1) and not i0 < i1:
@@ -71,8 +71,8 @@ class LightingVerifier(Verifier):
                 value = number(spec, req, field)
                 if value is not None and value < 1:
                     errors.append(f"{name}: {field.split('#')[-1]} must be at least 1, got {value:g}")
-        if not errors and not any(spec.subjects(None, CP.LightingAxisRequirement)):
-            errors.append("Spec declares no cp:LightingAxisRequirement; nothing to check")
+        if not errors and not any(spec.subjects(None, CP.LightingRequirement)):
+            errors.append("Spec declares no cp:LightingRequirement; nothing to check")
         return sorted(errors)
 
     def dataset_errors(self, graph: Graph, dataset: URIRef) -> list[str]:

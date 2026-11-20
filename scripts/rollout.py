@@ -660,7 +660,7 @@ def main():
             with torch.inference_mode():
                 obs_dict, _ = env.reset()
         needs_reset = True
-        # Initial positions, lighting and colors of this round's episodes, right after the reset randomized them.
+        # Initial positions and lighting of this round's episodes, right after the reset randomized them.
         with torch.inference_mode():
             round_factors = start_factors(env.scene, env_cfg, range(batch))
         language_instruction = instructions()
@@ -692,7 +692,8 @@ def main():
 
         for e in range(batch):
             status = "succeeded" if success_mask[e] else "failed" if done_mask[e] else "aborted"
-            rollout_log.write_episode(episodes_done + e, status, round_factors[e])
+            instruction = language_instruction[e] if isinstance(language_instruction, list) else language_instruction
+            rollout_log.write_episode(episodes_done + e, status, round_factors[e], instruction)
         rollout_log.flush()
 
         round_success = int(success_mask[:batch].sum().item())

@@ -46,7 +46,7 @@ def add_dataset(graph: Graph, dataset: URIRef, data: DatasetPlacements, frame_co
 
 
 def add_rollout(graph: Graph, log: RolloutLog, rollout: URIRef, dataset: URIRef) -> None:
-    """Add the rollout of ``log`` with its training ``dataset``, its runs, their status and initial positions."""
+    """Add the rollout of ``log`` with its training ``dataset``, its runs, their status, instruction and initial positions."""
     graph.add((rollout, RDF.type, CP.Rollout))
     graph.add((rollout, CP.name, Literal(log.name)))
     graph.add((rollout, CP.hasDataset, dataset))
@@ -68,6 +68,8 @@ def add_rollout(graph: Graph, log: RolloutLog, rollout: URIRef, dataset: URIRef)
         graph.add((run, CP["index"], index_literal(r.index)))
         graph.add((run, CP.status, Literal(r.status)))
         graph.add((rollout, CP.hasRun, run))
+        if r.instruction:
+            graph.add((run, CP.taskDescription, Literal(r.instruction)))
         for name, xyz in r.object_positions.items():
             add_task_object(graph, run, name, xyz)
 

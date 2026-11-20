@@ -1,4 +1,4 @@
-# SHACL rules of the object position axis (rollout side; extends shapes/rollout.ttl).
+# SHACL rules of the Object Properties axis (rollout side; extends shapes/rollout.ttl).
 #
 # Severity:
 #   sh:Violation - the rollout is malformed; the comparison stops
@@ -11,24 +11,19 @@
 cp: a owl:Ontology ;
     sh:declare [ sh:prefix "cp" ; sh:namespace "http://taica.course/cp/ontology#"^^xsd:anyURI ] .
 
-cp:ObjectPositionRolloutShape a sh:NodeShape ;
+cp:ObjectPropertyRolloutShape a sh:NodeShape ;
     sh:targetClass cp:Rollout ;
     sh:sparql [
-        sh:message "Finished run {?index} has no initial position for '{?name}', which the training dataset's spec requires" ;
+        sh:message "Finished run {?index} has no instruction, which the Object Properties axis compares (rollout log written by an older rollout.py?)" ;
         sh:prefixes cp: ;
         sh:select """
-            SELECT $this ?index ?name WHERE {
+            SELECT $this ?index WHERE {
                 $this cp:hasDataset ?dataset ; cp:hasRun ?run .
                 ?run cp:index ?index .
                 ?run cp:status ?s . FILTER (?s IN ("succeeded", "failed"))
                 ?dataset cp:hasGeneralizationAxis ?axis .
-                ?axis cp:hasRequirement ?req .
-                ?req a cp:ObjectPositionAxisRequirement ; cp:hasTaskObject ?reqObj .
-                ?reqObj cp:name ?name .
-                FILTER NOT EXISTS {
-                    ?run cp:hasTaskObject ?obj .
-                    ?obj cp:name ?name ; cp:hasPosition ?p .
-                }
+                ?axis a cp:ObjectPropertyAxis .
+                FILTER NOT EXISTS { ?run cp:taskDescription ?text . }
             }
         """ ;
     ] .

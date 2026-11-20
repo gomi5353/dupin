@@ -14,9 +14,8 @@ from pathlib import Path
 ROLLOUT_LOG_VERSION = 1
 OBJECT_POSITION_FACTOR = "object_position"
 LIGHTING_FACTOR = "lighting"
-OBJECT_COLOR_FACTOR = "object_color"
 # Factor -> the values of each entry.
-_FACTOR_VALUES = {OBJECT_POSITION_FACTOR: "[x, y, z]", LIGHTING_FACTOR: "[intensity, color_temperature]", OBJECT_COLOR_FACTOR: "[r, g, b]"}
+_FACTOR_VALUES = {OBJECT_POSITION_FACTOR: "[x, y, z]", LIGHTING_FACTOR: "[intensity, color_temperature]"}
 STATUSES = ("succeeded", "failed", "aborted")
 
 
@@ -29,6 +28,8 @@ class RolloutRun:
     index: int
     status: str
     factors: dict[str, dict]
+    instruction: str | None = None
+    """The task text the policy was given (Object Properties axis)."""
 
     @property
     def succeeded(self) -> bool:
@@ -48,10 +49,6 @@ class RolloutRun:
         """light name -> (intensity, color temperature) at the start of the run."""
         return {name: (float(v[0]), float(v[1])) for name, v in self.factors.get(LIGHTING_FACTOR, {}).items()}
 
-    @property
-    def object_colors(self) -> dict[str, tuple[float, float, float]]:
-        """object name -> diffuse (r, g, b) at the start of the run."""
-        return {name: (float(v[0]), float(v[1]), float(v[2])) for name, v in self.factors.get(OBJECT_COLOR_FACTOR, {}).items()}
 
 
 @dataclass
@@ -112,7 +109,10 @@ def read_rollout_log(path: str | Path) -> RolloutLog:
         if index in seen:
             raise RolloutLogError(f"{path}: episode {index} appears twice")
         seen.add(index)
-        run = RolloutRun(index, status, record.get("factors", {}))
+        instruction = record.get("instruction")
+        if instruction is not None and not isinstance(instruction, str):
+            raise RolloutLogError(f"{path}: episode {index}: instruction must be a string, got {instruction!r}")
+        run = RolloutRun(index, status, record.get("factors", {}), instruction)
         for factor, shape in _FACTOR_VALUES.items():
             width = shape.count(",") + 1
             entries = run.factors.get(factor, {})

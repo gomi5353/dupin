@@ -77,7 +77,7 @@ class Verifier:
     """Base class. Subclass it for each axis and register an instance in registry.py."""
 
     name: str = ""
-    """Short name, used in reports and findings (e.g. "object_position")."""
+    """Short name, used in reports and findings (e.g. "object_pose")."""
     axis_class: URIRef
     """The cp:GeneralizationAxis subclass this verifier checks."""
     package: str = ""

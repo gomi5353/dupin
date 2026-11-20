@@ -257,7 +257,7 @@ def load_spec(store: Store, spec_path: str | Path, name: str | None = None) -> U
     axes = [(s, o) for s, o in spec.subject_objects(RDF.type) if registry.verifier_for(o) is not None]
     errors = []
     for s in spec.subjects(RDF.type, CP.GeneralizationAxis):
-        errors.append(f"{s} is typed cp:GeneralizationAxis; use the class of a registered axis (e.g. cp:ObjectPositionAxis)")
+        errors.append(f"{s} is typed cp:GeneralizationAxis; use the class of a registered axis (e.g. cp:ObjectPoseAxis)")
     if not axes and not errors:
         registered = ", ".join(v.axis_class.n3(spec.namespace_manager) for v in registry.VERIFIERS)
         errors.append(f"Spec declares no generalization axis with a registered verifier ({registered})")

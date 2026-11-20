@@ -113,7 +113,7 @@ def _make_recorder_manager_class():
                     "and the dataset could not be verified. List the task's rigid objects there."
                 )
             light_names = list(getattr(env.cfg, "recorded_light_names", []))
-            color_names = list(getattr(env.cfg, "object_color_palettes", {}))
+            color_names = list(getattr(env.cfg, "object_references", {}))
             base_build = leisaac_recorder.build_feature_from_env
 
             def build_with_factors(env, dataset_cfg):

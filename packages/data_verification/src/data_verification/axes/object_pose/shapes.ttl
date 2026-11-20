@@ -1,4 +1,4 @@
-# SHACL rules of the object position axis (dataset side; extends shapes/dataset.ttl).
+# SHACL rules of the Object Poses axis, factor object position (dataset side; extends shapes/dataset.ttl).
 #
 # Severity:
 #   sh:Violation - dataset fails verification (malformed data, uncovered cell)
@@ -34,7 +34,7 @@ cp:ObjectPositionDatasetShape a sh:NodeShape ;
                 $this cp:hasEpisode ?episode ; cp:hasGeneralizationAxis ?axis .
                 ?episode cp:index ?index .
                 ?axis cp:hasRequirement ?req .
-                ?req a cp:ObjectPositionAxisRequirement ; cp:hasTaskObject ?reqObj .
+                ?req a cp:ObjectPositionRequirement ; cp:hasTaskObject ?reqObj .
                 ?reqObj cp:name ?name .
                 FILTER NOT EXISTS {
                     ?episode cp:hasTaskObject ?obj .
@@ -56,7 +56,7 @@ cp:DatasetAreaShape a sh:NodeShape ;
                 $this cp:hasGeneralizationAxis ?axis ; cp:hasEpisode ?episode .
                 ?episode cp:index ?index .
                 ?axis cp:hasRequirement ?req .
-                ?req a cp:ObjectPositionAxisRequirement ; cp:hasTaskObject ?reqObj ; cp:hasAreaConfiguration ?area .
+                ?req a cp:ObjectPositionRequirement ; cp:hasTaskObject ?reqObj ; cp:hasAreaConfiguration ?area .
                 ?reqObj cp:name ?name .
                 ?area cp:areaXMin ?x0 ; cp:areaXMax ?x1 ; cp:areaYMin ?y0 ; cp:areaYMax ?y1 .
                 ?episode cp:hasTaskObject ?obj .
@@ -70,11 +70,11 @@ cp:DatasetAreaShape a sh:NodeShape ;
 # ---- Axis and requirement: well-formed spec ----------------------------------
 
 cp:ObjectPositionAxisShape a sh:NodeShape ;
-    sh:targetClass cp:ObjectPositionAxis ;
-    sh:property [ sh:path cp:hasRequirement ; sh:class cp:ObjectPositionAxisRequirement ; sh:minCount 1 ] .
+    sh:targetClass cp:ObjectPoseAxis ;
+    sh:property [ sh:path cp:hasRequirement ; sh:class cp:ObjectPositionRequirement ; sh:minCount 1 ] .
 
-cp:ObjectPositionAxisRequirementShape a sh:NodeShape ;
-    sh:targetClass cp:ObjectPositionAxisRequirement ;
+cp:ObjectPositionRequirementShape a sh:NodeShape ;
+    sh:targetClass cp:ObjectPositionRequirement ;
     sh:property [
         sh:path cp:hasTaskObject ;
         sh:class cp:TaskObject ; sh:minCount 1 ; sh:maxCount 1 ;
@@ -87,11 +87,11 @@ cp:ObjectPositionAxisRequirementShape a sh:NodeShape ;
         sh:message "Requirement is linked from more than one axis (cp:hasRequirement); give each axis its own requirement" ;
     ] ;
     sh:sparql [
-        sh:message "Requirement is not linked from an ObjectPositionAxis (cp:hasRequirement)" ;
+        sh:message "Requirement is not linked from an ObjectPoseAxis (cp:hasRequirement)" ;
         sh:prefixes cp: ;
         sh:select """
             SELECT $this WHERE {
-                FILTER NOT EXISTS { ?axis a cp:ObjectPositionAxis ; cp:hasRequirement $this . }
+                FILTER NOT EXISTS { ?axis a cp:ObjectPoseAxis ; cp:hasRequirement $this . }
             }
         """ ;
     ] .
@@ -106,7 +106,7 @@ cp:RequirementTaskObjectShape a sh:NodeShape ;
 cp:AreaConfigurationShape a sh:NodeShape ;
     sh:targetClass cp:AreaConfiguration ;
     sh:property [
-        sh:path [ sh:inversePath cp:hasAreaConfiguration ] ; sh:class cp:ObjectPositionAxisRequirement ; sh:minCount 1 ; sh:maxCount 1 ;
+        sh:path [ sh:inversePath cp:hasAreaConfiguration ] ; sh:class cp:ObjectPositionRequirement ; sh:minCount 1 ; sh:maxCount 1 ;
         sh:message "Area must belong to exactly one requirement (cp:hasAreaConfiguration); give each requirement its own area" ;
     ] ;
     sh:property [ sh:path cp:areaXMin ; sh:minCount 1 ; sh:maxCount 1 ] ;

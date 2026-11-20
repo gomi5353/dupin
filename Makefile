@@ -66,7 +66,7 @@ test:
 		tests/test_rollout_wiring.py \
 		tests/test_object_position_coverage.py \
 		tests/test_rollout_comparison.py \
-		tests/test_lighting_and_color.py
+		tests/test_image_augmentation_and_object_property.py
 
 # ---- Host simulator (no Docker) ---------------------------------------------
 # Default way to run Isaac Sim with the GUI: a separate .venv-sim on the host

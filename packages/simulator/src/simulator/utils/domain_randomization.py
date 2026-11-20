@@ -97,101 +97,40 @@ def randomize_light_conditions(
     )
 
 
-class randomize_object_colors(ManagerTermBase):
-    """Give each object a color from its palette on each reset, and remember the color names per env.
+class choose_object_references(ManagerTermBase):
+    """Pick the episode's reference form on each reset (STAR-Gen S-PROP, Object Properties).
 
-    ``palettes`` maps an object's scene name to its colors, ``{color word: (r, g, b)}``. The color
-    word is what the task text says (``task_description_template``); the RGB is written to the
-    diffuse color of every material bound to the object (OmniPBR ``diffuse_color_constant``, the
-    material the task assets use; values above 1 are allowed and look brighter). An object without
-    such a material gets a UsdPreviewSurface material at start-up. With ``distinct`` (default), the
-    objects of one episode get different color words (``scene_factors.pick_color_words``).
-
-    Samples come from a private RNG seeded with ``env.cfg.seed``, as in ``randomize_light``.
-    The chosen words are kept in ``env.object_color_names[env_id][object]``, which
+    A form (``"name"``, ``"color"``, ...) says how the task text refers to the objects of
+    ``env.cfg.object_references``: by name ("the fork") or by a property ("the pink object"). The
+    objects themselves never change. One form per episode, for every object, drawn with ``weights``
+    (``env.cfg.reference_weights``) from a private RNG seeded with ``env.cfg.seed``, as in
+    ``randomize_light``. The chosen form is kept in ``env.object_reference_forms[env_id]``, which
     ``SingleArmFrankaTaskEnvCfg.task_text`` reads.
     """
 
     def __init__(self, cfg: EventTerm, env: ManagerBasedEnv):
         super().__init__(cfg, env)
-        import omni.usd
+        from simulator.utils.scene_factors import reference_form_errors
 
-        from simulator.utils.scene_factors import diffuse_shaders, object_prim_path
-
+        errors = reference_form_errors(env.cfg.object_references, cfg.params["weights"])
+        if errors:
+            raise ValueError("; ".join(errors))
         seed = env.cfg.seed if env.cfg.seed is not None else 0
-        self._rng = random.Random(f"{seed}:object_colors")
-        palettes: dict[str, dict[str, tuple[float, float, float]]] = cfg.params["palettes"]
-        for name, palette in palettes.items():
-            if not palette:
-                raise ValueError(f"object_color_palettes['{name}'] is empty; give it at least one color")
-        stage = omni.usd.get_context().get_stage()
-        self._shaders: dict[tuple[str, int], list] = {}
-        for name in palettes:
-            for env_id in range(env.num_envs):
-                path = object_prim_path(env.scene, name, env_id)
-                shaders = diffuse_shaders(stage, path) or _add_preview_material(stage, path)
-                self._shaders[(name, env_id)] = shaders
-        # Before the first reset every object shows its first palette color.
-        env.object_color_names = [{name: next(iter(palette)) for name, palette in palettes.items()} for _ in range(env.num_envs)]
-        for env_id in range(env.num_envs):
-            for name, palette in palettes.items():
-                self._apply(name, env_id, palette[env.object_color_names[env_id][name]])
+        self._rng = random.Random(f"{seed}:object_references")
+        weights = cfg.params["weights"]
+        env.object_reference_forms = [max(weights, key=weights.get)] * env.num_envs
 
-    def _apply(self, name: str, env_id: int, rgb: tuple[float, float, float]) -> None:
-        from pxr import Gf
-
-        from simulator.utils.scene_factors import DIFFUSE_INPUTS
-
-        for shader in self._shaders[(name, env_id)]:
-            for attr_name in DIFFUSE_INPUTS:
-                attr = shader.GetAttribute(attr_name)
-                if attr.IsValid():
-                    attr.Set(Gf.Vec3f(*(float(v) for v in rgb)))
-
-    def __call__(
-        self,
-        env: ManagerBasedEnv,
-        env_ids: torch.Tensor | None,
-        palettes: dict[str, dict[str, tuple[float, float, float]]],
-        distinct: bool = True,
-    ):
-        from simulator.utils.scene_factors import pick_color_words
+    def __call__(self, env: ManagerBasedEnv, env_ids: torch.Tensor | None, weights: dict[str, float]):
+        from simulator.utils.scene_factors import pick_reference_form
 
         ids = range(env.num_envs) if env_ids is None else sorted(env_ids.tolist())
         for env_id in ids:
-            for name, word in pick_color_words(self._rng, palettes, distinct).items():
-                env.object_color_names[env_id][name] = word
-                self._apply(name, env_id, palettes[name][word])
+            env.object_reference_forms[env_id] = pick_reference_form(self._rng, weights)
 
 
-def _add_preview_material(stage, object_path: str) -> list:
-    """Bind a new UsdPreviewSurface material to ``object_path`` (over its meshes) and return its shader."""
-    from pxr import Sdf, UsdShade
-
-    from simulator.utils.scene_factors import forget_shaders
-
-    material = UsdShade.Material.Define(stage, f"{object_path}/Looks/ObjectColor")
-    shader = UsdShade.Shader.Define(stage, f"{object_path}/Looks/ObjectColor/Shader")
-    shader.CreateIdAttr("UsdPreviewSurface")
-    shader.CreateInput("diffuseColor", Sdf.ValueTypeNames.Color3f)
-    shader.CreateInput("roughness", Sdf.ValueTypeNames.Float).Set(0.5)
-    material.CreateSurfaceOutput().ConnectToSource(shader.ConnectableAPI(), "surface")
-    UsdShade.MaterialBindingAPI.Apply(stage.GetPrimAtPath(object_path)).Bind(
-        material, bindingStrength=UsdShade.Tokens.strongerThanDescendants
-    )
-    forget_shaders(stage, object_path)
-    return [shader.GetPrim()]
-
-
-def randomize_object_color_palettes(
-    palettes: dict[str, dict[str, tuple[float, float, float]]], distinct: bool = True
-) -> EventTerm:
-    """Reset event: each object in ``palettes`` gets one of its colors (see ``randomize_object_colors``).
-
-    With ``distinct`` (the default), the objects of one episode get different color words, so the
-    task text stays unambiguous; see ``scene_factors.pick_color_words``.
-    """
-    return EventTerm(func=randomize_object_colors, mode="reset", params={"palettes": palettes, "distinct": distinct})
+def choose_object_reference_forms(weights: dict[str, float]) -> EventTerm:
+    """Reset event: each episode's task text refers to the objects in one form (see ``choose_object_references``)."""
+    return EventTerm(func=choose_object_references, mode="reset", params={"weights": weights})
 
 
 _POSE_KEYS = ("x", "y", "z", "roll", "pitch", "yaw")

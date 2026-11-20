@@ -1,4 +1,4 @@
-# SHACL rules of the object color axis (rollout side; extends shapes/rollout.ttl).
+# SHACL rules of the Image Augmentations axis, factor lighting (rollout side; extends shapes/rollout.ttl).
 #
 # Severity:
 #   sh:Violation - the rollout is malformed; the comparison stops
@@ -11,10 +11,10 @@
 cp: a owl:Ontology ;
     sh:declare [ sh:prefix "cp" ; sh:namespace "http://taica.course/cp/ontology#"^^xsd:anyURI ] .
 
-cp:ObjectColorRolloutShape a sh:NodeShape ;
+cp:LightingRolloutShape a sh:NodeShape ;
     sh:targetClass cp:Rollout ;
     sh:sparql [
-        sh:message "Finished run {?index} has no color for '{?name}', which the training dataset's spec requires" ;
+        sh:message "Finished run {?index} has no lighting for '{?name}', which the training dataset's spec requires" ;
         sh:prefixes cp: ;
         sh:select """
             SELECT $this ?index ?name WHERE {
@@ -23,11 +23,10 @@ cp:ObjectColorRolloutShape a sh:NodeShape ;
                 ?run cp:status ?s . FILTER (?s IN ("succeeded", "failed"))
                 ?dataset cp:hasGeneralizationAxis ?axis .
                 ?axis cp:hasRequirement ?req .
-                ?req a cp:ObjectColorAxisRequirement ; cp:hasTaskObject ?reqObj .
-                ?reqObj cp:name ?name .
+                ?req a cp:LightingRequirement ; cp:lightName ?name .
                 FILTER NOT EXISTS {
-                    ?run cp:hasObjectColor ?color .
-                    ?color cp:name ?name .
+                    ?run cp:hasLightCondition ?light .
+                    ?light cp:name ?name .
                 }
             }
         """ ;

@@ -9,7 +9,8 @@ Both are read from the USD stage, the same values the renderer uses:
 * ``object_color.<name>`` = ``[r, g, b]``, the diffuse color of the material
   bound to the object (OmniPBR ``inputs:diffuse_color_constant`` or
   UsdPreviewSurface ``inputs:diffuseColor``). Recorded for every object in the
-  task configuration's ``object_color_palettes``.
+  task configuration's ``object_references``; the Object Properties axis
+  (S-PROP) checks that it stays the same, since only the task text varies.
 
 Read back by ``packages/data_verification`` (``dataset.py``, ``rollout_log.py``);
 keep the key prefixes and value names in sync with it.
@@ -42,23 +43,22 @@ def object_color_features(object_names: list[str]) -> dict[str, dict]:
     }
 
 
-def pick_color_words(rng, palettes: dict[str, dict], distinct: bool = True) -> dict[str, str]:
-    """One color word per object of ``palettes``, drawn with ``rng`` (a ``random.Random``).
+def reference_form_errors(references: dict[str, dict[str, str]], weights: dict[str, float]) -> list[str]:
+    """Problems with ``object_references`` and ``reference_weights`` (a form with weight > 0 must exist for every object)."""
+    errors = []
+    if not weights or any(w < 0 for w in weights.values()) or sum(weights.values()) <= 0:
+        errors.append(f"reference_weights {weights} must be >= 0 with a positive sum")
+    for form, weight in weights.items():
+        missing = [name for name, refs in references.items() if form not in refs]
+        if weight > 0 and missing:
+            errors.append(f"reference form '{form}' has weight {weight:g} but no phrase for {', '.join(missing)} in object_references")
+    return errors
 
-    With ``distinct``, no two objects get the same word, so the task text never names two objects
-    by the same color ("the red cup on the red cup"). The objects pick in a random order, each among
-    the words still free; an object whose words are all taken falls back to its whole palette.
-    """
-    order = list(palettes)
-    rng.shuffle(order)
-    taken: set[str] = set()
-    picked: dict[str, str] = {}
-    for name in order:
-        words = sorted(palettes[name])
-        free = [word for word in words if word not in taken] if distinct else words
-        picked[name] = rng.choice(free or words)
-        taken.add(picked[name])
-    return {name: picked[name] for name in palettes}
+
+def pick_reference_form(rng, weights: dict[str, float]) -> str:
+    """One form, drawn with ``rng`` (a ``random.Random``) in proportion to ``weights``; forms of weight 0 never."""
+    forms = sorted(form for form, weight in weights.items() if weight > 0)
+    return rng.choices(forms, weights=[weights[f] for f in forms])[0]
 
 
 def _env_prim(prims: list, env_id: int):
@@ -102,11 +102,6 @@ def diffuse_shaders(stage, root_path: str) -> list:
     if key not in _SHADER_CACHE:
         _SHADER_CACHE[key] = _find_diffuse_shaders(stage, root_path)
     return [prim for prim in _SHADER_CACHE[key] if prim.IsValid()]
-
-
-def forget_shaders(stage, root_path: str) -> None:
-    """Drop the cached shaders of ``root_path`` (after binding a new material to it)."""
-    _SHADER_CACHE.pop((id(stage), root_path), None)
 
 
 def _find_diffuse_shaders(stage, root_path: str) -> list:

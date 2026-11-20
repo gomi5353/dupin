@@ -1,4 +1,4 @@
-"""Lighting axis: episodes per (intensity, color temperature) cell, and where the rollout runs' lights fall.
+"""Image Augmentations axis, factor lighting: episodes per (intensity, color temperature) cell, and where the rollout runs' lights fall.
 
 Each requirement splits [intensityMin, intensityMax] into numBinsIntensity bins
 (column i) and [colorTemperatureMin, colorTemperatureMax] into
@@ -24,7 +24,7 @@ REQUIREMENTS_QUERY = """
 SELECT ?req ?name ?i0 ?i1 ?t0 ?t1 ?ni ?nt ?min WHERE {
     ?dataset cp:hasGeneralizationAxis ?axis .
     ?axis cp:hasRequirement ?req .
-    ?req a cp:LightingAxisRequirement ; cp:lightName ?name ;
+    ?req a cp:LightingRequirement ; cp:lightName ?name ;
          cp:intensityMin ?i0 ; cp:intensityMax ?i1 ; cp:colorTemperatureMin ?t0 ; cp:colorTemperatureMax ?t1 ;
          cp:numBinsIntensity ?ni ; cp:numBinsColorTemperature ?nt ; cp:minEpisodesPerCell ?min .
 }

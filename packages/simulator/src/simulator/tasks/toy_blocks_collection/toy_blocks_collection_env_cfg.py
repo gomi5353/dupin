@@ -16,7 +16,7 @@ from simulator import ASSETS_ROOT
 from simulator.assets.scenes.living_room import LIVING_ROOM_CFG, LIVING_ROOM_USD_PATH
 from simulator.utils.domain_randomization import (
     randomize_light_conditions,
-    randomize_object_color_palettes,
+    choose_object_reference_forms,
     randomize_objects_apart,
 )
 
@@ -165,34 +165,20 @@ class ToyBlocksCollectionEnvCfg(SingleArmFrankaTaskEnvCfg):
     scene: ToyBlocksCollectionSceneCfg = ToyBlocksCollectionSceneCfg(env_spacing=8.0)
     observations: SingleArmFrankaObservationsCfg = SingleArmFrankaObservationsCfg()
     terminations: TerminationsCfg = TerminationsCfg()
-    task_description: str = "pick up the toys and place them into the storage box."
+    task_description: str = "pick up the bridge, the cylinder and the triangle and place them into the storage box."  # set from the template
     tracked_object_names: list[str] = ["green_block", "blue_block", "red_block"]
     fixed_object_names: list[str] = ["storage_box"]
     recorded_light_names: list[str] = ["rect_light"]
-    # Colors per object: {color word: diffuse (r, g, b)}; each reset picks one per object, and the task
-    # text names it. The objects of one episode get different color words. Add, remove or change colors
-    # to vary them differently; the first color is the default. Values above 1 look brighter.
-    # The storage box has no material of its own; listing it here gives it one.
-    object_color_palettes: dict[str, dict[str, tuple[float, float, float]]] = {
-        "green_block": {
-            "green": (0.0, 1.01, 0.0),
-            "yellow": (1.8, 1.5, 0.0),
-            "orange": (2.0, 0.4, 0.0),
-        },
-        "blue_block": {
-            "blue": (0.2, 0.2, 2.0),
-            "yellow": (1.8, 1.5, 0.0),
-            "orange": (2.0, 0.4, 0.0),
-        },
-        "red_block": {
-            "red": (2.0, 0.2, 0.2),
-            "yellow": (1.8, 1.5, 0.0),
-            "orange": (2.0, 0.4, 0.0),
-        },
+    # Object Properties axis (STAR-Gen S-PROP): how the task text refers to each object, {form: phrase}.
+    # The objects never change; only the words do. "name" refers by name, "color" by color only.
+    # reference_weights sets how often each form is used (one form per episode, for every object).
+    object_references: dict[str, dict[str, str]] = {
+        "green_block": {"name": "bridge", "color": "green object"},
+        "blue_block": {"name": "cylinder", "color": "blue object"},
+        "red_block": {"name": "triangle", "color": "red object"},
     }
-    task_description_template: str = (
-        "pick up the {green_block}, {blue_block} and {red_block} toys and place them into the storage box."
-    )
+    reference_weights: dict[str, float] = {"name": 1.0, "color": 0.0}
+    task_description_template: str = "pick up the {green_block}, the {blue_block} and the {red_block} and place them into the storage box."
 
     def __post_init__(self) -> None:
         super().__post_init__()
@@ -257,6 +243,6 @@ class ToyBlocksCollectionEnvCfg(SingleArmFrankaTaskEnvCfg):
                     textures=[],
                     color_temperature_range=(5300.0, 5900.0),
                 ),
-                randomize_object_color_palettes(self.object_color_palettes),
+                choose_object_reference_forms(self.reference_weights),
             ],
         )

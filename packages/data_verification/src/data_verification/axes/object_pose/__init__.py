@@ -1,7 +1,7 @@
-"""Object position axis: are the objects' initial positions spread over the area the student requires?
+"""Object Poses axis (STAR-Gen VB-POSE), factor object position (STAR-Gen: manipulated object pose; position only): are the objects' initial positions spread over the area the student requires?
 
 Files:
-  ontology.ttl        ObjectPositionAxis, its requirement, area, grid, cells, run placements
+  ontology.ttl        ObjectPoseAxis, its requirement, area, grid, cells, run placements
   shapes.ttl          SHACL rules on the dataset (cell coverage, area, spec well-formed)
   rollout_shapes.ttl  SHACL rules on a rollout (every finished run has the required positions)
   spec.py             checks that stop ``verify`` for a spec (TODO left, values not numbers, empty area)
@@ -20,9 +20,9 @@ from .coverage import check_coverage, expand_cells, required_names
 from .spec import todo_fields, value_range_errors, value_type_errors
 
 
-class ObjectPositionVerifier(Verifier):
-    name = "object_position"
-    axis_class = CP.ObjectPositionAxis
+class ObjectPoseVerifier(Verifier):
+    name = "object_pose"
+    axis_class = CP.ObjectPoseAxis
     package = __name__
 
     def spec_errors(self, spec: Graph) -> list[str]:
@@ -30,10 +30,10 @@ class ObjectPositionVerifier(Verifier):
         if todo:
             return ["Spec still has TODO values: " + ", ".join(todo)]
         errors = value_type_errors(spec) or value_range_errors(spec)
-        if not errors and any(spec.subjects(None, CP.ObjectPositionAxis)) and not any(
-            spec.subjects(None, CP.ObjectPositionAxisRequirement)
+        if not errors and any(spec.subjects(None, CP.ObjectPoseAxis)) and not any(
+            spec.subjects(None, CP.ObjectPositionRequirement)
         ):
-            errors = ["Spec declares no cp:ObjectPositionAxisRequirement; nothing to check"]
+            errors = ["Spec declares no cp:ObjectPositionRequirement; nothing to check"]
         return errors
 
     def derive_spec(self, spec: Graph) -> None:

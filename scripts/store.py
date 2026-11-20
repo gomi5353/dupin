@@ -16,7 +16,7 @@ Guide: docs/object_position_coverage.md
 
   # 4. Check the dataset against your specs and compare every rollout; specs and results go into the store
   uv run python scripts/store.py verify --store stores/<dataset_repo> \\
-      --spec my_specs/object_position.ttl --spec my_specs/lighting.ttl
+      --spec my_specs/object_position.ttl my_specs/lighting.ttl
 
   # 5. Ask the store
   uv run python scripts/store.py explore --store stores/<dataset_repo>
@@ -173,8 +173,9 @@ def main() -> int:
     verify = sub.add_parser("verify", help="Check the dataset against your spec files and compare the rollouts; store specs and findings.")
     verify.add_argument("--store", required=True, type=Path)
     verify.add_argument(
-        "--spec", action="append", type=Path, required=True,
-        help="Your spec (.ttl), one per axis; repeatable. The store keeps exactly the specs of the last verify.",
+        "--spec", action="extend", nargs="+", type=Path, required=True,
+        help="Your spec files (.ttl), one per axis: --spec a.ttl b.ttl (or --spec a.ttl --spec b.ttl). "
+        "The store keeps exactly the specs of the last verify.",
     )
     verify.add_argument("--rollout", action="append", help="Only this ingested rollout; repeatable (default: all).")
     verify.add_argument("--no-rollouts", action="store_true", help="Check the dataset only.")

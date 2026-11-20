@@ -17,7 +17,7 @@ from simulator import ASSETS_ROOT
 from simulator.assets.scenes.living_room import LIVING_ROOM_CFG, LIVING_ROOM_USD_PATH
 from simulator.utils.domain_randomization import (
     randomize_light_conditions,
-    randomize_object_color_palettes,
+    choose_object_reference_forms,
     randomize_objects_apart,
 )
 from simulator.tasks.template.single_arm_franka_cfg import (
@@ -153,38 +153,19 @@ class ToyBlocksCollectionEvalEnvCfg(SingleArmFrankaTaskEnvCfg):
     scene: ToyBlocksCollectionEvalSceneCfg = ToyBlocksCollectionEvalSceneCfg(env_spacing=8.0)
     observations: SingleArmFrankaObservationsCfg = SingleArmFrankaObservationsCfg()
     terminations: EvalTerminationsCfg = EvalTerminationsCfg()
-    task_description: str = "pick up the toys and place them into the storage box."
+    task_description: str = "pick up the bridge, the cylinder and the triangle and place them into the storage box."  # set from the template
     tracked_object_names: list[str] = ["green_block", "blue_block", "red_block"]
     fixed_object_names: list[str] = ["storage_box"]
     recorded_light_names: list[str] = ["rect_light"]
-    # Task text as in the task configuration. Colors: those of the task configuration, plus cyan and
-    # purple, which it does not list (unseen colors). The objects of one episode get different words.
-    object_color_palettes: dict[str, dict[str, tuple[float, float, float]]] = {
-        "green_block": {
-            "green": (0.0, 1.01, 0.0),
-            "yellow": (1.8, 1.5, 0.0),
-            "orange": (2.0, 0.4, 0.0),
-            "cyan": (0.0, 1.5, 1.8),
-            "purple": (0.7, 0.1, 1.8),
-        },
-        "blue_block": {
-            "blue": (0.2, 0.2, 2.0),
-            "yellow": (1.8, 1.5, 0.0),
-            "orange": (2.0, 0.4, 0.0),
-            "cyan": (0.0, 1.5, 1.8),
-            "purple": (0.7, 0.1, 1.8),
-        },
-        "red_block": {
-            "red": (2.0, 0.2, 0.2),
-            "yellow": (1.8, 1.5, 0.0),
-            "orange": (2.0, 0.4, 0.0),
-            "cyan": (0.0, 1.5, 1.8),
-            "purple": (0.7, 0.1, 1.8),
-        },
+    # Object Properties axis (STAR-Gen S-PROP): phrases as in the task configuration; evaluation uses
+    # the name form and the color form equally often. The objects never change.
+    object_references: dict[str, dict[str, str]] = {
+        "green_block": {"name": "bridge", "color": "green object"},
+        "blue_block": {"name": "cylinder", "color": "blue object"},
+        "red_block": {"name": "triangle", "color": "red object"},
     }
-    task_description_template: str = (
-        "pick up the {green_block}, {blue_block} and {red_block} toys and place them into the storage box."
-    )
+    reference_weights: dict[str, float] = {"name": 0.5, "color": 0.5}
+    task_description_template: str = "pick up the {green_block}, the {blue_block} and the {red_block} and place them into the storage box."
 
     def __post_init__(self) -> None:
         super().__post_init__()
@@ -247,7 +228,7 @@ class ToyBlocksCollectionEvalEnvCfg(SingleArmFrankaTaskEnvCfg):
                     textures=[],
                     color_temperature_range=(3000.0, 6500.0),
                 ),
-                randomize_object_color_palettes(self.object_color_palettes),
+                choose_object_reference_forms(self.reference_weights),
             ],
         )
 

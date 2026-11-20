@@ -1,11 +1,12 @@
-# OWL vocabulary of the lighting axis (extends ontology/core.ttl).
+# OWL vocabulary of the Image Augmentations axis (extends ontology/core.ttl).
 #
-# STAR-Gen category: Visual (image augmentation). The scene light named in the
+# STAR-Gen axis V-AUG, Image Augmentations (Visual), factor lighting (STAR-Gen
+# also lists blur and contrast; this repository has lighting only). The scene light named in the
 # requirement (rect_light in the predefined tasks) changes its intensity and
 # color temperature at every reset; the recorder writes both per frame
 # (dataset column lighting.<name> = [intensity, color_temperature]).
 #
-# A LightingAxis has LightingAxisRequirements. A requirement names one light,
+# An ImageAugmentationAxis has LightingRequirements. A requirement names one light,
 # an intensity range and a color temperature range, and splits them into a
 # grid of numBinsIntensity x numBinsColorTemperature cells; every cell needs at
 # least minEpisodesPerCell episodes whose initial light falls inside it.
@@ -23,10 +24,10 @@
 @prefix xsd:     <http://www.w3.org/2001/XMLSchema#> .
 @prefix dcterms: <http://purl.org/dc/terms/> .
 
-<http://taica.course/cp/ontology/lighting> a owl:Ontology ;
-    dcterms:title "Lighting axis"@en ;
+<http://taica.course/cp/ontology/image_augmentation> a owl:Ontology ;
+    dcterms:title "Image Augmentations axis (STAR-Gen V-AUG)"@en ;
     owl:imports <http://taica.course/cp/ontology> ;
-    owl:versionIRI <http://taica.course/cp/ontology/lighting/1.0.0> .
+    owl:versionIRI <http://taica.course/cp/ontology/image_augmentation/2.0.0> .
 
 # ---- Recorded facts -----------------------------------------------------------
 
@@ -40,14 +41,15 @@ cp:LightCondition a owl:Class ;
 
 # ---- Requirements -------------------------------------------------------------
 
-cp:LightingAxis a owl:Class ;
+cp:ImageAugmentationAxis a owl:Class ;
     rdfs:subClassOf
         cp:GeneralizationAxis ,
-        [ a owl:Restriction ; owl:onProperty cp:hasRequirement ; owl:allValuesFrom cp:LightingAxisRequirement ] ;
-    rdfs:label "Lighting Axis"@en ;
-    rdfs:comment "The axis of scene lighting (STAR-Gen: Visual, image augmentation). Its requirements are lighting requirements."@en .
+        [ a owl:Restriction ; owl:onProperty cp:hasRequirement ; owl:allValuesFrom cp:LightingRequirement ] ;
+    rdfs:label "Image Augmentations"@en ;
+    cp:starGenAxis "V-AUG" ;
+    rdfs:comment "STAR-Gen axis Image Augmentations (Visual). In this repository its only factor is lighting; its requirements are lighting requirements."@en .
 
-cp:LightingAxisRequirement a owl:Class ;
+cp:LightingRequirement a owl:Class ;
     rdfs:subClassOf
         cp:AxisRequirement ,
         [ a owl:Restriction ; owl:onProperty cp:lightName ; owl:qualifiedCardinality "1"^^xsd:nonNegativeInteger ; owl:onDataRange xsd:string ] ,
@@ -58,7 +60,8 @@ cp:LightingAxisRequirement a owl:Class ;
         [ a owl:Restriction ; owl:onProperty cp:numBinsIntensity ; owl:qualifiedCardinality "1"^^xsd:nonNegativeInteger ; owl:onDataRange xsd:positiveInteger ] ,
         [ a owl:Restriction ; owl:onProperty cp:numBinsColorTemperature ; owl:qualifiedCardinality "1"^^xsd:nonNegativeInteger ; owl:onDataRange xsd:positiveInteger ] ,
         [ a owl:Restriction ; owl:onProperty cp:minEpisodesPerCell ; owl:qualifiedCardinality "1"^^xsd:nonNegativeInteger ; owl:onDataRange xsd:positiveInteger ] ;
-    rdfs:label "Lighting Axis Requirement"@en ;
+    rdfs:label "Lighting Requirement"@en ;
+    cp:starGenFactor "lighting" ;
     rdfs:comment "One light, its intensity and color temperature ranges split into a grid, and the minimum number of dataset episodes per cell."@en .
 
 # ---- Verification results -----------------------------------------------------
@@ -66,7 +69,7 @@ cp:LightingAxisRequirement a owl:Class ;
 cp:LightingCell a owl:Class ;
     rdfs:subClassOf
         [ a owl:Restriction ; owl:onProperty cp:index ; owl:qualifiedCardinality "1"^^xsd:nonNegativeInteger ; owl:onDataRange xsd:nonNegativeInteger ] ,
-        [ a owl:Restriction ; owl:onProperty cp:ofRequirement ; owl:qualifiedCardinality "1"^^xsd:nonNegativeInteger ; owl:onClass cp:LightingAxisRequirement ] ,
+        [ a owl:Restriction ; owl:onProperty cp:ofRequirement ; owl:qualifiedCardinality "1"^^xsd:nonNegativeInteger ; owl:onClass cp:LightingRequirement ] ,
         [ a owl:Restriction ; owl:onProperty cp:episodeCount ; owl:qualifiedCardinality "1"^^xsd:nonNegativeInteger ; owl:onDataRange xsd:nonNegativeInteger ] ;
     rdfs:label "Lighting Cell"@en ;
     rdfs:comment "One cell of a lighting requirement's grid, row-major index k = j * numBinsIntensity + i, with intensity bin i (cellI) and color temperature bin j (cellJ), its bounds, and the number of dataset episodes in it. Written by verify."@en .
@@ -74,13 +77,13 @@ cp:LightingCell a owl:Class ;
 cp:LightingPlacement a owl:Class ;
     rdfs:subClassOf
         [ a owl:Restriction ; owl:onProperty cp:ofRun ; owl:qualifiedCardinality "1"^^xsd:nonNegativeInteger ; owl:onClass cp:Run ] ,
-        [ a owl:Restriction ; owl:onProperty cp:ofRequirement ; owl:qualifiedCardinality "1"^^xsd:nonNegativeInteger ; owl:onClass cp:LightingAxisRequirement ] ,
+        [ a owl:Restriction ; owl:onProperty cp:ofRequirement ; owl:qualifiedCardinality "1"^^xsd:nonNegativeInteger ; owl:onClass cp:LightingRequirement ] ,
         [ a owl:Restriction ; owl:onProperty cp:covered ; owl:qualifiedCardinality "1"^^xsd:nonNegativeInteger ; owl:onDataRange xsd:boolean ] ;
     rdfs:label "Lighting Placement"@en ;
     rdfs:comment "Where a finished run's light falls for one requirement: the lattice bins (cellI, cellJ; outside the ranges they run past the grid), the cell when inside (cp:inLightingCell), and whether that cell has at least minEpisodesPerCell dataset episodes."@en .
 
 [] a owl:AllDisjointClasses ;
-    owl:members ( cp:LightCondition cp:LightingAxisRequirement cp:LightingCell cp:LightingPlacement
+    owl:members ( cp:LightCondition cp:LightingRequirement cp:LightingCell cp:LightingPlacement
                   cp:Dataset cp:Episode cp:Rollout cp:Run cp:TaskObject cp:Position cp:Finding ) .
 
 # ---- Object properties --------------------------------------------------------

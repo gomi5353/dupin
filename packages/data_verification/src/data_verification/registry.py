@@ -1,7 +1,7 @@
 """The registered verifiers: one per generalization axis, run by ``verify`` in this order.
 
 To add an axis, create data_verification/axes/<axis>/ with a Verifier subclass
-(see axes/object_position/) and append an instance here. A spec may only use
+(see axes/object_pose/) and append an instance here. A spec may only use
 axis classes that a registered verifier checks. Guide: docs/adding_coverage_factor.md.
 """
 
@@ -9,15 +9,15 @@ from __future__ import annotations
 
 from rdflib import URIRef
 
-from .axes.lighting import LightingVerifier
-from .axes.object_color import ObjectColorVerifier
-from .axes.object_position import ObjectPositionVerifier
+from .axes.image_augmentation import ImageAugmentationVerifier
+from .axes.object_property import ObjectPropertyVerifier
+from .axes.object_pose import ObjectPoseVerifier
 from .verifier import Verifier
 
 VERIFIERS: list[Verifier] = [
-    ObjectPositionVerifier(),
-    LightingVerifier(),
-    ObjectColorVerifier(),
+    ObjectPoseVerifier(),
+    ImageAugmentationVerifier(),
+    ObjectPropertyVerifier(),
 ]
 
 
