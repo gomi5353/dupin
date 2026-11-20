@@ -200,6 +200,13 @@ cp:focusNode a owl:ObjectProperty ;
     rdfs:label "focus node"@en ;
     rdfs:comment "A node a finding is about (episode, cell, run, requirement, ...)."@en .
 
+# Shared by the axes: a comparison places each finished run per requirement.
+cp:hasPlacement a owl:ObjectProperty ;
+    rdfs:label "has placement"@en ;
+    rdfs:comment "A comparison has one placement per finished run and requirement (each axis has its own placement class)."@en .
+cp:ofRun a owl:ObjectProperty ; rdfs:label "of run"@en .
+cp:ofRequirement a owl:ObjectProperty ; rdfs:label "of requirement"@en .
+
 # ---- Datatype properties ------------------------------------------------------
 
 cp:name a owl:DatatypeProperty ;
@@ -239,7 +246,7 @@ cp:fps a owl:DatatypeProperty ; rdfs:range xsd:nonNegativeInteger ; rdfs:label "
 cp:taskDescription a owl:DatatypeProperty ;
     rdfs:range xsd:string ;
     rdfs:label "task description"@en ;
-    rdfs:comment "A natural-language task of the dataset (meta/tasks.parquet)."@en .
+    rdfs:comment "A natural-language task: on a dataset, each task text in meta/tasks.parquet; on an episode, the task text of its first frame (the instruction the episode was recorded with)."@en .
 cp:task a owl:DatatypeProperty ;
     rdfs:range xsd:string ;
     rdfs:label "task"@en ;
@@ -275,6 +282,22 @@ cp:sourceSha256 a owl:DatatypeProperty ;
     rdfs:comment "SHA-256 of the source: the file's bytes, or, for a dataset directory, of the path, size and modification time of every file under meta/ and data/."@en .
 cp:ingestedAt a owl:DatatypeProperty ; rdfs:range xsd:dateTime ; rdfs:label "ingested at"@en .
 cp:verifiedAt a owl:DatatypeProperty ; rdfs:range xsd:dateTime ; rdfs:label "verified at"@en .
+
+# Shared by the axes that split a range into a grid of cells.
+cp:minEpisodesPerCell a owl:DatatypeProperty ;
+    rdfs:range xsd:positiveInteger ;
+    rdfs:label "minimum episodes per cell"@en ;
+    rdfs:comment "The minimum number of dataset episodes required in each cell of a requirement's grid."@en .
+cp:cellI a owl:DatatypeProperty ; rdfs:range xsd:integer ; rdfs:label "cell column"@en .
+cp:cellJ a owl:DatatypeProperty ; rdfs:range xsd:integer ; rdfs:label "cell row"@en .
+cp:episodeCount a owl:DatatypeProperty ;
+    rdfs:range xsd:nonNegativeInteger ;
+    rdfs:label "episode count"@en ;
+    rdfs:comment "The number of dataset episodes in a cell or color category (added by verify)."@en .
+cp:covered a owl:DatatypeProperty ;
+    rdfs:range xsd:boolean ;
+    rdfs:label "covered"@en ;
+    rdfs:comment "Whether a run placement falls where the dataset has at least the required number of episodes."@en .
 
 cp:passed a owl:DatatypeProperty ; rdfs:range xsd:boolean ; rdfs:label "passed"@en .
 cp:runsInDistribution a owl:DatatypeProperty ;

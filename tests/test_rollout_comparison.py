@@ -344,9 +344,9 @@ def test_rollout_writes_log_after_each_reset() -> None:
     source = (ROOT / "scripts" / "rollout.py").read_text()
     assert 'os.path.join("outputs", "rollout", f"{time.strftime(' in source, "every rollout writes outputs/rollout/<timestamp>.jsonl"
     reset = source.index("obs_dict, _ = env.reset()\n        needs_reset = True")
-    capture = source.index("start_positions = object_positions(env.scene")
+    capture = source.index("round_factors = start_factors(env.scene")
     step = source.index("env.step(actions)")
-    assert reset < capture < step, "initial positions must be read after the round's reset and before stepping"
+    assert reset < capture < step, "initial positions, lighting and colors must be read after the round's reset and before stepping"
 
 
 def _list_attr(path: Path, name: str) -> list[str]:
@@ -386,6 +386,30 @@ def test_only_randomized_objects_are_tracked(task_file: str) -> None:
     tracked, fixed = _list_attr(path, "tracked_object_names"), _list_attr(path, "fixed_object_names")
     assert set(tracked) == _randomized_names(path), "tracked_object_names must list exactly the randomized objects"
     assert not set(tracked) & set(fixed)
+
+
+def _dict_attr(path: Path, name: str):
+    for node in ast.walk(ast.parse(path.read_text())):
+        if isinstance(node, ast.AnnAssign) and getattr(node.target, "id", None) == name:
+            return ast.literal_eval(node.value)
+    return None
+
+
+@pytest.mark.parametrize("task_file", TASK_FILES)
+def test_color_template_names_every_palette_object(task_file: str) -> None:
+    import string
+
+    path = ROOT / task_file
+    palettes, template = _dict_attr(path, "object_color_palettes"), _dict_attr(path, "task_description_template")
+    assert palettes and template, "every task names its object colors in the task text"
+    fields = {f for _, f, _, _ in string.Formatter().parse(template) if f}
+    assert fields == set(palettes), "the template must have one {field} per palette object"
+    assert all(len(rgb) == 3 for palette in palettes.values() for rgb in palette.values())
+    assert _list_attr(path, "recorded_light_names") == ["rect_light"]
+    source = path.read_text()
+    assert 'rect_light: AssetBaseCfg = AssetBaseCfg(prim_path="{ENV_REGEX_NS}/Scene/RectLight")' in source
+    assert "randomize_object_color_palettes(self.object_color_palettes)" in source
+    assert 'randomize_light_conditions("light"' not in source, "the RectLight is the randomized light, as in evaluation"
 
 
 def test_rollout_header_has_robot_base_and_fixed_objects() -> None:

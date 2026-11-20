@@ -87,6 +87,28 @@ def add_task_object(
     return obj
 
 
+def add_light_condition(graph: Graph, owner: URIRef, name: str, intensity: float, color_temperature: float) -> URIRef:
+    """A light's intensity and color temperature in an episode or run (``<owner>/light/<name>``)."""
+    node = URIRef(f"{owner}/light/{quote(name, safe='')}")
+    graph.add((node, RDF.type, CP.LightCondition))
+    graph.add((node, CP.name, Literal(name)))
+    graph.add((node, CP.lightIntensity, decimal_literal(intensity)))
+    graph.add((node, CP.colorTemperature, decimal_literal(color_temperature)))
+    graph.add((owner, CP.hasLightCondition, node))
+    return node
+
+
+def add_object_color(graph: Graph, owner: URIRef, name: str, rgb: tuple[float, float, float]) -> URIRef:
+    """An object's diffuse color in an episode or run (``<owner>/color/<name>``)."""
+    node = URIRef(f"{owner}/color/{quote(name, safe='')}")
+    graph.add((node, RDF.type, CP.ObjectColor))
+    graph.add((node, CP.name, Literal(name)))
+    for p, value in zip((CP.colorR, CP.colorG, CP.colorB), rgb):
+        graph.add((node, p, decimal_literal(value)))
+    graph.add((owner, CP.hasObjectColor, node))
+    return node
+
+
 def index_literal(value: int) -> Literal:
     return Literal(value, datatype=XSD.nonNegativeInteger)
 

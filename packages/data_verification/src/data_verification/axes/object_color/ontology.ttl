@@ -1,0 +1,125 @@
+# OWL vocabulary of the object color axis (extends ontology/core.ttl).
+#
+# STAR-Gen category: Semantic (object property). Each named object gets a
+# color at every reset, and the task text names that color ("pick up the red
+# cup ..."), so a language-conditioned policy has to ground the color word in
+# the image. The recorder writes the object's diffuse color per frame (dataset
+# column object_color.<name> = [r, g, b]) and the episode's task text.
+#
+# An ObjectColorAxis has ObjectColorAxisRequirements. A requirement names one
+# TaskObject and its ColorCategories: each category is a color word (cp:name,
+# as written in the task text) with a reference RGB. An episode's color
+# belongs to the nearest category within maxColorDistance (Euclidean RGB);
+# otherwise to none. The requirement asks for:
+#   - at least minEpisodesPerColor episodes in every category;
+#   - a normalized Shannon entropy of the episodes over the categories of at
+#     least minNormalizedEntropy (1 = evenly spread, 0 = all in one);
+#   - the task text of every episode names its category (language check).
+#
+# Recorded facts (ingest):
+#   an Episode or Run has an ObjectColor per recorded object (first frame).
+# Derived by the verifier, never written by hand:
+#   verify  each category's episodeCount and each requirement's
+#           normalizedEntropy (Verification), and one ColorPlacement per
+#           finished run and requirement (Comparison).
+
+@prefix cp:      <http://taica.course/cp/ontology#> .
+@prefix owl:     <http://www.w3.org/2002/07/owl#> .
+@prefix rdfs:    <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix xsd:     <http://www.w3.org/2001/XMLSchema#> .
+@prefix dcterms: <http://purl.org/dc/terms/> .
+
+<http://taica.course/cp/ontology/object_color> a owl:Ontology ;
+    dcterms:title "Object color axis"@en ;
+    owl:imports <http://taica.course/cp/ontology> ;
+    owl:versionIRI <http://taica.course/cp/ontology/object_color/1.0.0> .
+
+# ---- Recorded facts -----------------------------------------------------------
+
+cp:ObjectColor a owl:Class ;
+    rdfs:subClassOf
+        [ a owl:Restriction ; owl:onProperty cp:name ; owl:qualifiedCardinality "1"^^xsd:nonNegativeInteger ; owl:onDataRange xsd:string ] ,
+        [ a owl:Restriction ; owl:onProperty cp:colorR ; owl:qualifiedCardinality "1"^^xsd:nonNegativeInteger ; owl:onDataRange xsd:decimal ] ,
+        [ a owl:Restriction ; owl:onProperty cp:colorG ; owl:qualifiedCardinality "1"^^xsd:nonNegativeInteger ; owl:onDataRange xsd:decimal ] ,
+        [ a owl:Restriction ; owl:onProperty cp:colorB ; owl:qualifiedCardinality "1"^^xsd:nonNegativeInteger ; owl:onDataRange xsd:decimal ] ;
+    rdfs:label "Object Color"@en ;
+    rdfs:comment "The diffuse color of one object (its IsaacLab scene name) at the start of an episode or run, as set on its material (OmniPBR diffuse_color_constant; values above 1 are allowed)."@en .
+
+# ---- Requirements -------------------------------------------------------------
+
+cp:ObjectColorAxis a owl:Class ;
+    rdfs:subClassOf
+        cp:GeneralizationAxis ,
+        [ a owl:Restriction ; owl:onProperty cp:hasRequirement ; owl:allValuesFrom cp:ObjectColorAxisRequirement ] ;
+    rdfs:label "Object Color Axis"@en ;
+    rdfs:comment "The axis of object colors named in the task text (STAR-Gen: Semantic, object property). Its requirements are object color requirements."@en .
+
+cp:ObjectColorAxisRequirement a owl:Class ;
+    rdfs:subClassOf
+        cp:AxisRequirement ,
+        [ a owl:Restriction ; owl:onProperty cp:hasTaskObject ; owl:qualifiedCardinality "1"^^xsd:nonNegativeInteger ; owl:onClass cp:TaskObject ] ,
+        [ a owl:Restriction ; owl:onProperty cp:hasColorCategory ; owl:someValuesFrom cp:ColorCategory ] ,
+        [ a owl:Restriction ; owl:onProperty cp:hasColorCategory ; owl:allValuesFrom cp:ColorCategory ] ,
+        [ a owl:Restriction ; owl:onProperty cp:maxColorDistance ; owl:qualifiedCardinality "1"^^xsd:nonNegativeInteger ; owl:onDataRange xsd:decimal ] ,
+        [ a owl:Restriction ; owl:onProperty cp:minEpisodesPerColor ; owl:qualifiedCardinality "1"^^xsd:nonNegativeInteger ; owl:onDataRange xsd:positiveInteger ] ,
+        [ a owl:Restriction ; owl:onProperty cp:minNormalizedEntropy ; owl:qualifiedCardinality "1"^^xsd:nonNegativeInteger ; owl:onDataRange xsd:decimal ] ;
+    rdfs:label "Object Color Axis Requirement"@en ;
+    rdfs:comment "One task object, its color categories, how far a color may be from a category's reference, the minimum episodes per category, and the minimum normalized entropy over the categories."@en .
+
+cp:ColorCategory a owl:Class ;
+    rdfs:subClassOf
+        [ a owl:Restriction ; owl:onProperty cp:name ; owl:qualifiedCardinality "1"^^xsd:nonNegativeInteger ; owl:onDataRange xsd:string ] ,
+        [ a owl:Restriction ; owl:onProperty cp:colorR ; owl:qualifiedCardinality "1"^^xsd:nonNegativeInteger ; owl:onDataRange xsd:decimal ] ,
+        [ a owl:Restriction ; owl:onProperty cp:colorG ; owl:qualifiedCardinality "1"^^xsd:nonNegativeInteger ; owl:onDataRange xsd:decimal ] ,
+        [ a owl:Restriction ; owl:onProperty cp:colorB ; owl:qualifiedCardinality "1"^^xsd:nonNegativeInteger ; owl:onDataRange xsd:decimal ] ,
+        [ a owl:Restriction ; owl:onProperty [ owl:inverseOf cp:hasColorCategory ] ; owl:qualifiedCardinality "1"^^xsd:nonNegativeInteger ; owl:onClass cp:ObjectColorAxisRequirement ] ;
+    rdfs:label "Color Category"@en ;
+    rdfs:comment "A named color of one requirement: the word the task text uses for it (cp:name) and its reference RGB, normally the value of the task's color palette. Its episodeCount is added by verify."@en .
+
+# ---- Verification results -----------------------------------------------------
+
+cp:ColorPlacement a owl:Class ;
+    rdfs:subClassOf
+        [ a owl:Restriction ; owl:onProperty cp:ofRun ; owl:qualifiedCardinality "1"^^xsd:nonNegativeInteger ; owl:onClass cp:Run ] ,
+        [ a owl:Restriction ; owl:onProperty cp:ofRequirement ; owl:qualifiedCardinality "1"^^xsd:nonNegativeInteger ; owl:onClass cp:ObjectColorAxisRequirement ] ,
+        [ a owl:Restriction ; owl:onProperty cp:inCategory ; owl:maxQualifiedCardinality "1"^^xsd:nonNegativeInteger ; owl:onClass cp:ColorCategory ] ,
+        [ a owl:Restriction ; owl:onProperty cp:covered ; owl:qualifiedCardinality "1"^^xsd:nonNegativeInteger ; owl:onDataRange xsd:boolean ] ;
+    rdfs:label "Color Placement"@en ;
+    rdfs:comment "The color category of a finished run's object for one requirement (none for a color the spec does not name: an unseen color), and whether that category has at least minEpisodesPerColor dataset episodes."@en .
+
+[] a owl:AllDisjointClasses ;
+    owl:members ( cp:ObjectColor cp:ObjectColorAxisRequirement cp:ColorCategory cp:ColorPlacement
+                  cp:Dataset cp:Episode cp:Rollout cp:Run cp:TaskObject cp:Position cp:Finding ) .
+
+# ---- Object properties --------------------------------------------------------
+
+cp:hasObjectColor a owl:ObjectProperty ;
+    rdfs:label "has object color"@en ;
+    rdfs:comment "An episode or run has the color of each recorded object at its start."@en .
+cp:hasColorCategory a owl:ObjectProperty ; rdfs:label "has color category"@en .
+cp:inCategory a owl:ObjectProperty ; rdfs:label "in category"@en .
+
+# ---- Datatype properties ------------------------------------------------------
+
+cp:colorR a owl:DatatypeProperty ; rdfs:range xsd:decimal ; rdfs:label "red"@en .
+cp:colorG a owl:DatatypeProperty ; rdfs:range xsd:decimal ; rdfs:label "green"@en .
+cp:colorB a owl:DatatypeProperty ; rdfs:range xsd:decimal ; rdfs:label "blue"@en .
+cp:recordedColorObject a owl:DatatypeProperty ;
+    rdfs:range xsd:string ;
+    rdfs:label "recorded color object"@en ;
+    rdfs:comment "The name of an object a dataset has an object_color.<name> column for."@en .
+cp:maxColorDistance a owl:DatatypeProperty ;
+    rdfs:range xsd:decimal ;
+    rdfs:label "maximum color distance"@en ;
+    rdfs:comment "Largest Euclidean RGB distance between a recorded color and a category's reference for the color to belong to that category."@en .
+cp:minEpisodesPerColor a owl:DatatypeProperty ;
+    rdfs:range xsd:positiveInteger ;
+    rdfs:label "minimum episodes per color"@en .
+cp:minNormalizedEntropy a owl:DatatypeProperty ;
+    rdfs:range xsd:decimal ;
+    rdfs:label "minimum normalized entropy"@en ;
+    rdfs:comment "Between 0 and 1. The episodes' Shannon entropy over the categories, divided by its maximum, log(number of categories)."@en .
+cp:normalizedEntropy a owl:DatatypeProperty ;
+    rdfs:range xsd:decimal ;
+    rdfs:label "normalized entropy"@en ;
+    rdfs:comment "The dataset's normalized entropy over a requirement's categories (added by verify)."@en .

@@ -15,7 +15,7 @@ from leisaac.utils.general_assets import parse_usd_and_create_subassets
 from leisaac.utils.domain_randomization import domain_randomization, randomize_object_uniform
 from simulator import ASSETS_ROOT
 from simulator.assets.scenes.dining_room import DINING_ROOM_CFG, DINING_ROOM_USD_PATH
-from simulator.utils.domain_randomization import randomize_light_conditions
+from simulator.utils.domain_randomization import randomize_light_conditions, randomize_object_color_palettes
 
 from simulator.tasks.template.single_arm_franka_cfg import (
     SingleArmFrankaObservationsCfg,
@@ -137,6 +137,17 @@ class CutleryArrangementEnvCfg(SingleArmFrankaTaskEnvCfg):
     task_description: str = "place the fork on the left and knife on the right of the plate."
     tracked_object_names: list[str] = ["fork", "knife"]
     fixed_object_names: list[str] = ["plate"]
+    recorded_light_names: list[str] = ["rect_light"]
+    # Colors and task text as in the task configuration. Staff: the evaluation should use colors the
+    # training palettes do not list (held-out colors), named in the same template.
+    object_color_palettes: dict[str, dict[str, tuple[float, float, float]]] = {
+        "fork": {"pink": (1.87, 0.4, 1.88)},
+        "knife": {"orange": (2.0, 0.4, 0.0)},
+        "plate": {"green": (0.2, 1.66, 0.2)},
+    }
+    task_description_template: str = (
+        "place the {fork} fork on the left and the {knife} knife on the right of the {plate} plate."
+    )
 
     def __post_init__(self) -> None:
         super().__post_init__()
@@ -193,6 +204,7 @@ class CutleryArrangementEnvCfg(SingleArmFrankaTaskEnvCfg):
                     textures=[],
                     color_temperature_range=(3000.0, 6500.0),
                 ),
+                randomize_object_color_palettes(self.object_color_palettes),
             ],
         )
 

@@ -15,7 +15,11 @@ from leisaac.utils.general_assets import parse_usd_and_create_subassets
 from leisaac.utils.domain_randomization import domain_randomization
 from simulator import ASSETS_ROOT
 from simulator.assets.scenes.kitchen import KITCHEN_CFG, KITCHEN_USD_PATH
-from simulator.utils.domain_randomization import randomize_light_conditions, randomize_objects_apart
+from simulator.utils.domain_randomization import (
+    randomize_light_conditions,
+    randomize_object_color_palettes,
+    randomize_objects_apart,
+)
 
 from simulator.tasks.template.single_arm_franka_cfg import (
     SingleArmFrankaObservationsCfg,
@@ -92,6 +96,14 @@ class CupStackingEvalEnvCfg(SingleArmFrankaTaskEnvCfg):
     terminations: EvalTerminationsCfg = EvalTerminationsCfg()
     task_description: str = "pick up the blue cup and place it on the pink cup."
     tracked_object_names: list[str] = ["blue_cup", "pink_cup"]
+    recorded_light_names: list[str] = ["rect_light"]
+    # Colors and task text as in the task configuration. Staff: the evaluation should use colors the
+    # training palettes do not list (held-out colors), named in the same template.
+    object_color_palettes: dict[str, dict[str, tuple[float, float, float]]] = {
+        "blue_cup": {"blue": (0.2549, 0.4118, 0.8824)},
+        "pink_cup": {"pink": (1.0, 0.0784, 0.5765)},
+    }
+    task_description_template: str = "pick up the {blue_cup} cup and place it on the {pink_cup} cup."
 
     def __post_init__(self) -> None:
         super().__post_init__()
@@ -140,6 +152,7 @@ class CupStackingEvalEnvCfg(SingleArmFrankaTaskEnvCfg):
                     textures=[],
                     color_temperature_range=(3000.0, 6500.0),
                 ),
+                randomize_object_color_palettes(self.object_color_palettes),
             ],
         )
 

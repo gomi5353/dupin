@@ -9,11 +9,15 @@ from __future__ import annotations
 
 from rdflib import URIRef
 
+from .axes.lighting import LightingVerifier
+from .axes.object_color import ObjectColorVerifier
 from .axes.object_position import ObjectPositionVerifier
 from .verifier import Verifier
 
 VERIFIERS: list[Verifier] = [
     ObjectPositionVerifier(),
+    LightingVerifier(),
+    ObjectColorVerifier(),
 ]
 
 

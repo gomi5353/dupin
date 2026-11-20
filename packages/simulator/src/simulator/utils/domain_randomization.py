@@ -97,6 +97,94 @@ def randomize_light_conditions(
     )
 
 
+class randomize_object_colors(ManagerTermBase):
+    """Give each object a color from its palette on each reset, and remember the color names per env.
+
+    ``palettes`` maps an object's scene name to its colors, ``{color word: (r, g, b)}``. The color
+    word is what the task text says (``task_description_template``); the RGB is written to the
+    diffuse color of every material bound to the object (OmniPBR ``diffuse_color_constant``, the
+    material the task assets use; values above 1 are allowed and look brighter). An object without
+    such a material gets a UsdPreviewSurface material at start-up.
+
+    Samples come from a private RNG seeded with ``env.cfg.seed``, as in ``randomize_light``.
+    The chosen words are kept in ``env.object_color_names[env_id][object]``, which
+    ``SingleArmFrankaTaskEnvCfg.task_text`` reads.
+    """
+
+    def __init__(self, cfg: EventTerm, env: ManagerBasedEnv):
+        super().__init__(cfg, env)
+        import omni.usd
+
+        from simulator.utils.scene_factors import diffuse_shaders, object_prim_path
+
+        seed = env.cfg.seed if env.cfg.seed is not None else 0
+        self._rng = random.Random(f"{seed}:object_colors")
+        palettes: dict[str, dict[str, tuple[float, float, float]]] = cfg.params["palettes"]
+        for name, palette in palettes.items():
+            if not palette:
+                raise ValueError(f"object_color_palettes['{name}'] is empty; give it at least one color")
+        stage = omni.usd.get_context().get_stage()
+        self._shaders: dict[tuple[str, int], list] = {}
+        for name in palettes:
+            for env_id in range(env.num_envs):
+                path = object_prim_path(env.scene, name, env_id)
+                shaders = diffuse_shaders(stage, path) or _add_preview_material(stage, path)
+                self._shaders[(name, env_id)] = shaders
+        # Before the first reset every object shows its first palette color.
+        env.object_color_names = [{name: next(iter(palette)) for name, palette in palettes.items()} for _ in range(env.num_envs)]
+        for env_id in range(env.num_envs):
+            for name, palette in palettes.items():
+                self._apply(name, env_id, palette[env.object_color_names[env_id][name]])
+
+    def _apply(self, name: str, env_id: int, rgb: tuple[float, float, float]) -> None:
+        from pxr import Gf
+
+        from simulator.utils.scene_factors import DIFFUSE_INPUTS
+
+        for shader in self._shaders[(name, env_id)]:
+            for attr_name in DIFFUSE_INPUTS:
+                attr = shader.GetAttribute(attr_name)
+                if attr.IsValid():
+                    attr.Set(Gf.Vec3f(*(float(v) for v in rgb)))
+
+    def __call__(
+        self,
+        env: ManagerBasedEnv,
+        env_ids: torch.Tensor | None,
+        palettes: dict[str, dict[str, tuple[float, float, float]]],
+    ):
+        ids = range(env.num_envs) if env_ids is None else sorted(env_ids.tolist())
+        for env_id in ids:
+            for name, palette in palettes.items():
+                word = self._rng.choice(sorted(palette))
+                env.object_color_names[env_id][name] = word
+                self._apply(name, env_id, palette[word])
+
+
+def _add_preview_material(stage, object_path: str) -> list:
+    """Bind a new UsdPreviewSurface material to ``object_path`` (over its meshes) and return its shader."""
+    from pxr import Sdf, UsdShade
+
+    from simulator.utils.scene_factors import forget_shaders
+
+    material = UsdShade.Material.Define(stage, f"{object_path}/Looks/ObjectColor")
+    shader = UsdShade.Shader.Define(stage, f"{object_path}/Looks/ObjectColor/Shader")
+    shader.CreateIdAttr("UsdPreviewSurface")
+    shader.CreateInput("diffuseColor", Sdf.ValueTypeNames.Color3f)
+    shader.CreateInput("roughness", Sdf.ValueTypeNames.Float).Set(0.5)
+    material.CreateSurfaceOutput().ConnectToSource(shader.ConnectableAPI(), "surface")
+    UsdShade.MaterialBindingAPI.Apply(stage.GetPrimAtPath(object_path)).Bind(
+        material, bindingStrength=UsdShade.Tokens.strongerThanDescendants
+    )
+    forget_shaders(stage, object_path)
+    return [shader.GetPrim()]
+
+
+def randomize_object_color_palettes(palettes: dict[str, dict[str, tuple[float, float, float]]]) -> EventTerm:
+    """Reset event: each object in ``palettes`` gets one of its colors (see ``randomize_object_colors``)."""
+    return EventTerm(func=randomize_object_colors, mode="reset", params={"palettes": palettes})
+
+
 _POSE_KEYS = ("x", "y", "z", "roll", "pitch", "yaw")
 
 
