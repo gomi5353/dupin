@@ -29,7 +29,9 @@ read from the scene in ``scene_frame`` below, like the lighting
 (``task_text``), which names the object colors.
 
 Record with ``LeRobotRecorderManager`` from this module, not leisaac's original
-class, which writes no verification columns.
+class, which writes no verification columns and records env 0 only. This one
+records every env (``--num_envs N``): each env has its own episode buffer
+(``episode_buffers.py``), and each env's episode is saved when it succeeded.
 
 Keep ``OBJECT_POSITION_KEY_PREFIX`` / ``OBJECT_POSITION_NAMES`` in sync with
 ``data_verification.dataset``.
@@ -95,14 +97,25 @@ def scene_frame(env, light_names: list[str], color_names: list[str], env_id: int
 @cache
 def _make_recorder_manager_class():
     import leisaac.enhance.managers.lerobot_recorder_manager as leisaac_recorder
+    import torch
+    from isaaclab.managers import RecorderManager
+    from isaaclab.utils.datasets.episode_data import EpisodeData
+
+    from .episode_buffers import EpisodeBuffers
 
     class LeRobotRecorderManager(leisaac_recorder.LeRobotRecorderManager):
-        """leisaac's LeRobot recorder plus the verification columns.
+        """leisaac's LeRobot recorder plus the verification columns, recording every env.
 
         leisaac builds the dataset features inside ``__init__`` with no
         extension hook, so the feature builder is wrapped for the duration of
         the base constructor only. Tracked objects come from
         ``env.cfg.tracked_object_names``, which must not be empty.
+
+        leisaac records env 0 only and, with ``num_envs > 1``, saves env 0's
+        frames once per finished env. Here every env has its own episode
+        buffer (``EpisodeBuffers``): each env's frames go to its own buffer,
+        and at reset each env's episode is saved when it succeeded and dropped
+        otherwise, so N envs record N episodes per round.
         """
 
         def __init__(self, cfg, dataset_cfg, env):
@@ -112,9 +125,10 @@ def _make_recorder_manager_class():
                     f"{type(env.cfg).__name__}.tracked_object_names is empty: no object positions would be recorded "
                     "and the dataset could not be verified. List the task's rigid objects there."
                 )
-            light_names = list(getattr(env.cfg, "recorded_light_names", []))
-            color_names = list(getattr(env.cfg, "object_references", {}))
+            self._light_names = list(getattr(env.cfg, "recorded_light_names", []))
+            self._color_names = list(getattr(env.cfg, "object_references", {}))
             base_build = leisaac_recorder.build_feature_from_env
+            light_names, color_names = self._light_names, self._color_names
 
             def build_with_factors(env, dataset_cfg):
                 features = base_build(env, dataset_cfg)
@@ -130,27 +144,51 @@ def _make_recorder_manager_class():
             finally:
                 leisaac_recorder.build_feature_from_env = base_build
 
-            # Resume: leisaac reopens the dataset with LeRobotDataset(repo_id), which has no episode
-            # buffer, and the first reset then fails in clear_episode_buffer(). Create the buffer here.
-            dataset = getattr(self._dataset_file_handler, "_lerobot_dataset", None)
-            if dataset is not None and getattr(dataset, "episode_buffer", ()) is None:
-                dataset.episode_buffer = dataset.create_episode_buffer()
+            dataset = self._dataset_file_handler._lerobot_dataset
             # leisaac's handler raises NotImplementedError here; the collection scripts read it on resume.
-            if dataset is not None:
-                self._dataset_file_handler.get_num_episodes = lambda: dataset.meta.total_episodes
+            self._dataset_file_handler.get_num_episodes = lambda: dataset.meta.total_episodes
+            self._buffers = EpisodeBuffers(dataset)
 
-            # leisaac adds env 0's frame through the handler; add the values read from the scene and the
-            # episode's own task text there, so the frame builder needs no access to the env.
-            handler = self._dataset_file_handler
-            base_add_frame = handler.add_frame
-
-            def add_frame(frame: dict) -> None:
-                frame.update(scene_frame(env, light_names, color_names))
+        def record_post_step(self) -> None:
+            """Add one frame per env to that env's episode buffer (after the first ``_skip_frames`` steps)."""
+            RecorderManager.record_post_step(self)
+            env = self._env
+            for env_id in range(env.num_envs):
+                self._env_steps_record[env_id] += 1
+                if self._env_steps_record[env_id] <= self._skip_frames:
+                    continue
+                frame = env.cfg.build_lerobot_frame(self._episodes[env_id], self._dataset_cfg)
+                # Values read from the scene and the episode's own task text, so the frame builder needs no env.
+                frame.update(scene_frame(env, self._light_names, self._color_names, env_id))
                 if hasattr(env.cfg, "task_text"):
-                    frame["task"] = env.cfg.task_text(env, 0)
-                base_add_frame(frame)
+                    frame["task"] = env.cfg.task_text(env, env_id)
+                self._buffers.add_frame(env_id, frame)
+                self._episodes[env_id]._data.clear()
 
-            handler.add_frame = add_frame
+        def export_episodes(self, env_ids=None) -> None:
+            """Save each given env's episode if it succeeded, drop it otherwise."""
+            if len(self.active_terms) == 0:
+                return
+            if env_ids is None:
+                env_ids = list(range(self._env.num_envs))
+            if isinstance(env_ids, torch.Tensor):
+                env_ids = env_ids.tolist()
+            for env_id in env_ids:
+                if env_id in self._episodes:
+                    if self._episodes[env_id].success and self._buffers.save(env_id):
+                        self._exported_successful_episode_count[env_id] = (
+                            self._exported_successful_episode_count.get(env_id, 0) + 1
+                        )
+                    else:
+                        self._buffers.discard(env_id)
+                        self._exported_failed_episode_count[env_id] = (
+                            self._exported_failed_episode_count.get(env_id, -1) + 1
+                        )  # default -1: the first reset has no episode
+                self._episodes[env_id] = EpisodeData()
+
+        def finalize(self):
+            self._buffers.discard_all()  # episodes that never reached a reset
+            super().finalize()
 
     return LeRobotRecorderManager
 

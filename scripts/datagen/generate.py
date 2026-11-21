@@ -5,6 +5,12 @@ Unified data generation script using state machines.
 Selects the state machine for --task and runs --num_demos episodes. The task's
 reset events randomize the object positions at the start of every episode.
 
+With --num_envs N, the N envs run one episode each per round, in lockstep
+(the state machine steps all envs together and the round ends when it is
+done). Each env's episode is judged and recorded on its own: a round records
+the envs that succeeded. --num_demos counts episodes over all envs and is
+rounded up to whole rounds.
+
 Usage:
     python scripts/datagen/generate.py \
         --task HCIS-CupStacking-SingleArm-v0 --num_demos 10 \
@@ -95,23 +101,19 @@ class RateLimiter:
                 self.last_time += self.sleep_duration
 
 
-def auto_terminate(env: ManagerBasedRLEnv | DirectRLEnv, success: bool):
+def auto_terminate(env: ManagerBasedRLEnv | DirectRLEnv, success: bool | torch.Tensor):
+    """Set the success term the recorder reads at the next reset: one bool for every env, or a (num_envs,) mask."""
+    if isinstance(success, torch.Tensor):
+        mask = success.to(device=env.device, dtype=torch.bool).clone()
+    else:
+        mask = torch.full((env.num_envs,), bool(success), dtype=torch.bool, device=env.device)
     if hasattr(env, "termination_manager"):
         if "success" not in env.termination_manager.active_terms:
             return  # not recording: success term was removed in the env cfg
-        if success:
-            env.termination_manager.set_term_cfg(
-                "success",
-                TerminationTermCfg(func=lambda env: torch.ones(env.num_envs, dtype=torch.bool, device=env.device)),
-            )
-        else:
-            env.termination_manager.set_term_cfg(
-                "success",
-                TerminationTermCfg(func=lambda env: torch.zeros(env.num_envs, dtype=torch.bool, device=env.device)),
-            )
+        env.termination_manager.set_term_cfg("success", TerminationTermCfg(func=lambda env: mask))
         env.termination_manager.compute()
     elif hasattr(env, "_get_dones"):
-        env.cfg.return_success_status = success
+        env.cfg.return_success_status = bool(mask.all().item())
 
 
 def _configure_env_cfg(env_cfg, args_cli, is_direct_env, output_dir, output_file_name):
@@ -203,17 +205,24 @@ def _on_episode_done(
 ):
     """Handle end-of-episode logic.
 
-    Returns (next_episode_idx, current_recorded_demo_count, start_record_state, should_break).
+    Returns (next_episode_idx, current_recorded_demo_count, start_record_state, should_break,
+    success per env as a list of bools).
     """
     total_episodes = len(episodes)
 
     try:
-        success = sm.check_success(env)
+        success_mask = sm.success_mask(env).bool()
     except Exception as e:
         print("Success check failed:", e)
-        success = False
+        success_mask = torch.zeros(env.num_envs, dtype=torch.bool, device=env.device)
+    successes = success_mask.tolist()
+    success = any(successes)
 
-    print("Episode success!" if success else "Episode failed!")
+    if env.num_envs == 1:
+        print("Episode success!" if success else "Episode failed!")
+    else:
+        print(f"Round done: {sum(successes)}/{env.num_envs} envs succeeded "
+              f"(envs {[i for i, ok in enumerate(successes) if ok]}).")
 
     if start_record_state:
         if args_cli.record:
@@ -221,8 +230,8 @@ def _on_episode_done(
         start_record_state = False
 
     if args_cli.record and success:
-        auto_terminate(env, True)
-        current_recorded_demo_count += 1
+        auto_terminate(env, success_mask)
+        current_recorded_demo_count += sum(successes)
     else:
         auto_terminate(env, False)
 
@@ -245,13 +254,14 @@ def _on_episode_done(
     sm.reset()
     auto_terminate(env, False)
 
-    if next_episode_idx >= total_episodes:
+    # This round ran episodes next_episode_idx .. next_episode_idx + num_envs - 1.
+    if next_episode_idx + env.num_envs - 1 >= total_episodes:
         print(f"Completed all {total_episodes} episodes. Exiting the app.")
-        return next_episode_idx, current_recorded_demo_count, start_record_state, True, success
+        return next_episode_idx, current_recorded_demo_count, start_record_state, True, successes
 
-    next_episode_idx += 1
+    next_episode_idx += env.num_envs
 
-    return next_episode_idx, current_recorded_demo_count, start_record_state, False, success
+    return next_episode_idx, current_recorded_demo_count, start_record_state, False, successes
 
 
 def main():
@@ -333,7 +343,7 @@ def main():
                         current_recorded_demo_count,
                         start_record_state,
                         should_break,
-                        success,
+                        successes,
                     ) = _on_episode_done(
                         env,
                         sm,
@@ -344,12 +354,13 @@ def main():
                         current_recorded_demo_count,
                         start_record_state,
                     )
-                    if success:
-                        print(f"\033[92m[Data Usage]{cnt}/{len(episodes)} success.\033[0m")
-                        success_ID.append(cnt)
-                    else:
-                        print(f"\033[91m[Data Usage]{cnt}/{len(episodes)} fail.\033[0m")
-                    cnt += 1
+                    for success in successes:
+                        if success:
+                            print(f"\033[92m[Data Usage]{cnt}/{len(episodes)} success.\033[0m")
+                            success_ID.append(cnt)
+                        else:
+                            print(f"\033[91m[Data Usage]{cnt}/{len(episodes)} fail.\033[0m")
+                        cnt += 1
                     if should_break:
                         break
                 else:

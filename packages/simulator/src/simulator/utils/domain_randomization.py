@@ -53,16 +53,16 @@ class randomize_light(ManagerTermBase):
         color_temperature_range: tuple[float, float] | None = None,
         asset_cfg: SceneEntityCfg = SceneEntityCfg("light"),
     ):
-        prims = env.scene[asset_cfg.name].prims
-        # A global (non env-scoped) light has a single prim shared by all envs.
-        if len(prims) == 1 or env_ids is None:
-            ids = range(len(prims))
-        else:
-            ids = sorted(env_ids.tolist())
+        from .scene_factors import env_prims, is_env_scoped
+
+        ids = range(env.num_envs) if env_ids is None else sorted(env_ids.tolist())
+        prims = env_prims(env.scene, asset_cfg.name, ids)
+        # A global (non env-scoped) light has a single prim shared by all envs: sample it once.
+        if not is_env_scoped(env.scene, asset_cfg.name):
+            prims = prims[:1]
 
         rng = self._rng
-        for i in ids:
-            prim = prims[i]
+        for prim in prims:
             prim.GetAttribute("inputs:intensity").Set(rng.uniform(*intensity_range))
 
             offsets = [rng.uniform(-color_variation, color_variation) for _ in range(3)]

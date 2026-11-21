@@ -91,7 +91,7 @@ class EvalTerminationsCfg(SingleArmFrankaTerminationsCfg):
 
 @configclass
 class CupStackingEvalEnvCfg(SingleArmFrankaTaskEnvCfg):
-    scene: CupStackingEvalSceneCfg = CupStackingEvalSceneCfg(env_spacing=8.0)
+    scene: CupStackingEvalSceneCfg = CupStackingEvalSceneCfg(env_spacing=15.0)  # kitchen is 12.1 m x 7.0 m; envs must not overlap
     observations: SingleArmFrankaObservationsCfg = SingleArmFrankaObservationsCfg()
     terminations: EvalTerminationsCfg = EvalTerminationsCfg()
     task_description: str = "pick up the blue cup and place it on the pink cup."  # set from the template

@@ -72,7 +72,8 @@ python scripts/datagen/generate.py \
 | Option | Meaning |
 |---|---|
 | `--task` | One of the three task ids. |
-| `--num_demos` | Number of attempts, successful or not (required, at least 1). |
+| `--num_demos` | Number of attempts, successful or not (required, at least 1). Counted over all environments and rounded up to whole rounds of `--num_envs`. |
+| `--num_envs` | Environments simulated in parallel (default 1); see below. |
 | `--record --use_lerobot_recorder --lerobot_dataset_repo_id <id>` | Record into `datasets/<id>`. Without `--record`, the state machine runs and nothing is saved. |
 | `--resume` | Append to an existing dataset with the same id. Its episodes count toward `--num_demos`. |
 | `--seed` | Random seed of the environment; by default the current time. |
@@ -85,6 +86,15 @@ attempt is aborted when an object falls below the table. The script prints
 `[Data Usage] <attempt>/<num_demos> success` or `fail` per attempt and the
 list of successful attempts at the end. Not every attempt succeeds, so the
 dataset usually has fewer episodes than `--num_demos`.
+
+With `--num_envs N`, the N environments run one attempt each per round, side by
+side in one scene, each with its own randomized object positions, light and
+task wording. The state machine steps them together, and the round ends when
+it has finished its phases (or when an object falls in any environment). Each
+environment is then judged on its own: the round prints
+`Round done: <k>/<N> envs succeeded` and records the k successful episodes.
+More environments record faster until the GPU is full; each one renders its
+own cameras.
 
 ## 3. Record with keyboard teleoperation
 
@@ -104,7 +114,7 @@ python scripts/teleop.py \
 |---|---|
 | `--num_demos` | Stop after this many saved episodes; `0` (default) runs until Ctrl+C. |
 | `--sensitivity` | Scale of the motion per key press (default 1.0). |
-| `--record`, `--use_lerobot_recorder`, `--lerobot_dataset_repo_id`, `--resume`, `--seed` | As for the state machine. |
+| `--record`, `--use_lerobot_recorder`, `--lerobot_dataset_repo_id`, `--resume`, `--seed` | As for the state machine. Recording needs `--num_envs 1` (the default): one operator drives one robot. |
 
 The keys move a target pose for the hand; an inverse kinematics solver turns
 it into joint targets. The script prints the key table at start, and the
@@ -199,7 +209,8 @@ Behavior that affects recording:
 - The first 5 steps after every reset are skipped, so that no image of the
   previous scene is recorded.
 - An episode is written at the next reset if it is marked successful, and
-  dropped otherwise. Only environment 0 is recorded.
+  dropped otherwise. Every environment is recorded into its own buffer, and
+  episodes are numbered in the order they are written.
 - The dataset goes to `datasets/<repo_id>` (`HF_LEROBOT_HOME`). If that folder
   already exists, recording stops with `FileExistsError`; `--resume` appends to
   it instead, with the same task and `fps`. Copying the folder first protects

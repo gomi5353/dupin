@@ -234,7 +234,8 @@ class ToyBlocksCollectionStateMachine(StateMachineBase):
         env.scene.update(dt=env.physics_dt)
         self._rest_ee_pos_w = self._ee_pos_w(robot).clone()
 
-    def check_success(self, env) -> bool:
+    def success_mask(self, env) -> torch.Tensor:
+        """(num_envs,) bool: which envs completed the task."""
         storage_pos = env.scene[_STORAGE_BOX_NAME].data.root_pos_w - env.scene.env_origins
         done = torch.ones(env.num_envs, dtype=torch.bool, device=env.device)
         for obj_name in _OBJECT_NAMES:
@@ -245,7 +246,11 @@ class ToyBlocksCollectionStateMachine(StateMachineBase):
             done = torch.logical_and(done, obj_pos[:, 1] > storage_pos[:, 1] + _SUCCESS_Y_RANGE[0])
             done = torch.logical_and(done, obj_pos[:, 2] < storage_pos[:, 2] + _SUCCESS_Z_RANGE[1])
             done = torch.logical_and(done, obj_pos[:, 2] > storage_pos[:, 2] + _SUCCESS_Z_RANGE[0])
-        return bool(done.all().item())
+        return done
+
+    def check_success(self, env) -> bool:
+        """True when every env completed the task."""
+        return bool(self.success_mask(env).all().item())
 
     def check_early_failure(self, env) -> bool:
         """True if any already-placed block is outside the box → episode must fail.

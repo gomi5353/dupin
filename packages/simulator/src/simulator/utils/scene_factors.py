@@ -61,17 +61,46 @@ def pick_reference_form(rng, weights: dict[str, float]) -> str:
     return rng.choices(forms, weights=[weights[f] for f in forms])[0]
 
 
-def _env_prim(prims: list, env_id: int):
-    """The prim of ``env_id``; a global (not env-scoped) asset has one prim shared by all envs."""
-    return prims[0] if len(prims) == 1 else prims[env_id]
+def _cfg_prim_path(scene, name: str) -> str:
+    """Prim path of ``name`` as written in the scene configuration.
+
+    Read from ``scene.cfg``: ``scene[name]`` of an ``AssetBaseCfg`` (a light, the
+    kitchen) is an ``XformPrimView``, which has no ``cfg``.
+    """
+    return getattr(scene.cfg, name).prim_path
+
+
+def is_env_scoped(scene, name: str) -> bool:
+    """True when ``name`` has one copy per env (its prim path is under ``{ENV_REGEX_NS}``).
+
+    The scene replaces ``{ENV_REGEX_NS}`` in its configuration by the regex
+    ``/World/envs/env_.*`` when it is built, so both forms are accepted.
+    """
+    path = _cfg_prim_path(scene, name)
+    return "{ENV_REGEX_NS}" in path or path.startswith(scene.env_regex_ns)
+
+
+def env_prims(scene, name: str, env_ids) -> list:
+    """The USD prim of the scene entity ``name`` in each env of ``env_ids``.
+
+    An entity under ``{ENV_REGEX_NS}`` has one prim per env, found by its path:
+    ``scene[name].prims`` of an ``AssetBaseCfg`` lists env 0's prim only, and
+    the other envs' copies mirror it until written through their own path. A
+    global entity (not under ``{ENV_REGEX_NS}``) has one prim, shared by all envs.
+    """
+    import omni.usd
+
+    if not is_env_scoped(scene, name):
+        prim = scene[name].prims[0]
+        return [prim for _ in env_ids]
+    stage = omni.usd.get_context().get_stage()
+    return [stage.GetPrimAtPath(object_prim_path(scene, name, int(env_id))) for env_id in env_ids]
 
 
 def light_values(scene, name: str, env_ids) -> list[list[float]]:
     """``[intensity, color_temperature]`` of the scene light ``name`` for each env in ``env_ids``."""
-    prims = scene[name].prims
     values = []
-    for env_id in env_ids:
-        prim = _env_prim(prims, int(env_id))
+    for prim in env_prims(scene, name, env_ids):
         intensity = prim.GetAttribute("inputs:intensity").Get()
         enabled = prim.GetAttribute("inputs:enableColorTemperature").Get()
         temperature = prim.GetAttribute("inputs:colorTemperature").Get() if enabled else None
@@ -85,7 +114,7 @@ def object_prim_path(scene, name: str, env_id: int) -> str:
     The scene resolves ``{ENV_REGEX_NS}`` in the configuration to the regex ``/World/envs/env_.*``;
     replace either form by the path of ``env_id``.
     """
-    path = scene[name].cfg.prim_path.replace("{ENV_REGEX_NS}", scene.env_regex_ns)
+    path = _cfg_prim_path(scene, name).replace("{ENV_REGEX_NS}", scene.env_regex_ns)
     return path.replace(scene.env_regex_ns, scene.env_prim_paths[env_id])
 
 
