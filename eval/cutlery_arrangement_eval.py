@@ -131,7 +131,7 @@ class TerminationsCfg(SingleArmFrankaTerminationsCfg):
 
 @configclass
 class CutleryArrangementEnvCfg(SingleArmFrankaTaskEnvCfg):
-    scene: CutleryArrangementSceneCfg = CutleryArrangementSceneCfg(env_spacing=8.0)
+    scene: CutleryArrangementSceneCfg = CutleryArrangementSceneCfg(env_spacing=15.0)  # kitchen is 12.1 m x 7.0 m; envs must not overlap
     observations: SingleArmFrankaObservationsCfg = SingleArmFrankaObservationsCfg()
     terminations: TerminationsCfg = TerminationsCfg()
     task_description: str = "place the fork on the left and the knife on the right of the plate."  # set from the template

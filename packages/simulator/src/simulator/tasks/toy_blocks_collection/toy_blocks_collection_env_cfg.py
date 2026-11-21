@@ -162,7 +162,7 @@ class TerminationsCfg(SingleArmFrankaTerminationsCfg):
 class ToyBlocksCollectionEnvCfg(SingleArmFrankaTaskEnvCfg):
     """Configuration for the toy blocks collection task environment."""
 
-    scene: ToyBlocksCollectionSceneCfg = ToyBlocksCollectionSceneCfg(env_spacing=8.0)
+    scene: ToyBlocksCollectionSceneCfg = ToyBlocksCollectionSceneCfg(env_spacing=15.0)  # kitchen is 12.1 m x 7.0 m; envs must not overlap
     observations: SingleArmFrankaObservationsCfg = SingleArmFrankaObservationsCfg()
     terminations: TerminationsCfg = TerminationsCfg()
     task_description: str = "pick up the bridge, the cylinder and the triangle and place them into the storage box."  # set from the template

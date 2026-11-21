@@ -180,7 +180,7 @@ scene and terminations, and sets the task-specific values:
 ```python
 @configclass
 class CupStackingEnvCfg(SingleArmFrankaTaskEnvCfg):
-    scene: CupStackingSceneCfg = CupStackingSceneCfg(env_spacing=8.0)
+    scene: CupStackingSceneCfg = CupStackingSceneCfg(env_spacing=15.0)
     observations: SingleArmFrankaObservationsCfg = SingleArmFrankaObservationsCfg()
     terminations: TerminationsCfg = TerminationsCfg()
     task_description: str = "pick up the blue cup and place it on the pink cup."  # set from the template
@@ -217,7 +217,7 @@ class CupStackingEnvCfg(SingleArmFrankaTaskEnvCfg):
 | `reference_weights` | How often an episode's task text uses each form, for example `{"name": 0.5, "color": 0.5}`. One form is drawn per episode and used for every object. A form with a weight above 0 needs a phrase for every object; otherwise the environment refuses to start. |
 | `task_description_template` | The task text with one `{<object>}` field per object in `object_references`, filled with the phrases of the episode's form. Each episode's text is saved with it ([Data Collection §5](data_collection.md#5-the-recorder-and-the-dataset)) and is the instruction for language-conditioned policies. |
 | `episode_length_s` | Time a policy gets per evaluation episode. |
-| `env_spacing` | Distance between parallel environments; larger than the scene. |
+| `env_spacing` | Distance between parallel environments; larger than the scene, or neighboring scenes overlap and cameras see into them. The shipped tasks use 15.0 m (the kitchen is 12.1 m × 7.0 m). |
 | `scene.robot.init_state` | Robot base pose and home joint angles. |
 | `scene.front.offset` | Pose of the front camera; it should show the whole workspace and the arm. |
 | `parse_usd_and_create_subassets` | Makes objects inside a packaged USD scene addressable as `{ENV_REGEX_NS}/Scene/<name>`. Needed when the background scene already contains the objects. |

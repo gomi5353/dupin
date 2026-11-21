@@ -70,6 +70,9 @@ parser.add_argument("--lerobot_dataset_fps", type=int, default=60, help="Lerobot
 AppLauncher.add_app_launcher_args(parser)
 # parse the arguments
 args_cli = parser.parse_args()
+if args_cli.record and args_cli.num_envs != 1:
+    # One operator drives one robot; the other envs would replay the same actions on other scenes.
+    parser.error("--record needs --num_envs 1 in teleop; record several envs at once with scripts/datagen/generate.py")
 
 app_launcher_args = vars(args_cli)
 

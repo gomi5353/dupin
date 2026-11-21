@@ -95,7 +95,7 @@ class TerminationsCfg(SingleArmFrankaTerminationsCfg):
 class CupStackingEnvCfg(SingleArmFrankaTaskEnvCfg):
     """Configuration for the custom task environment."""
 
-    scene: CupStackingSceneCfg = CupStackingSceneCfg(env_spacing=8.0)
+    scene: CupStackingSceneCfg = CupStackingSceneCfg(env_spacing=15.0)  # kitchen is 12.1 m x 7.0 m; envs must not overlap
     observations: SingleArmFrankaObservationsCfg = SingleArmFrankaObservationsCfg()
     terminations: TerminationsCfg = TerminationsCfg()
     task_description: str = "pick up the blue cup and place it on the pink cup."  # set from the template

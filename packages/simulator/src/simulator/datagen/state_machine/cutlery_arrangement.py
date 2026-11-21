@@ -209,7 +209,8 @@ class CutleryArrangementStateMachine(StateMachineBase):
         env.scene.update(dt=env.physics_dt)
         self._rest_ee_pos_w = self._ee_pos_w(robot).clone()
 
-    def check_success(self, env) -> bool:
+    def success_mask(self, env) -> torch.Tensor:
+        """(num_envs,) bool: which envs completed the task."""
         plate_pos = env.scene[_PLATE_NAME].data.root_pos_w - env.scene.env_origins
         fork_pos = env.scene[_FORK_NAME].data.root_pos_w - env.scene.env_origins
         knife_pos = env.scene[_KNIFE_NAME].data.root_pos_w - env.scene.env_origins
@@ -224,7 +225,11 @@ class CutleryArrangementStateMachine(StateMachineBase):
         done = torch.logical_and(done, fork_pos[:, 0] < plate_pos[:, 0]) # fork left
         done = torch.logical_and(done, knife_pos[:, 0] > plate_pos[:, 0]) # knife right
 
-        return bool(done.all().item())
+        return done
+
+    def check_success(self, env) -> bool:
+        """True when every env completed the task."""
+        return bool(self.success_mask(env).all().item())
 
     def pre_step(self, env) -> None:
         pass

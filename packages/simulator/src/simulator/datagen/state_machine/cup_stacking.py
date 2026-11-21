@@ -176,8 +176,8 @@ class CupStackingStateMachine(StateMachineBase):
         env.scene.update(dt=env.physics_dt)
         self._rest_ee_pos_w = self._ee_pos_w(robot).clone()
 
-    def check_success(self, env) -> bool:
-        """Return True when the blue cup is centered over and above the pink cup."""
+    def success_mask(self, env) -> torch.Tensor:
+        """(num_envs,) bool: which envs have the blue cup centered over and above the pink cup."""
         blue_cup_pos = env.scene[_BLUE_CUP_NAME].data.root_pos_w - env.scene.env_origins
         pink_cup_pos = env.scene[_PINK_CUP_NAME].data.root_pos_w - env.scene.env_origins
 
@@ -186,7 +186,11 @@ class CupStackingStateMachine(StateMachineBase):
         done = torch.logical_and(done, blue_cup_pos[:, 0] > pink_cup_pos[:, 0] + _SUCCESS_X_RANGE[0])
         done = torch.logical_and(done, blue_cup_pos[:, 1] < pink_cup_pos[:, 1] + _SUCCESS_Y_RANGE[1])
         done = torch.logical_and(done, blue_cup_pos[:, 1] > pink_cup_pos[:, 1] + _SUCCESS_Y_RANGE[0])
-        return bool(done.all().item())
+        return done
+
+    def check_success(self, env) -> bool:
+        """True when every env completed the task."""
+        return bool(self.success_mask(env).all().item())
 
     def pre_step(self, env) -> None:
         """No direct joint override is needed for the cup-stacking phases."""
