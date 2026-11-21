@@ -61,7 +61,7 @@
 \newcommand{\InstructorName}{Human-centered Intelligent System Lab}
 \newcommand{\InstructorEmail}{National Yang Ming Chiao Tung University}
 
-\newcommand{\AssignmentTitle}{Course Project: Evaluation-Driven Robot Learning Pipeline}
+\newcommand{\AssignmentTitle}{Course Project: Robot Learning from Evaluation Feedback}
 \newcommand{\Semester}{Fall 2026}
 
 % ============================================================
@@ -355,7 +355,7 @@ The following resources are provided to support students in completing the Entry
     \item Select one of the three predefined tasks. Students should refer to announcements from their own institution for task selection.
     \item Configure the provided environment and collect demonstrations for the selected task.
     \item Train and evaluate their policy using the provided tools and evaluation framework.
-    \item Iteratively improve their demonstration data quality using the provided ontology-based verification tools.
+    \item Iteratively improve their demonstration data quality using the provided ontology-based verification tools, verifying the dataset on at least one of the three generalization axes (Section~\ref{sec:coverage-concept}) and explaining in the report how the requirement was chosen.
 \end{enumerate}
 
 \begin{tutornote}
@@ -379,7 +379,7 @@ The following resources are provided to support students in completing the Entry
 \end{tutornote}
 
 
-\paragraph{Leaderboard}
+\paragraph{Leaderboard.}
 \label{sec:leaderboard}
 
 Whether a leaderboard is offered is decided by each institution. When available, groups working on the same task are ranked based on the performance of their policies. The final ranking uses a separate private test configuration to assess how well the policies generalize to unseen scenarios and ensure a fair comparison.
@@ -447,12 +447,12 @@ Students may draw on publicly available resources, including 3D assets and relat
 \label{fig:project-workflow}
 \end{figure}
 
-The workflow of this course project consists of four main stages: task configuration and coverage specification, data collection, policy training and evaluation, and data verification. Figure~\ref{fig:project-workflow} illustrates the overall workflow and the relationships between these stages.
+The workflow of this course project consists of four main stages: task configuration, data collection, policy training and evaluation, and data verification. Figure~\ref{fig:project-workflow} illustrates the overall workflow and the relationships between these stages.
 
 Data verification supports both pre-training dataset assessment and post-evaluation failure analysis. Evaluation and verification results inform subsequent design decisions, enabling an iterative process of system development, evaluation, and refinement.
 
 
-\subsection{Software Frameworks and Project Resources}
+\subsection{Software Frameworks}
 \label{sec:layout-concept}
 
 This course project integrates several open-source software frameworks to support robot simulation, data collection, policy training, and evaluation.
@@ -466,7 +466,7 @@ NVIDIA Isaac Sim \cite{isaacsim2026} is a high-fidelity robotics simulation plat
 LeIsaac \cite{leisaac} builds on Isaac Lab and integrates with the LeRobot ecosystem \cite{cadene2024lerobot}. It supports teleoperation, automated data collection through state-machine-based scripted policies, and conversion of HDF5 data into the LeRobot dataset format \cite{lerobot_dataset_v3}. This integration enables students to train or fine-tune and deploy various robot learning policies, including Diffusion Policy \cite{chi2023diffusionpolicy}, Action Chunking Transformer (ACT) \cite{zhao2023act}, and NVIDIA Isaac GR00T \cite{gr00tn1_2025}, among others.
 
 \paragraph{Repository Packages.}
-Built on top of LeIsaac, the course project repository provides three predefined manipulation tasks using a shared Franka robot setup, with task-specific objects, initial state randomization, and success criteria. For data collection, it provides a scripted state-machine controller for each task and keyboard teleoperation, both recording through the repository's extension of LeIsaac's data recorder. This recorder captures object positions, lighting, object colors, and the task text of each episode for dataset coverage verification. The repository also provides tools for policy rollout, performance evaluation, and data verification.
+Built on top of LeIsaac, the course project repository provides a scripted state-machine controller for each predefined task and keyboard teleoperation for data collection, both recording through the repository's extension of LeIsaac's data recorder. This recorder captures object positions, lighting, object colors, and the task text of each episode for dataset coverage verification. The repository also provides tools for policy rollout, performance evaluation, and data verification.
 
 
 \subsection{Task Configuration}
@@ -510,7 +510,7 @@ How many episodes to collect, and which conditions they must cover (Section~\ref
 % demonstrations, which is the motivation for data verification
 % (Section~\ref{sec:coverage-concept}).
 
-Using the dataset collected in the previous step, students train policies to map observations to robot actions. This repository leverages a suite of robot learning algorithms provided by the LeRobot ecosystem \cite{lerobot_ecosystem}. \textbf{Diffusion Policy}\cite{chi2023diffusionpolicy}, a state-of-the-art imitation learning \cite{wiki_imitation_learning} approach for visuomotor control, is recommended as a starting point. Given visual observations and robot states, the policy learns to predict action sequences (i.e., robot trajectories). Students are encouraged to:
+Using the dataset collected in the previous step, students train policies to map observations to robot actions. This repository leverages a suite of robot learning algorithms provided by the LeRobot ecosystem \cite{lerobot_ecosystem}. \textbf{Diffusion Policy} \cite{chi2023diffusionpolicy}, a state-of-the-art imitation learning \cite{wiki_imitation_learning} approach for visuomotor control, is recommended as a starting point. Given visual observations and robot states, the policy learns to predict action sequences (i.e., robot trajectories). Students are encouraged to:
 \begin{itemize}
   \item Explore alternative policy architectures within or beyond the provided framework.
   \item Tune training strategies (e.g., data augmentation, normalization, horizon length, etc.) and analyze the relationship between dataset quality and policy performance.
@@ -559,14 +559,14 @@ collection budget.
 The check is built from five knowledge-representation tools:
 
 \begin{itemize}
-  \item \textbf{Ontology.} An ontology \cite{guarino2009ontology} provides a formal representation of knowledge in a specific domain by defining its shared concepts and the relationships among them. In this repository, the ontology describes the concepts relevant to dataset coverage verification, including generalization axes, datasets, episodes, task objects, initial object positions, and coverage requirements.
-  \item \textbf{Web Ontology Language (OWL)} OWL \cite{w3c2012owl} is a standard language for representing ontologies. It provides formal semantics based on Description Logic (DL), allowing domain knowledge and constraints to be expressed in a machine-interpretable form.
+  \item \textbf{Ontology.} An ontology \cite{guarino2009ontology} provides a formal representation of knowledge in a specific domain by defining its shared concepts and the relationships among them. In this repository, the ontology describes the concepts relevant to dataset coverage verification, including generalization axes, datasets, episodes, task objects, factor values such as initial object positions, and coverage requirements.
+  \item \textbf{Web Ontology Language (OWL).} OWL \cite{w3c2012owl} is a standard language for representing ontologies. It provides formal semantics based on Description Logic (DL), allowing domain knowledge and constraints to be expressed in a machine-interpretable form.
   \item \textbf{RDF knowledge graph in Turtle.} The recorded dataset, the group's coverage requirement, each rollout,
         and every verification result are expressed as Resource Description Framework (RDF) facts over this vocabulary
         and kept in one \emph{verification store} per dataset, a directory of Turtle files \cite{w3cTurtle}. The
         requirement itself is written as a small Turtle file and attached to the store.
   \item \textbf{SHACL validation.} Shapes Constraint Language (SHACL) shapes \cite{w3cShacl} turn the requirement into executable constraints: they
-        compare positions against cell bounds, count episodes per cell, and report violations. This step is needed
+        compare factor values (for example positions) against the required bounds, count episodes per cell, and report violations. This step is needed
         because Description Logic alone does not perform numeric interval comparison or counting.
   \item \textbf{SPARQL queries.} The store records what was recorded, what was required, and what verification found,
         so students can ask their own questions of it with SPARQL instead of relying only on the
@@ -580,7 +580,7 @@ content hash, so the tools can tell when a source has changed since it entered t
 
 Coverage is a diagnostic, not a proof of the cause of a failure. An uncovered evaluation region is evidence of a
 possible gap in the data distribution, while complete coverage does not guarantee that a policy will succeed. Failures
-should be treated as feedback: inspected in detail, tested with experiments, and used to refine the collection. Each group is required to verify at least one of the three axes, and to explain in the report how it chose the requirement. Section~\ref{sec:data-verification} describes how to run the check.
+should be treated as feedback: inspected in detail, tested with experiments, and used to refine the collection. Section~\ref{sec:data-verification} describes how to run the check.
 
 
 
@@ -597,7 +597,7 @@ should be treated as feedback: inspected in detail, tested with experiments, and
   \item Python 3.11 and \code{uv} (the Python version is pinned in \code{.python-version});
   \item Git with submodule support;
   \item a Hugging Face account and access token, for transferring datasets and checkpoints;
-  \item optionally, a Weights \& Biases account, for monitoring training;
+  \item a Weights \& Biases account, for monitoring training;
   \item optionally, Docker and the NVIDIA Container Toolkit, only for the container alternative to the host simulator installation (Section~\ref{sec:env-setup}).
 \end{itemize}
 
@@ -623,7 +623,7 @@ su - glows
 \subsection{Fork and Clone the Repository}
 \label{sec:fork}
 
-You do not have write access to the course repository (\url{https://github.com/HCIS-lab/RobotLearningFromEvaluationFeedback}). Each group therefore works in its own \emph{fork}, a copy of the repository under a group member's GitHub account. Your changes (state-machine and task configuration changes, filled-in specs) are committed and pushed to the fork, so they are kept, shared within the group, and handed in from there. A plain clone of the course repository would leave all changes on one machine.
+You do not have write access to the course repository (\url{https://github.com/HCIS-lab/RobotLearningFromEvaluationFeedback}). Each group therefore works in its own \emph{fork}, a copy of the repository under a group member's GitHub account. Your changes (state-machine and task configuration changes, filled-in specs) are committed and pushed to the fork, so they are kept and shared within the group. A plain clone of the course repository would leave all changes on one machine.
 
 \begin{tcolorbox}[colback=yellow!8,colframe=orange!70!black,boxrule=0.4pt,arc=1mm]
 \textbf{Never push to the course repository (\code{HCIS-lab/RobotLearningFromEvaluationFeedback}).} Push only to your fork (\code{origin}). The remote named \code{upstream} is read-only for you: use it only to \emph{fetch} course updates.
@@ -670,6 +670,7 @@ make submodules                    # Isaac Lab submodule; the launch targets als
 uv sync                            # host environment for training and the coverage check
 source .venv/bin/activate
 hf auth login                      # paste your Hugging Face access token
+wandb login                        # paste your Weights & Biases API key
 export HF_USER=<your-huggingface-username>
 \end{lstlisting}
 
@@ -893,8 +894,10 @@ python scripts/teleop.py \
 \textbf{Key} & \textbf{Action} \\
 \midrule
 B & Start control; recording of the episode starts here \\
-W / S, A / D, K / J & Move the hand forward(+y) / backward(-y), left(-x) / right(+x), and up(+z) / down(-z). \\
-H / L, U / I, E / Q & Pitch, roll, yaw ($-$ / $+$) \\
+W / S, A / D, K / J & Move the hand forward (+y) / backward ($-$y), left ($-$x) / right (+x), and up (+z) / down ($-$z), in the Isaac Sim world frame. \\
+H / L & Pitch ($-$ / $+$) \\
+U / I & Roll ($-$ / $+$) \\
+E / Q & Yaw ($-$ / $+$) \\
 C / M & Open / close the gripper \\
 N & Save the episode and reset \\
 R & Discard the episode and reset \\
@@ -914,6 +917,8 @@ Groups may adjust the collection to target the data they need, and report the ch
   \item the light ranges \code{intensity_range} and \code{color_temperature_range} of the \code{randomize_light_conditions} event.
   \item how often the task text refers to the objects by color, with \code{reference_weights}.
 \end{itemize}
+
+Evaluation always uses the files in \path{eval/}, so these changes affect only the recorded data.
 
 
 \subsubsection{Recorder and Dataset}
@@ -989,7 +994,7 @@ A spec is a small Turtle file that states your requirement for one axis. The rep
 \bottomrule
 \end{longtable}
 
-Copy the files of the axes you are going to check, for example into \path{my_specs/}, and replace every \code{"TODO"}. Numbers are written without quotes; text keeps its quotes. Each file is commented, and the axis guide explains how to choose each value. Verify at least one axis. An axis without a spec file is not checked. The file name is the spec's name in reports.
+Copy the files of the axes you are going to check, for example into \path{my_specs/}, and replace every \code{"TODO"}. Numbers are written without quotes; text keeps its quotes. Each file is commented, and the axis guide explains how to choose each value. An axis without a spec file is not checked. The file name is the spec's name in reports.
 
 \subsubsection{Verify and Read the Report}
 \label{sec:verify}
@@ -1033,10 +1038,6 @@ uv run python scripts/store.py query --store stores/<repo_id> \
 
 Training runs in the \code{uv} environment (Section~\ref{sec:exec-env}).
 \begin{lstlisting}[language=bash]
-# at the repo root
-uv sync
-source .venv/bin/activate
-wandb login                        # optional, for --wandb.enable=true
 lerobot-train \
   --dataset.repo_id=<HF_USER>/<repo_id> \
   --policy.type=diffusion \
@@ -1095,7 +1096,6 @@ python scripts/rollout.py \
                checkpoint. Must be positive and at most the actions one inference predicts. \\
 \code{--episode_length_s} & Timeout of each episode in seconds. Default: the task's graded length (20, 40, or 60~s). \\
 \code{--seed} & Seed of the object position and lighting randomization (default 42). Keep it fixed to compare checkpoints. \\
-\code{--num_envs} & Number of episodes simulated in parallel. \\
 \code{--headless} & Run without the GUI, which is faster. \\
 \bottomrule
 \end{longtable}
@@ -1146,15 +1146,8 @@ For every ingested rollout and every spec, \code{verify} prints a report. For ea
 Submission deadlines and specific penalty policies vary by institution. Please follow the announcements and designated submission platform provided by your institution. The required report contents, the files to submit, and their names and directory structure will be given in a separate document, announced to students.
 
 \begin{itemize}
-    \item \textbf{Deadline: }
-    Submit the assignment by the deadline announced by your institution.
-
-    \item \textbf{Late Submission: }
-    Late submissions will be subject to a penalty. The specific deduction follows your institution's policy.
-
-    \item \textbf{Submission Format: }
-    Please follow the file naming, directory structure, file paths, and report format given in that document. Incorrect submission formats, including a report not written in English, may result in a penalty according to your institution's
-    policy. % 額外公告
+    \item \textbf{Deadline, Late Submission, and Submission Format: }
+    Follow the deadline, the late-submission penalty, and the file naming, directory structure, and report format announced by your institution. Incorrect submission formats, including a report not written in English, may result in a penalty according to your institution's policy.
 
     \item \textbf{Plagiarism: }
     All submitted work must be original. Plagiarism, including unauthorized copying of code or report content from other students or public sources, is prohibited and will be handled according to your institution's policy.
