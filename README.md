@@ -1,4 +1,4 @@
-# EDRLP: Evaluation-Driven Robot Learning Pipeline
+# Robot Learning from Evaluation Feedback
 
 Course project on learning-based robot manipulation in simulation. Each group
 picks one of three pick-and-place tasks, records demonstrations for it in

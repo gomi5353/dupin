@@ -151,9 +151,9 @@ one machine, with no place to push them.
 2. Every member clones the **fork**, not the course repository:
 
    ```bash
-   git clone https://github.com/<github-user>/EDRLP
-   cd EDRLP
-   git remote add upstream https://github.com/HCIS-lab/EDRLP
+   git clone https://github.com/<github-user>/robot-learning-from-evaluation-feedback
+   cd robot-learning-from-evaluation-feedback
+   git remote add upstream https://github.com/HCIS-lab/robot-learning-from-evaluation-feedback
    git remote -v   # origin = the fork (push here), upstream = the course repository
    ```
 
