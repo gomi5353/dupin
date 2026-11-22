@@ -25,6 +25,39 @@ if [ "$(printf '%s\n' 2.35 "${glibc}" | sort -V | head -n1)" != "2.35" ]; then
     exit 1
 fi
 
+echo "== Host graphics libraries =="
+# Isaac Sim needs these on the host even when headless (RTX renderer uses Vulkan).
+missing=""
+ldcache="$(ldconfig -p)"   # not piped into grep -q: SIGPIPE + pipefail gives false "missing"
+for lib in libvulkan.so.1 libGLU.so.1 libXt.so.6 libX11.so.6; do
+    grep -q "${lib}" <<<"${ldcache}" || missing="${missing} ${lib}"
+done
+if [ -n "${missing}" ]; then
+    echo "Fix everything at once (on the VM host): bash scripts/setup_brev_host.sh" >&2
+    echo "Missing host libraries:${missing}" >&2
+    echo "Install with: sudo apt-get install -y libvulkan1 libglu1-mesa libxt6 libx11-6" >&2
+    exit 1
+fi
+# The NVIDIA Vulkan ICD initialises through EGL; without the NVIDIA GLVND vendor
+# file only Mesa EGL is found and Isaac Sim fails with ERROR_INCOMPATIBLE_DRIVER.
+if ls /usr/lib/x86_64-linux-gnu/libEGL_nvidia.so.0 >/dev/null 2>&1 \
+    && [ ! -f /usr/share/glvnd/egl_vendor.d/10_nvidia.json ] \
+    && [ ! -f /etc/glvnd/egl_vendor.d/10_nvidia.json ]; then
+    echo "Missing /usr/share/glvnd/egl_vendor.d/10_nvidia.json (Vulkan will fail with ERROR_INCOMPATIBLE_DRIVER)." >&2
+    echo "Create it with:" >&2
+    echo "  sudo mkdir -p /usr/share/glvnd/egl_vendor.d" >&2
+    echo "  echo '{\"file_format_version\":\"1.0.0\",\"ICD\":{\"library_path\":\"libEGL_nvidia.so.0\"}}' | sudo tee /usr/share/glvnd/egl_vendor.d/10_nvidia.json" >&2
+    exit 1
+fi
+
+# Kit/PhysX dlopen libcuda.so; without it "omni.physx handle on CUDA lib is (nil)",
+# PhysX falls back to the CPU solver and the simulation hangs (no error shown).
+if [ -f /usr/lib/x86_64-linux-gnu/libcuda.so.1 ] && [ ! -e /usr/lib/x86_64-linux-gnu/libcuda.so ]; then
+    echo "Missing /usr/lib/x86_64-linux-gnu/libcuda.so symlink (PhysX would silently run on CPU and hang)." >&2
+    echo "Create it with: sudo ln -s libcuda.so.1 /usr/lib/x86_64-linux-gnu/libcuda.so && sudo ldconfig" >&2
+    exit 1
+fi
+
 echo "== Git submodules =="
 git -C "${ROOT}" submodule update --init --recursive
 

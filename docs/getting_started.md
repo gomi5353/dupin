@@ -228,6 +228,24 @@ started from a terminal on the machine's desktop. If the window cannot open
 (`GLFW initialization failed` in the log), `DISPLAY` points to no running
 desktop; commands with `--headless` run without a window.
 
+**On a Brev cloud VM** (Isaac Lab image), run the host setup once before
+`make install-sim`, in the VM's host shell (prompt `ubuntu@brev-...`), not in the
+Docker container (prompt `root@<hash>`; the container is already set up):
+
+```bash
+bash scripts/setup_brev_host.sh
+```
+
+If the repository exists only inside the container, copy it to the host first:
+`docker cp $(docker ps -q | head -1):/home/ubuntu/nb ~/nb`. The script is safe
+to run again. It installs the Vulkan and OpenGL libraries, and creates the
+files a fresh VM lacks: the NVIDIA EGL vendor file (otherwise Isaac Sim stops
+with `ERROR_INCOMPATIBLE_DRIVER`) and the `libcuda.so` link (otherwise PhysX
+silently runs on the CPU and the simulation hangs after the first scene
+messages). It also connects the VM's noVNC desktop to the host, so a run
+without `--headless` and with `DISPLAY=:0` appears at `localhost:6080`. That
+connection is lost on reboot; run the script again to restore it.
+
 `.venv-sim` and `.venv` are kept separate because Isaac Sim needs older
 versions (NumPy 1.26, PyTorch 2.7) than the `uv` environment. Training and
 verification commands (`uv run ...`, `lerobot-train`) are run outside the

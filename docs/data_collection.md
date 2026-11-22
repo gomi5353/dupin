@@ -245,6 +245,8 @@ each column is described on the axis pages:
 | `FileExistsError` at start | The dataset folder already exists | Choose a new `--lerobot_dataset_repo_id`, delete the old folder, or use `--resume` |
 | `PermissionError` under `datasets/` | The folder was created by the container as root | Exit the container, or run `make fix-perms` |
 | `LeRobot not found. Using GenericDataRecorder.` followed by an `AttributeError` | LeRobot cannot be imported in the simulator environment | Reinstall it with `make install-sim`, or rebuild the container image |
+| `ERROR_INCOMPATIBLE_DRIVER`, `Failed to create any GPU devices`, or `libGLU.so.1` missing at start (new cloud VM) | The host lacks the Vulkan/OpenGL libraries or the NVIDIA EGL vendor file | `bash scripts/setup_brev_host.sh` ([Getting Started §3.5](getting_started.md#35-launch-the-simulator)) |
+| Stops after the `pink_cup` mass warning, one CPU core at 100%, no error; Kit log has `omni.physx handle on CUDA lib is (nil)` or `GPU solver pipeline failed` | The `libcuda.so` link is missing, so PhysX runs on the CPU | `bash scripts/setup_brev_host.sh`, then start again |
 | Dataset will not load / Parquet footer error | The script was killed before it closed the dataset | Stop with Ctrl+C; record a corrupted dataset again under a new id |
 | Missing `object_position.*`, `lighting.*` or `object_color.*` columns | Recorded without `--use_lerobot_recorder`, or the task does not list the light in `recorded_light_names` or the object in `object_references` | Record again with the option and the lists set |
 | Camera errors or missing images | Started without `--enable_cameras` | Add the option |
