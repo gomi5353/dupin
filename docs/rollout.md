@@ -15,10 +15,10 @@ must do or follow) or **Background** (explanation without work items).
 
 Rollout runs **in the simulator environment** (`make launch-sim`, or the
 Isaac Lab container), because it starts the simulator. It builds the environment from an evaluation task file, loads the
-checkpoint, and runs a number of episodes (rounds). In each episode the policy
+checkpoint, and runs a number of episodes (`--eval_rounds`). In each episode the policy
 receives the camera images and joint state, predicts actions, and the
 environment executes them until the task's success check passes or the episode
-time runs out. At the end, rollout prints the success rate over all rounds. If
+time runs out. At the end, rollout prints the success rate over all episodes. If
 something goes wrong, for example an invalid flag value, it prints the error
 and exits with a non-zero code.
 
@@ -110,17 +110,17 @@ uv run python scripts/store.py verify --store stores/<dataset_repo> \
 
 | Flag | Description |
 |---|---|
-| `--task` | The task to evaluate on: an eval file under `eval/` (see the table above). It also accepts a registered task id or a `module:Class` reference ([section 5](#5-evaluating-a-self-defined-task)). |
-| `--policy_type` | **Required.** `lerobot-<type>`, where `<type>` is the `--policy.type` used in training. One of `lerobot-diffusion`, `lerobot-act`, `lerobot-smolvla`, `lerobot-pi0`, `lerobot-pi05`, `lerobot-vqbet`, `lerobot-tdmpc`, `lerobot-sac`, `lerobot-groot`, `lerobot-xvla`. |
+| `--task` | The task to evaluate on: an eval file under `eval/` (see the table above). It also accepts a registered task id or a `module:Class` reference; the module of a `module:Class` must be importable, for example by running from the repository root with `PYTHONPATH=.` ([section 5](#5-evaluating-a-self-defined-task)). |
+| `--policy_type` | **Required.** `lerobot-<type>`, where `<type>` is the `--policy.type` used in training. Accepted values: `lerobot-diffusion`, `lerobot-act`, `lerobot-smolvla`, `lerobot-pi0`, `lerobot-pi05`, `lerobot-vqbet`, `lerobot-tdmpc`, `lerobot-sac`, `lerobot-groot`, `lerobot-xvla`. Rollout has been run end to end with `lerobot-diffusion` and `lerobot-groot`; the others are accepted but untested here, and some need extra packages or gated weights. |
 | `--policy_checkpoint_path` | **Required.** The checkpoint's `pretrained_model` folder (the one containing `config.json` and `model.safetensors`). |
 | `--policy_action_horizon` | Number of actions executed from each inference before the policy runs again. Overrides `n_action_steps` from the checkpoint, which is used by default. It must be positive and at most the number of actions one inference predicts: `horizon - n_obs_steps + 1` for Diffusion Policy, `chunk_size` for ACT. ACT with temporal ensembling only accepts `1`. The values in use are printed at start. |
 | `--policy_language_instruction` | Language instruction for language-conditioned policies, the same for every episode. By default each episode gets its own task text from the eval file (by name or by color), which is also logged as `instruction`. |
 | `--device=cuda` | Runs simulation and inference on the GPU. |
 | `--enable_cameras` | Enables camera rendering. Required, because the policy needs images. |
-| `--eval_rounds` | Number of evaluation episodes. `0` (the default) runs without a time limit until success or a manual reset. |
+| `--eval_rounds` | Total number of evaluation episodes, counted over all environments (with `--num_envs 2` and `--eval_rounds 1`, one episode is run). `0` (the default) removes the time limit and never stops by itself: every episode runs until success or a manual reset (`R` in the GUI), then the next one starts, and no final success rate is printed. Use a positive value for a graded run. |
 | `--episode_length_s` | Episode length in seconds. By default the task's graded length is used; the value in use is printed at start. |
 | `--seed` | Seed of the object-position, lighting, and reference-form randomization (default `42`). A fixed seed compares policies on the same episodes. |
-| `--num_envs` | Number of environments simulated in parallel; each round evaluates this many episodes at once. |
+| `--num_envs` | Number of environments simulated in parallel (default 1); this many episodes run at once, and the total is still capped by `--eval_rounds`. |
 | `--headless` | Runs without the GUI window. |
 
 ## 4. Policy input and output contract
