@@ -77,6 +77,30 @@ Biases dashboard when it is enabled (`wandb login` first).
 | `--batch_size` | Training batch size (default `8`). A smaller value reduces GPU memory use. |
 | `--steps` | Number of training steps (default `100000`). A checkpoint is saved every `--save_freq` steps (default `20000`) and at the end. |
 
+### Training GR00T (optional)
+
+`--policy.type=groot` trains NVIDIA's GR00T N1.5 (3B), fine-tuned from `nvidia/GR00T-N1.5-3B`.
+The first run downloads about 6 GB from the Hugging Face Hub. The required packages and a prebuilt
+FlashAttention wheel are part of the installation (Getting Started, step 0).
+
+```bash
+lerobot-train \
+  --dataset.repo_id=${HF_USER}/<repo_id> \
+  --dataset.root=datasets/${HF_USER}/<repo_id> \
+  --policy.type=groot \
+  --policy.device=cuda \
+  --policy.tune_diffusion_model=false \
+  --policy.push_to_hub=false \
+  --output_dir=outputs/train/<job_name> \
+  --job_name=<job_name> \
+  --wandb.enable=true
+```
+
+By default GR00T also trains its diffusion action head, 1.07 B trainable parameters in total,
+which does not fit on a 24 GB GPU (an RTX 4090 runs out of memory at the first optimizer step).
+`--policy.tune_diffusion_model=false` freezes the action head and trains only the projector
+(518 M parameters), which fits on 24 GB.
+
 ## 5. Multi-GPU training
 
 **Background**
