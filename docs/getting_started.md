@@ -244,7 +244,7 @@ one of them; the noVNC terminal needs no display setup, because `DISPLAY=:0` is
 local there. The script works in both places. It checks each item and changes
 only what is missing, so as `ubuntu` in the container it only reports; if it
 asks for root, run it once as `root`. It covers the Vulkan and OpenGL
-libraries, `uv`, and two files a fresh VM host lacks: the NVIDIA EGL vendor
+libraries, `uv`, the build tools (`cmake`, `gcc`, `make`; `make install-sim` fails without them), and two files a fresh VM host lacks: the NVIDIA EGL vendor
 file (otherwise Isaac Sim stops with `ERROR_INCOMPATIBLE_DRIVER`) and the
 `libcuda.so` link (otherwise PhysX silently runs on the CPU and the simulation
 hangs after the first scene messages). In the SSH shell it also connects the

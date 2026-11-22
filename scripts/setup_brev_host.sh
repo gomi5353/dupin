@@ -16,14 +16,18 @@
 #   1. libvulkan1, libGLU, X libs missing     -> Vulkan / libGLU.so.1 errors
 #   2. glvnd egl_vendor.d/10_nvidia.json missing -> ERROR_INCOMPATIBLE_DRIVER
 #   3. libcuda.so link missing                -> PhysX runs on the CPU and hangs
-#   4. uv missing                             -> make install-sim cannot run
+#   4. uv, cmake, gcc/g++/make missing        -> make install-sim fails while
+#      building a package from source
 #   5. (SSH shell only) noVNC display :0 lives inside the container: relay its
 #      X socket to the host so a GUI run (DISPLAY=:0) shows on localhost:6080.
 #
-# Fixes need root. Run as root, or as a user with passwordless sudo (the SSH
-# shell). In the container the NVIDIA toolkit normally provides 2 and 3, so
-# nothing needs root there; if something is reported missing as `ubuntu`, run
-# the script as root (`su -` or the noVNC root terminal) once.
+# Fixes need root. The script decides itself: as root it runs commands directly
+# (root needs no `sudo`), as a user it uses `sudo` only if
+# that works without a password (true for `ubuntu` in the SSH shell, false for
+# `ubuntu` in the container), and otherwise it reports what is missing. So do
+# not add `sudo` by hand: in the container run the script as root (`su -`)
+# when it asks for root. The NVIDIA toolkit normally provides the driver
+# files in the container, so usually only cmake/uv need installing there.
 set -uo pipefail
 
 LIBDIR=/usr/lib/x86_64-linux-gnu
@@ -65,6 +69,19 @@ fi
 # Tools for the X relay (host only).
 if [ "${IN_CONTAINER}" = 0 ] && ! command -v socat >/dev/null; then
     run_root env DEBIAN_FRONTEND=noninteractive apt-get install -y -qq socat x11-utils x11-xserver-utils
+fi
+
+echo "== 1b. Build tools (cmake, gcc, g++, make) =="
+MISSING_TOOLS=""
+for tool in cmake gcc g++ make; do
+    command -v "${tool}" >/dev/null || MISSING_TOOLS="${MISSING_TOOLS} ${tool}"
+done
+if [ -z "${MISSING_TOOLS}" ]; then
+    echo "present"
+else
+    echo "missing:${MISSING_TOOLS}"
+    run_root apt-get update -qq || true
+    run_root env DEBIAN_FRONTEND=noninteractive apt-get install -y -qq cmake build-essential
 fi
 
 echo "== 2. NVIDIA EGL vendor file (needed by the Vulkan driver) =="

@@ -38,6 +38,13 @@ if [ -n "${missing}" ]; then
     echo "Install with: sudo apt-get install -y libvulkan1 libglu1-mesa libxt6 libx11-6" >&2
     exit 1
 fi
+for tool in cmake gcc g++ make; do
+    command -v "${tool}" >/dev/null || {
+        echo "Missing build tool: ${tool} (some packages are built from source)." >&2
+        echo "Fix: bash scripts/setup_brev_host.sh   (or: apt-get install -y cmake build-essential, with sudo only if you are not root)" >&2
+        exit 1
+    }
+done
 # The NVIDIA Vulkan ICD initialises through EGL; without the NVIDIA GLVND vendor
 # file only Mesa EGL is found and Isaac Sim fails with ERROR_INCOMPATIBLE_DRIVER.
 if ls /usr/lib/x86_64-linux-gnu/libEGL_nvidia.so.0 >/dev/null 2>&1 \
