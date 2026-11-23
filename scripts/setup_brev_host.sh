@@ -16,15 +16,23 @@
 #   1. libvulkan1, libGLU, X libs missing     -> Vulkan / libGLU.so.1 errors
 #   2. glvnd egl_vendor.d/10_nvidia.json missing -> ERROR_INCOMPATIBLE_DRIVER
 #   3. libcuda.so link missing                -> PhysX runs on the CPU and hangs
-#   4. uv missing                             -> make install-sim cannot run
+#   1c. ffmpeg missing                        -> video decoding fails (lerobot-train, lerobot-dataset-viz)
+#   4. uv, cmake, gcc/g++/make missing        -> make install-sim fails while
+#      building a package from source
 #   5. (SSH shell only) noVNC display :0 lives inside the container: relay its
 #      X socket to the host so a GUI run (DISPLAY=:0) shows on localhost:6080.
 #
-# Fixes need root. Run as root, or as a user with passwordless sudo (the SSH
-# shell). In the container the NVIDIA toolkit normally provides 2 and 3, so
-# nothing needs root there; if something is reported missing as `ubuntu`, run
-# the script as root (`su -` or the noVNC root terminal) once.
+# Fixes need root. The script decides itself: as root it runs commands directly
+# (root needs no `sudo`), as a user it uses `sudo` only if
+# that works without a password (true for `ubuntu` in the SSH shell, false for
+# `ubuntu` in the container), and otherwise it reports what is missing. So do
+# not add `sudo` by hand: in the container run the script as root (`su -`)
+# when it asks for root. The NVIDIA toolkit normally provides the driver
+# files in the container, so usually only cmake/uv need installing there.
 set -uo pipefail
+
+# Whatever happens below, leave the terminal usable (echo/line editing on).
+trap '[ -t 0 ] && stty sane 2>/dev/null' EXIT
 
 LIBDIR=/usr/lib/x86_64-linux-gnu
 IN_CONTAINER=0
@@ -47,6 +55,15 @@ run_root() {
     ${SUDO} "$@"
 }
 
+# apt_install <pkgs...>: wait for the apt/dpkg lock (a fresh VM runs its own
+# first-boot apt jobs for several minutes) instead of failing, and record failure.
+apt_install() {
+    local lock="-o DPkg::Lock::Timeout=900"
+    run_root apt-get ${lock} update -qq || true
+    run_root env DEBIAN_FRONTEND=noninteractive apt-get ${lock} install -y -qq "$@" \
+        || { echo "  apt-get install failed: $*" >&2; FAILED=1; }
+}
+
 echo "== 1. Libraries =="
 LDCACHE="$(ldconfig -p)"
 MISSING_LIBS=""
@@ -57,14 +74,36 @@ if [ -z "${MISSING_LIBS}" ]; then
     echo "present"
 else
     echo "missing:${MISSING_LIBS}"
-    run_root apt-get update -qq || true
-    run_root env DEBIAN_FRONTEND=noninteractive apt-get install -y -qq \
-        libvulkan1 vulkan-tools libglu1-mesa libxt6 libx11-6 libxrandr2 libxinerama1 \
+    apt_install libvulkan1 vulkan-tools libglu1-mesa libxt6 libx11-6 libxrandr2 libxinerama1 \
         libxcursor1 libxi6 libegl1 libsm6 x11-utils x11-xserver-utils
+    LDCACHE="$(ldconfig -p)"
+    for lib in ${MISSING_LIBS}; do
+        grep -q "${lib}" <<<"${LDCACHE}" || { echo "  still missing after install: ${lib}" >&2; FAILED=1; }
+    done
 fi
 # Tools for the X relay (host only).
 if [ "${IN_CONTAINER}" = 0 ] && ! command -v socat >/dev/null; then
-    run_root env DEBIAN_FRONTEND=noninteractive apt-get install -y -qq socat x11-utils x11-xserver-utils
+    apt_install socat x11-utils x11-xserver-utils
+fi
+
+echo "== 1b. Build tools (cmake, gcc, g++, make) =="
+MISSING_TOOLS=""
+for tool in cmake gcc g++ make; do
+    command -v "${tool}" >/dev/null || MISSING_TOOLS="${MISSING_TOOLS} ${tool}"
+done
+if [ -z "${MISSING_TOOLS}" ]; then
+    echo "present"
+else
+    echo "missing:${MISSING_TOOLS}"
+    apt_install cmake build-essential
+fi
+
+echo "== 1c. FFmpeg (video decoding of lerobot-train and lerobot-dataset-viz) =="
+if command -v ffmpeg >/dev/null; then
+    echo "present"
+else
+    echo "missing"
+    apt_install ffmpeg
 fi
 
 echo "== 2. NVIDIA EGL vendor file (needed by the Vulkan driver) =="
@@ -111,15 +150,32 @@ else
         run_root pkill -f "socat UNIX-LISTEN:/tmp/.X11-unix/X0" 2>/dev/null || true
         run_root mkdir -p /tmp/.X11-unix
         run_root rm -f /tmp/.X11-unix/X0
-        run_root nohup socat UNIX-LISTEN:/tmp/.X11-unix/X0,fork,mode=0777 \
+        # setsid -f: own session, no controlling terminal. A plain `sudo ... &`
+        # shares the terminal and can leave it without echo (typing invisible).
+        run_root setsid -f socat UNIX-LISTEN:/tmp/.X11-unix/X0,fork,mode=0777 \
             "UNIX-CONNECT:/proc/${XPID}/root/tmp/.X11-unix/X0" \
-            >/tmp/xrelay.log 2>&1 </dev/null &
+            >/tmp/xrelay.log 2>&1 </dev/null
         sleep 2
     fi
     if DISPLAY=:0 xdpyinfo >/dev/null 2>&1; then
         echo "DISPLAY=:0 reachable (GUI runs show on localhost:6080)"
     else
         echo "WARNING: DISPLAY=:0 still unreachable, see /tmp/xrelay.log" >&2
+        FAILED=1
+    fi
+fi
+
+echo "== NVIDIA driver (kernel module vs user-space libraries) =="
+if command -v nvidia-smi >/dev/null; then
+    if SMI="$(nvidia-smi --query-gpu=name,driver_version --format=csv,noheader 2>&1)"; then
+        echo "${SMI}"
+        case "${SMI}" in
+            *,\ 580.*) ;;
+            *) echo "WARNING: Isaac Sim 5.1 is validated with the 580.x driver; other branches (e.g. 595.x) may segfault in librtx.scenedb.plugin.so. Prefer a 580.x instance." >&2 ;;
+        esac
+    else
+        echo "${SMI}" >&2
+        echo "ERROR: NVIDIA driver is broken here (kernel module and libraries differ). Reboot once; if it persists, do not use this instance." >&2
         FAILED=1
     fi
 fi

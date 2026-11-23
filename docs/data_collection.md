@@ -2,20 +2,20 @@
 
 This guide describes how demonstrations are recorded for a task. The
 repository provides two data-collection methods, a scripted state machine and
-keyboard teleoperation. Students choose one, adjust its parameters and the task
-settings as needed, and record a LeRobot v3 dataset. The dataset is then
+keyboard teleoperation. Either one is used, with its parameters and the task
+settings adjusted as needed, to record a LeRobot v3 dataset. The dataset is then
 inspected and verified (step 3 of [Getting Started](getting_started.md)),
 used for training ([LeRobot Training](lerobot_training.md)), and later
 compared with rollout results.
 
 > **Run on:** the simulator environment
-> ([Getting Started §3.5](getting_started.md#35-launch-the-simulator)). Every
+> ([Getting Started §3.4](getting_started.md#34-launch-the-simulator)). Every
 > recording command needs `--enable_cameras`, because the dataset contains
 > camera images.
 
 Every section starts with one of two labels:
 
-- **Required**: something that students must do or follow.
+- **Required**: something to do or follow.
 - **Background**: an explanation that the required steps depend on. It
   contains no work items.
 
@@ -58,7 +58,7 @@ know whether the gripper still holds an object.
 
 ## 2. Record with the state machine
 
-**Required** if the group uses the state machine.
+**Required** when the state machine is used.
 
 ```bash
 python scripts/datagen/generate.py \
@@ -74,7 +74,7 @@ python scripts/datagen/generate.py \
 | `--task` | One of the three task ids. |
 | `--num_demos` | Number of attempts, successful or not (required, at least 1). Counted over all environments and rounded up to whole rounds of `--num_envs`. |
 | `--num_envs` | Environments simulated in parallel (default 1); see below. |
-| `--record --use_lerobot_recorder --lerobot_dataset_repo_id <id>` | Record into `datasets/<id>`. Without `--record`, the state machine runs and nothing is saved. |
+| `--record --use_lerobot_recorder --lerobot_dataset_repo_id ${HF_USER}/<repo_name>` | Record into `datasets/${HF_USER}/<repo_name>`. Without `--record`, the state machine runs and nothing is saved. |
 | `--resume` | Append to an existing dataset with the same id. Its episodes count toward `--num_demos`. |
 | `--seed` | Random seed of the environment; by default the current time. |
 | `--headless` | Run without a window, which is faster. |
@@ -98,7 +98,7 @@ own cameras.
 
 ## 3. Record with keyboard teleoperation
 
-**Required** if the group uses keyboard teleoperation.
+**Required** when keyboard teleoperation is used.
 
 ```bash
 python scripts/teleop.py \
@@ -138,7 +138,7 @@ Ctrl+C in the terminal ends the session and closes the dataset.
 
 **Required**
 
-Students may adjust the collection to target the data they need, for example:
+The collection can be adjusted to target the data needed, for example:
 
 - the state machine's constants at the top of
   `packages/simulator/src/simulator/datagen/state_machine/<task>.py`
@@ -158,24 +158,23 @@ Students may adjust the collection to target the data they need, for example:
   words change: the objects are never recolored;
 - the teleoperation `--sensitivity`.
 
-Such changes are part of the group's data-collection design and are reported
-with it.
-
 Rollout never uses the recording configuration. It builds the environment
-from the evaluation file in `eval/`, and the final ranking uses a private
+from the evaluation file in `eval/`, and the final evaluation uses a private
 evaluation configuration. A change therefore affects only the data, and it
-has to stay compatible with rollout in two ways.
+should stay compatible with rollout in two ways.
 
-**The rollout contract stays unchanged.** These settings define what the
+**The rollout contract is best left unchanged.** These settings define what the
 policy receives and sends
-([Rollout §4](rollout.md#4-policy-input-and-output-contract)). A dataset
-recorded with other values trains a policy that cannot run in evaluation:
+([Rollout §4](rollout.md#4-policy-input-and-output-contract)). Other keys or
+shapes (cameras, action size) stop a policy from running in rollout; other
+values of the remaining settings (control rate, gains, camera pose) usually
+run, but the policy may perform much worse:
 
-| Setting | Required value | Defined in |
+| Setting | Value | Defined in |
 |---|---|---|
 | Robot | Franka Panda, same joints and gripper | template |
 | Action space | `use_joint_position_actions()`: 7 absolute joint targets + 1 gripper command, stiffness 80, damping 4 | template |
-| Control rate | `sim.dt = 1/60`, `decimation = 1`, one action per `env.step()` | template |
+| Control rate | `decimation = 1` (set by the template) with Isaac Lab's default `sim.dt = 1/60`, one action per `env.step()` | template |
 | Cameras | exactly `front` and `wrist`, RGB, 640×480 | template (`front` pose per task) |
 | Frame builder | `build_lerobot_frame`, unchanged keys and shapes | template |
 
@@ -211,7 +210,7 @@ Behavior that affects recording:
 - An episode is written at the next reset if it is marked successful, and
   dropped otherwise. Every environment is recorded into its own buffer, and
   episodes are numbered in the order they are written.
-- The dataset goes to `datasets/<repo_id>` (`HF_LEROBOT_HOME`). If that folder
+- The dataset goes to `datasets/${HF_USER}/<repo_name>`. If that folder
   already exists, recording stops with `FileExistsError`; `--resume` appends to
   it instead, with the same task and `fps`. Copying the folder first protects
   the existing episodes from a failed session.
@@ -245,7 +244,7 @@ each column is described on the axis pages:
 | `FileExistsError` at start | The dataset folder already exists | Choose a new `--lerobot_dataset_repo_id`, delete the old folder, or use `--resume` |
 | `PermissionError` under `datasets/` | The folder was created by the container as root | Exit the container, or run `make fix-perms` |
 | `LeRobot not found. Using GenericDataRecorder.` followed by an `AttributeError` | LeRobot cannot be imported in the simulator environment | Reinstall it with `make install-sim`, or rebuild the container image |
-| `ERROR_INCOMPATIBLE_DRIVER`, `Failed to create any GPU devices`, or `libGLU.so.1` missing at start (new cloud VM) | The host lacks the Vulkan/OpenGL libraries or the NVIDIA EGL vendor file | `bash scripts/setup_brev_host.sh` ([Getting Started §3.5](getting_started.md#35-launch-the-simulator)) |
+| `ERROR_INCOMPATIBLE_DRIVER`, `Failed to create any GPU devices`, or `libGLU.so.1` missing at start (new cloud VM) | The host lacks the Vulkan/OpenGL libraries or the NVIDIA EGL vendor file | `bash scripts/setup_brev_host.sh` ([Getting Started §3.4](getting_started.md#34-launch-the-simulator)) |
 | Stops after the `pink_cup` mass warning, one CPU core at 100%, no error; Kit log has `omni.physx handle on CUDA lib is (nil)` or `GPU solver pipeline failed` | The `libcuda.so` link is missing, so PhysX runs on the CPU | `bash scripts/setup_brev_host.sh`, then start again |
 | Dataset will not load / Parquet footer error | The script was killed before it closed the dataset | Stop with Ctrl+C; record a corrupted dataset again under a new id |
 | Missing `object_position.*`, `lighting.*` or `object_color.*` columns | Recorded without `--use_lerobot_recorder`, or the task does not list the light in `recorded_light_names` or the object in `object_references` | Record again with the option and the lists set |

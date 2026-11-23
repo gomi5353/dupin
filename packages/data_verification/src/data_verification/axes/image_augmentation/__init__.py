@@ -1,4 +1,4 @@
-"""Image Augmentations axis (STAR-Gen V-AUG), factor lighting: is the scene light varied over the intensity and color temperature the student requires?
+"""Image Augmentations axis (STAR-Gen V-AUG), factor lighting: is the scene light varied over the intensity and color temperature the spec requires?
 
 Files:
   ontology.ttl        ImageAugmentationAxis, its requirement, light conditions, cells, run placements

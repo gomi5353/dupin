@@ -9,8 +9,8 @@ report for the dataset and for a rollout. The workflow, the store, the
 `verify` command and the queries are common to every axis and are described
 in [Data Verification](data_verification.md).
 
-Every section starts with one of two labels: **Required** (something students
-must do or follow) or **Background** (explanation without work items).
+Every section starts with one of two labels: **Required** (something to do or
+follow) or **Background** (explanation without work items).
 
 ## 1. What the check does and why
 
@@ -37,8 +37,8 @@ light over a much wider range than the recording defaults
 defaults covers only a small part of what the policy meets at evaluation.
 
 The check answers one question: **under which light conditions does the
-dataset actually have episodes, measured against a requirement that the group
-writes?** The group states a range of light intensity, a range of color
+dataset actually have episodes, measured against a requirement written in a
+spec?** The spec states a range of light intensity, a range of color
 temperature, a grid that divides the two ranges into cells, and a minimum
 number of episodes per cell. The check counts the episodes whose light
 *started* in each cell and reports the cells below the minimum. It works like
@@ -112,13 +112,15 @@ writes one column per light in `recorded_light_names`:
   episode; the light does not change within an episode.
 - Only environment 0 is recorded (a LeIsaac limitation), as for every column.
 
-A quick test after recording a few episodes:
+A quick test after recording a few episodes (general environment):
 
 ```bash
-uv run python -c "import json; f=json.load(open('datasets/<HF_USER>/<dataset_repo>/meta/info.json'))['features']; print([k for k in f if k.startswith('lighting.')])"
+uv run python -c "import json; f=json.load(open('datasets/${HF_USER}/<repo_name>/meta/info.json'))['features']; print([k for k in f if k.startswith('lighting.')])"
 ```
 
-The output is `['lighting.rect_light']`. An empty list means that the
+The command reads `meta/info.json` of the dataset folder
+`datasets/${HF_USER}/<repo_name>` and prints the feature keys that start with
+`lighting.`. The output is `['lighting.rect_light']`. An empty list means that the
 dataset was recorded without `--use_lerobot_recorder`.
 
 ## 4. Write the specification
@@ -157,7 +159,7 @@ per light; a second block for the same `cp:lightName` is a violation.
 
 ### 4.1 Choosing the values
 
-These values are the group's decision. The following questions help.
+The values can be chosen freely. The following questions help.
 
 **Ranges.** The evaluation files use intensity 2500–8000 and 3000–6500 K. A
 spec with exactly these ranges asks: *does the dataset cover the public
@@ -166,8 +168,8 @@ evaluation's lighting?* With the recording defaults (4500–5500,
 A narrower spec range only checks a part of the evaluation range; runs
 outside it are not covered in the rollout comparison
 ([section 6](#6-compare-with-a-rollout)). The private evaluation
-configuration is not published, so a group may choose ranges wider than the
-public ones, but then it also has to record there.
+configuration is not published, so ranges wider than the public ones can be
+chosen; the dataset then needs episodes there too.
 
 **Bins.** Cell width = `(intensityMax - intensityMin) / numBinsIntensity`,
 cell height = `(colorTemperatureMax - colorTemperatureMin) /
@@ -200,16 +202,23 @@ Run `verify` with the filled-in spec
 ([Data Verification §4](data_verification.md#4-run-the-check-and-read-the-report)):
 
 ```bash
-uv run python scripts/store.py verify --store stores/<dataset_repo> \
+uv run python scripts/store.py verify --store stores/<repo_name> \
     --spec my_specs/image_augmentation.ttl
 ```
+
+| Argument | Meaning |
+|---|---|
+| `--store` | Store folder of the dataset, `stores/<repo_name>` |
+| `--spec` | The filled spec to check |
+
+The command runs in the general environment.
 
 Example output, for the spec of [section 4.1](#41-choosing-the-values) and a
 dataset of 20 episodes: 12 recorded with the default ranges, then 8 after the
 ranges were widened to the evaluation's:
 
 ```
-Store   : stores/my_dataset
+Store   : stores/<repo_name>
 Spec    : image_augmentation  (/…/my_specs/image_augmentation.ttl)
 Episodes: 20
 
@@ -246,9 +255,14 @@ The cells and their counts are stored as `cp:LightingCell` nodes with
 example:
 
 ```bash
-uv run python scripts/store.py query --store stores/<dataset_repo> --query-text \
+uv run python scripts/store.py query --store stores/<repo_name> --query-text \
   'SELECT ?i ?j ?n WHERE { ?c a cp:LightingCell ; cp:cellI ?i ; cp:cellJ ?j ; cp:episodeCount ?n } ORDER BY ?j ?i'
 ```
+
+| Argument | Meaning |
+|---|---|
+| `--store` | Store folder of the dataset, `stores/<repo_name>` |
+| `--query-text` | A SPARQL query; this one lists each cell's column `i`, row `j` and episode count `n` |
 
 ## 6. Compare with a rollout
 
@@ -263,17 +277,19 @@ For lighting:
   read in the same way as the dataset column. The light comes from the eval
   file's `randomize_light_conditions`, so with the shipped eval files every
   run falls inside 2500–8000 and 3000–6500 K.
-- Each run is placed into a cell of the group's grid by its light. A run is
+- Each run is placed into a cell of the spec's grid by its light. A run is
   **covered** on this axis when its cell has at least `minEpisodesPerCell`
   dataset episodes. A run outside the spec's ranges is never covered.
-- A run is **in distribution** when every axis of the spec covers it; with several spec files, the [combined verdict](data_verification.md#5-compare-the-dataset-with-a-rollout) needs every spec file to cover it.
+- **In distribution** is defined in
+  [Data Verification §5](data_verification.md#5-compare-the-dataset-with-a-rollout);
+  with this spec alone, it equals covered.
 
 Example output, for the dataset of [section 5](#5-read-the-report) and a
 synthetic rollout log of 20 runs (made up for illustration, not from a
 trained policy):
 
 ```
-Store   : stores/my_dataset
+Store   : stores/<repo_name>
 Spec    : image_augmentation
 Rollout : 20261120-101500  (eval/cutlery_arrangement_eval.py, seed 42)
 Runs    : 20 finished, 7 succeeded

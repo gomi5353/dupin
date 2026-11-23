@@ -1,26 +1,26 @@
 #!/usr/bin/env python3
 """Verification store: record a dataset and its rollouts as RDF, check them against your specs, query them.
 
-One store per dataset, under stores/<dataset>/. Reads only meta/ and data/ of
+One store per dataset, under stores/<repo_name>/. Reads only meta/ and data/ of
 the dataset (no simulator, no videos) and the rollout logs.
 Guide: docs/data_verification.md
 
   # 1. Put the dataset into a new store (again after recording more episodes)
-  uv run python scripts/store.py ingest --dataset datasets/${HF_USER}/<dataset_repo>
+  uv run python scripts/store.py ingest --dataset datasets/${HF_USER}/<repo_name>
 
   # 2. Copy the specs of the axes you want checked (specs/<task>/), replace every "TODO"
   cp specs/<task>/object_pose.ttl specs/<task>/image_augmentation.ttl my_specs/
 
   # 3. After a rollout (scripts/rollout.py writes outputs/rollout/<timestamp>.jsonl), put it into the store
-  uv run python scripts/store.py ingest --store stores/<dataset_repo> --rollout-log outputs/rollout/<timestamp>.jsonl
+  uv run python scripts/store.py ingest --store stores/<repo_name> --rollout-log outputs/rollout/<timestamp>.jsonl
 
   # 4. Check the dataset against your specs and compare every rollout; specs and results go into the store
-  uv run python scripts/store.py verify --store stores/<dataset_repo> \\
+  uv run python scripts/store.py verify --store stores/<repo_name> \\
       --spec my_specs/object_pose.ttl my_specs/image_augmentation.ttl
 
   # 5. Ask the store
-  uv run python scripts/store.py explore --store stores/<dataset_repo>
-  uv run python scripts/store.py query --store stores/<dataset_repo> --query-file queries/uncovered_cells.rq
+  uv run python scripts/store.py explore --store stores/<repo_name>
+  uv run python scripts/store.py query --store stores/<repo_name> --query-file queries/uncovered_cells.rq
 """
 
 from __future__ import annotations
@@ -54,7 +54,7 @@ def cmd_ingest(args: argparse.Namespace) -> int:
         print(f"Next: verify --store {store.root} --spec <your spec>.ttl (one --spec per axis; copies of specs/<task>/*.ttl, filled in)")
         return 0
     if args.store is None:
-        raise StoreError("ingest --rollout-log needs --store stores/<dataset>: the store of the dataset the policy was trained on")
+        raise StoreError("ingest --rollout-log needs --store stores/<repo_name>: the store of the dataset the policy was trained on")
     store = open_store(args.store)
     rollout = ingest_rollout(store, args.rollout_log)
     print(f"Wrote {store.rollout_file(args.rollout_log.stem)} ({rollout})")

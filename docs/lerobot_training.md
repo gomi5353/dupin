@@ -5,15 +5,15 @@ LeRobot's `lerobot-train`, and what the resulting checkpoint contains. It
 extends step 4 of [Getting Started](getting_started.md) and assumes that setup
 (step 0) is complete and that the dataset has passed the checks of step 3.
 
-Every section starts with one of two labels: **Required** (something students
-must do or follow) or **Background** (explanation without work items).
+Every section starts with one of two labels: **Required** (something to do
+or follow) or **Background** (explanation without work items).
 
 ## 1. Where training runs
 
 **Background**
 
-Training runs on the **host**, in the `uv` environment (`source .venv/bin/activate`
-after `uv sync`), not in the simulator environment: `.venv-sim` pins the older
+Training runs in the **general environment** (`make launch-gen`,
+after `make install-gen`), not in the simulator environment: `.venv-sim` pins the older
 packages that Isaac Sim needs, and the Isaac Lab container adds file-access and
 GPU pass-through overhead that slows training down considerably. `nvidia-smi`
 must list the GPU.
@@ -27,26 +27,26 @@ The official LeRobot training documentation is at
 
 A dataset recorded on the same machine is used directly: the simulator shell
 and the container both write datasets to the repository's `datasets/` folder,
-so the dataset is at `datasets/${HF_USER}/<repo_id>`.
+so the dataset is at `datasets/${HF_USER}/<repo_name>`.
 
 A dataset on the Hugging Face Hub is downloaded first:
 
 ```bash
-hf download ${HF_USER}/<repo_id> --local-dir datasets/${HF_USER}/<repo_id> --repo-type dataset
+hf download ${HF_USER}/<repo_name> --local-dir datasets/${HF_USER}/<repo_name> --repo-type dataset
 ```
 
 `--revision <tag>` selects a tagged version, for example `--revision v1`.
 Without `--dataset.root`, `lerobot-train` downloads the dataset by itself
-([section 4](#4-flag-reference)).
+([section 3](#3-training-command-and-flags)).
 
-## 3. Training command
+## 3. Training command and flags
 
 **Required**
 
 ```bash
 lerobot-train \
-  --dataset.repo_id=${HF_USER}/<repo_id> \
-  --dataset.root=datasets/${HF_USER}/<repo_id> \
+  --dataset.repo_id=${HF_USER}/<repo_name> \
+  --dataset.root=datasets/${HF_USER}/<repo_name> \
   --policy.type=diffusion \
   --policy.device=cuda \
   --output_dir=outputs/train/<job_name> \
@@ -55,20 +55,12 @@ lerobot-train \
   --policy.repo_id=${HF_USER}/<policy_name>
 ```
 
-Training takes from a few hours to more than a day, depending on the dataset
-size and the GPU. Progress is printed in the terminal, and on the Weights &
-Biases dashboard when it is enabled (`wandb login` first).
-
-## 4. Flag reference
-
-**Background**
-
 | Flag | Description |
 |---|---|
-| `--dataset.repo_id=${HF_USER}/<repo_id>` | The dataset to train on: the repo id used when recording. |
-| `--dataset.root=datasets/${HF_USER}/<repo_id>` | Local folder of the dataset. Without this flag, the dataset is downloaded from the Hugging Face Hub, which requires uploading it first ([section 2](#2-get-the-dataset), [Getting Started §6](getting_started.md#6-step-3-inspect-and-verify-the-dataset)). |
+| `--dataset.repo_id=${HF_USER}/<repo_name>` | The dataset to train on: the repo id used when recording. |
+| `--dataset.root=datasets/${HF_USER}/<repo_name>` | Local folder of the dataset. Without this flag, the dataset is downloaded from the Hugging Face Hub, which requires uploading it first ([section 2](#2-get-the-dataset), [Getting Started §6](getting_started.md#6-step-3-inspect-and-verify-the-dataset)). |
 | `--policy.type` | Policy architecture. `diffusion` (Diffusion Policy) generates smooth action sequences; `act` (Action Chunking Transformer) predicts a chunk of actions per inference. Other policies are listed in [section 5](#5-other-policies); rollout accepts the types of [Rollout §3](rollout.md#flag-reference). |
-| `--policy.*` | Policy-specific options follow `--policy.type`, for example `--policy.n_obs_steps`, `--policy.horizon`, and `--policy.n_action_steps` for Diffusion Policy, or `--policy.chunk_size` and `--policy.n_action_steps` for ACT. `n_action_steps` is the number of actions that rollout executes after each inference (each lasting one 1/60 s step). |
+| `--policy.*` | Policy-specific options follow `--policy.type`, for example `--policy.n_obs_steps`, `--policy.horizon`, and `--policy.n_action_steps` for Diffusion Policy, or `--policy.chunk_size` and `--policy.n_action_steps` for ACT. `n_action_steps` is the number of actions that rollout executes after each inference (each action corresponds to one simulation control step.). |
 | `--policy.device=cuda` | Trains on the GPU. `cpu` is only useful for quick debugging. |
 | `--output_dir` | Folder for checkpoints, logs, and the configuration, for example `outputs/train/diffusion_cupstacking_v1`. It must not exist yet. |
 | `--job_name` | Name of the run in the logs and on the W&B dashboard. |
@@ -77,17 +69,20 @@ Biases dashboard when it is enabled (`wandb login` first).
 | `--batch_size` | Training batch size (default `8`). A smaller value reduces GPU memory use. |
 | `--steps` | Number of training steps (default `100000`). A checkpoint is saved every `--save_freq` steps (default `20000`) and at the end. |
 
-## 5. Other policies
+
+## 5. Support policies
 
 **Background**
 
-`--policy.type` accepts the policies below in addition to `diffusion` and `act`.
+`--policy.type` accepts the policies below.
 The GPU column states what to expect on an RTX 4090 (24 GB). Where the memory is
 not enough, or only a very small batch size fits, train on an L40S (46 GB); the
 rollout of the resulting checkpoint still runs on an RTX 4090.
 
 | `--policy.type` | RTX 4090 (24 GB) | Notes |
 |---|---|---|
+| `diffusion` | Fits. |  |
+| `act` | Fits. | |
 | `groot` | Runs out of memory with the default settings, even with `--batch_size=1`. Runs with `--policy.tune_diffusion_model=false` (the action head stays frozen). | On an L40S the default settings fit. |
 | `smolvla` | Fits. | |
 | `xvla` | `--batch_size=4` fits; `--batch_size=8` runs out of memory. | Use an L40S for a larger batch size. |
@@ -96,6 +91,35 @@ rollout of the resulting checkpoint still runs on an RTX 4090.
 
 Every command below uses the placeholders of [section 3](#3-training-command);
 add `--wandb.enable=true` as there.
+
+Training takes from a few hours to more than a day, depending on the dataset
+size and the GPU. Progress is printed in the terminal, and on the Weights &
+Biases dashboard when it is enabled (`wandb login` first).
+
+### Training ACT
+
+ACT (Action Chunking Transformer) predicts a chunk of actions per inference.
+
+```bash
+lerobot-train \
+  --dataset.repo_id=${HF_USER}/<repo_name> \
+  --dataset.root=datasets/${HF_USER}/<repo_name> \
+  --policy.type=act \
+  --policy.device=cuda \
+  --policy.chunk_size=100 \
+  --policy.n_action_steps=100 \
+  --output_dir=outputs/train/<job_name> \
+  --job_name=<job_name> \
+  --wandb.enable=true \
+  --policy.repo_id=${HF_USER}/<policy_name>
+```
+
+| Flag | Description |
+|---|---|
+| `--policy.chunk_size` | Number of actions predicted by one inference |
+| `--policy.n_action_steps` | Number of those actions executed before the next inference; at most `chunk_size` |
+
+All other flags are as in the table above.
 
 ### Training GR00T
 
@@ -261,7 +285,7 @@ index in the pipeline. Inference loads `config.json`, then
 **Background**
 
 If the automatic push was disabled, or an extra tagged version is wanted, the
-checkpoint is uploaded from the host:
+checkpoint is uploaded from the general environment:
 
 ```bash
 hf upload ${HF_USER}/<policy_name> outputs/train/<job_name>/checkpoints/last/pretrained_model --repo-type model --revision <tag>
@@ -278,7 +302,8 @@ to download it on another machine.
 | Problem | Fix |
 |---|---|
 | `nvidia-smi` not found or shows an error | The NVIDIA driver or CUDA is not installed correctly; follow NVIDIA's installation guide. |
-| `lerobot-train: command not found` | Run `uv sync` at the repository root and activate `.venv`. |
+| `lerobot-train: command not found` | Run `make install-gen` at the repository root and activate `.venv`. |
+| Video decoding error at the first batch (`ffmpeg` not found, or a `torchcodec` / `libavutil` load error) | `ffmpeg` is not installed. Run `sudo apt-get install -y ffmpeg`, check with `ffmpeg -version`, and start again. |
 | Out of memory (OOM) | Reduce `--batch_size`, for example `--batch_size=4`. For GR00T, also `--policy.tune_diffusion_model=false` ([section 5](#5-other-policies)). |
 | `FileExistsError` for the output directory | Choose a new `--output_dir`. |
 | Training loss does not decrease | Check the dataset: consistent, complete demonstrations ([Getting Started §6](getting_started.md#6-step-3-inspect-and-verify-the-dataset)). |

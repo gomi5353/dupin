@@ -2,14 +2,14 @@
 
 This guide describes the Object Poses axis of the data verification: where on
 the table the objects start in the dataset, measured against a requirement
-that the group writes. It is one of three axes
+written in a spec. It is one of three axes
 ([Data Verification §1](data_verification.md#1-the-three-generalization-axes)).
 The workflow, the store, the commands and the general parts of the report are
 described in [Data Verification](data_verification.md); this guide covers only
 what is specific to this axis.
 
-Every section starts with one of two labels: **Required** (something students
-must do or follow) or **Background** (explanation without work items).
+Every section starts with one of two labels: **Required** (something to do or
+follow) or **Background** (explanation without work items).
 
 ## 1. The axis and why position
 
@@ -60,12 +60,8 @@ following reasons:
   by quaternions require more complex discretization and have representational
   ambiguities (e.g., two quaternions can represent the same rotation).
 
-Groups that randomize object orientations in their own experiments can add
-orientation as another factor
-([Adding a Coverage Factor](adding_coverage_factor.md)).
-
 The check answers one question: **where on the table does the dataset actually
-have episodes?** The group states, per object, a rectangle of the table, a
+have episodes?** The spec states, per object, a rectangle of the table, a
 grid that divides it into cells, and a minimum number of episodes per cell.
 The check counts the episodes whose object *started* in each cell and reports
 the cells below the minimum.
@@ -117,15 +113,17 @@ Details of how the recorder captures the positions:
 - Only successful episodes are saved, so the check counts the starting
   positions of successful demonstrations.
 
-A quick test after recording a few episodes:
+A quick test after recording a few episodes (general environment):
 
 ```bash
-uv run python -c "import json; f=json.load(open('datasets/<HF_USER>/<dataset_repo>/meta/info.json'))['features']; print([k for k in f if k.startswith('object_position.')])"
+uv run python -c "import json; f=json.load(open('datasets/${HF_USER}/<repo_name>/meta/info.json'))['features']; print([k for k in f if k.startswith('object_position.')])"
 ```
 
-The output lists one key per tracked object. An empty list means that the
-dataset was recorded without `--use_lerobot_recorder` and has to be recorded
-again.
+The command reads `meta/info.json` of the dataset folder
+`datasets/${HF_USER}/<repo_name>` and prints the feature keys that start with
+`object_position.`. The output lists one key per tracked object. An empty list
+means that the dataset was recorded without `--use_lerobot_recorder` and has
+to be recorded again.
 
 ## 3. The spec: `object_pose.ttl`
 
@@ -184,7 +182,7 @@ spec:blue_cup_grid a cp:CoverageGrid ;
 
 ### 3.2 Choosing the values
 
-These values are the group's decision. The following questions help.
+The values can be chosen freely. The following questions help.
 
 **Area (`areaXMin` .. `areaYMax`)**
 
@@ -239,8 +237,13 @@ Run `verify` with the filled spec
 ([Data Verification §4](data_verification.md#4-run-the-check-and-read-the-report)):
 
 ```bash
-uv run python scripts/store.py verify --store stores/<dataset_repo> --spec my_specs/object_pose.ttl
+uv run python scripts/store.py verify --store stores/<repo_name> --spec my_specs/object_pose.ttl
 ```
+
+| Argument | Meaning |
+|---|---|
+| `--store` | Store folder of the dataset, `stores/<repo_name>` |
+| `--spec` | The filled spec to check (general environment) |
 
 The Object Poses part of the report, for the spec of
 [section 3.2](#32-choosing-the-values) (`pink_cup` with x 9.0–9.2,
@@ -248,7 +251,7 @@ y 6.38–6.58, also 2 × 2 cells and 3 episodes each) and a dataset of 12
 episodes:
 
 ```
-Store   : stores/my_dataset
+Store   : stores/<repo_name>
 Spec    : object_pose  (/home/<user>/<repo>/my_specs/object_pose.ttl)
 Episodes: 12
 
@@ -304,7 +307,7 @@ compared.
 
 How the comparison works, per object:
 
-- **Cell of a run.** Each run is placed into a cell of **the group's own grid**
+- **Cell of a run.** Each run is placed into a cell of **the spec's grid**
   for that object, by its initial position, with the same rule as the dataset
   check. A run that started outside the area is placed into a cell of the
   same size outside it, continuing the grid as a lattice (for example column
@@ -320,7 +323,7 @@ y 6.38–6.58 and `pink_cup` over x 9.0–9.2, y 6.38–6.58. With the spec and
 dataset of [section 4](#4-read-the-report), a rollout with 20 episodes gives:
 
 ```
-Store   : stores/my_dataset
+Store   : stores/<repo_name>
 Spec    : object_pose
 Rollout : 20261103-142530  (eval/cup_stacking_eval.py, seed 42)
 Runs    : 20 finished, 8 succeeded
@@ -368,29 +371,28 @@ How to read it:
 
 | Part | Meaning | In the example above |
 |---|---|---|
-| **Header** `[blue_cup] your area … cell … NxM cells` | The group's area and grid for the object, from the spec. | Cell size (9.0 − 8.8) / 2 = 0.1 by (6.6 − 6.4) / 2 = 0.1. |
-| **Dataset grid** `episodes:runs` | Per cell of the group's grid, +y at the top as in the dataset check: the dataset episodes that started there, then the rollout runs that started there. `!` = the cell has runs but fewer than `minEpisodesPerCell` episodes, so those runs are not covered. Outcomes are not in this grid. | `5:5` (x0, y0): 5 episodes, 5 runs: covered. `1:5!` (x1, y1): 1 episode, minimum 3, 5 runs: not covered. `3:0` (x0, y1): enough episodes, no runs, so not judged. |
+| **Header** `[blue_cup] your area … cell … NxM cells` | The area and grid for the object, from the spec. | Cell size (9.0 − 8.8) / 2 = 0.1 by (6.6 − 6.4) / 2 = 0.1. |
+| **Dataset grid** `episodes:runs` | Per cell of the spec's grid, +y at the top as in the dataset check: the dataset episodes that started there, then the rollout runs that started there. `!` = the cell has runs but fewer than `minEpisodesPerCell` episodes, so those runs are not covered. Outcomes are not in this grid. | `5:5` (x0, y0): 5 episodes, 5 runs: covered. `1:5!` (x1, y1): 1 episode, minimum 3, 5 runs: not covered. `3:0` (x0, y1): enough episodes, no runs, so not judged. |
 | **Outcome grid** `successes/runs` | Per cell: how many of the runs that started there succeeded. `-` = no runs. Says nothing about the dataset; read it next to the dataset grid. | `4/5` (x0, y0): 4 of the 5 runs succeeded. `1/5` (x1, y1): 1 of 5 succeeded, in the cell the dataset grid marks thin. |
 | **outside your area** | Runs that started outside the area, and how many lattice cells of the grid's size they fall into. They are not covered. | 10 runs started at y 6.38–6.4, below `areaYMin` 6.4: in cells (0, −1) and (1, −1). |
 | **covered** | Covered cells / cells with runs (outside cells included), and the runs in covered cells / all runs. | `blue_cup`: only (x0, y0) of the 4 sampled cells is covered, so 1/4 cells and 5/20 runs. `pink_cup`: 4/4 cells, 20/20 runs. |
 | **success** | Success rate of the covered runs compared with the other runs. | `blue_cup`: 4/5 vs 1 + 1 + 2 = 4 of 15. `pink_cup`: all 20 runs covered, so 8/20 vs 0/0. |
 | **In distribution** | Runs covered on every axis of the spec ([Data Verification §5](data_verification.md#5-compare-the-dataset-with-a-rollout)). With only this axis in the spec, a run counts when every object started in a covered cell. | All `pink_cup` runs are covered, so this equals `blue_cup`'s 5/20; success 4/5 (80 %) inside vs 4/15 (27 %) outside. |
-| **Record more episodes here** — *where is data missing?* | Cells of the group's grid with runs and fewer episodes than the minimum. Sorted by failed runs, then by missing episodes. `N more at least` is the sum of `needs … more`. Recording there needs no change to the spec. | Cell (i=1, j=1), x 8.9–9.0, y 6.5–6.6, has 1 episode; it needs 2 more. 5 runs started there, 4 failed. |
-| **Grow your area** — *is the area too small?* | Runs started outside the group's area. The suggested area is enlarged by whole cells, so the cell size and the cells already recorded stay the same. After updating the spec, run `verify` again to find the new cells that need episodes. | The runs at y 6.38–6.4 fall into row j = −1 (y 6.3–6.4): `areaYMin` 6.4 − 0.1 = 6.3 and `numCellH` 2 + 1 = 3. |
+| **Record more episodes here** — *where is data missing?* | Cells of the spec's grid with runs and fewer episodes than the minimum. Sorted by failed runs, then by missing episodes. `N more at least` is the sum of `needs … more`. Recording there needs no change to the spec. | Cell (i=1, j=1), x 8.9–9.0, y 6.5–6.6, has 1 episode; it needs 2 more. 5 runs started there, 4 failed. |
+| **Grow your area** — *is the area too small?* | Runs started outside the spec's area. The suggested area is enlarged by whole cells, so the cell size and the cells already recorded stay the same. After updating the spec, run `verify` again to find the new cells that need episodes. | The runs at y 6.38–6.4 fall into row j = −1 (y 6.3–6.4): `areaYMin` 6.4 − 0.1 = 6.3 and `numCellH` 2 + 1 = 3. |
 | **WARNING** | One line per object with uncovered cells, named `(i, j)` as in the grid. | `blue_cup`: (1, 1), (0, −1) and (1, −1); 5 + 4 + 6 = 15 runs, 11 failed. |
 
 The two hint blocks (**Record more episodes here**, **Grow your area**) are
 suggestions computed from this axis, one way to read the comparison.
 `--no-hints` leaves them out of the printed report; they are still stored as
 `Info` findings. Each run's placement (`cp:RunPlacement` with `cp:cellI`,
-`cp:cellJ`, `cp:covered`) is stored too, so the group can draw its own
-conclusions (`queries/run_outcomes_by_cell.rq`,
-`queries/failed_runs_not_covered.rq`).
+`cp:cellJ`, `cp:covered`) is stored too, so other questions can be answered from it
+(`queries/run_outcomes_by_cell.rq`, `queries/failed_runs_not_covered.rq`).
 
-The comparison uses the public eval file only. The final ranking uses a
+The comparison uses the public eval file only. The private test uses a
 separate configuration with different positions
 ([Rollout §1](rollout.md#1-what-rollout-does)), so covering the public range
-is necessary but not sufficient.
+may not be enough.
 
 ## 6. Troubleshooting
 
@@ -493,7 +495,7 @@ Comparison
   and row.
 - Every `Position` has `positionX`, `positionY` and `positionZ`, stored as
   decimals rounded to 6 places (micrometres). The coverage rule uses x and y
-  only; z is there for inspection and for the group's own rules.
+  only; z is there for inspection and for custom rules.
 
 Additional rules (for example "the object must start in front of the robot";
 in cup stacking the robot base is at y 6.0 and the cups start at y 6.38–6.58)

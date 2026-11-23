@@ -2,8 +2,7 @@
 
 This is the repository's base extension of leisaac's ``LeRobotRecorderManager``.
 It adds the columns of three verification factors: the object position, the
-lighting and the object color; groups that verify further factors append them
-here (see ``docs/adding_coverage_factor.md``).
+lighting and the object color; a further factor is appended here.
 
 Every tracked object gets its own dataset column ``object_position.<name>``:
 float32 ``(3,)`` = ``[x, y, z]``, position relative to the env origin, metres.

@@ -1,10 +1,10 @@
 # Adding a New Task
 
-This guide describes how an Advanced Level group defines its own manipulation
-task: how a task configuration is built, how it is registered under a task id,
-and how it is tested before recording. It extends step 1 of
-[Getting Started](getting_started.md). Entry Level groups use the three
-predefined tasks and do not need this guide.
+This guide describes how a self-defined manipulation task is written: how a
+task configuration is built, how it is registered under a task id, and how it
+is tested before recording. It extends step 1 of
+[Getting Started](getting_started.md). The three predefined tasks do not need
+this guide.
 
 The running example is the cup-stacking task:
 
@@ -20,8 +20,8 @@ The running example is the cup-stacking task:
 - [`specs/cup_stacking/`](../specs/cup_stacking/): the task's shipped specs,
   one per generalization axis.
 
-Every section starts with one of two labels: **Required** (something students
-must do or follow) or **Background** (explanation without work items).
+Every section starts with one of two labels: **Required** (something to do
+or follow) or **Background** (explanation without work items).
 
 ## 1. How a task is built
 
@@ -124,8 +124,6 @@ class CupStackingSceneCfg(SingleArmFrankaTaskSceneCfg):
   objects use it; only assets shared by all environments use `/World/...`.
 - Asset paths are built from `simulator.ASSETS_ROOT`
   (`packages/simulator/assets/`), which works from any working directory.
-  Public 3D assets can come from the sources listed in the course
-  specification.
 - `init_state.pos` is relative to the environment origin, in metres.
   Quaternions are `(w, x, y, z)`; `(1, 0, 0, 0)` is no rotation.
 - A light is a scene entity too. `rect_light` wraps a light that already
@@ -350,7 +348,7 @@ simulator has started.
 After these checks, recording proceeds as for a predefined task, from step 2 of
 [Getting Started](getting_started.md#5-step-2-record-demonstrations). A new
 task has no state machine, so it is recorded with keyboard teleoperation, or
-the group writes a state machine modelled on those in
+a state machine can be written, modelled on those in
 `packages/simulator/src/simulator/datagen/state_machine/` and adds it to
 `TASK_REGISTRY` in `scripts/datagen/generate.py`.
 
@@ -380,7 +378,7 @@ In the copies:
 
 The file names stay `object_pose.ttl`, `image_augmentation.ttl` and
 `object_property.ttl`, and the values stay `"TODO"`, as in the shipped specs.
-The group fills in its own values in a copy under `my_specs/`, as for a
+The values are filled in in a copy under `my_specs/`, as for a
 predefined task. `make test` checks that every file under `specs/<task>/` is
 named after an axis and has only its values left as `TODO`.
 
@@ -389,12 +387,12 @@ named after an axis and has only its values left as `TODO`.
 **Background**
 
 For a separate evaluation configuration (other nominal poses, ranges, or
-lighting than in recording), the group writes an evaluation file in the same
+lighting than in recording), an evaluation file is written in the same
 form as the files in `eval/`: a configuration class plus a `gym.register(...)`
 call with a unique `TASK_ID`, passed to rollout as a path
 ([Rollout §5](rollout.md#5-evaluating-a-self-defined-task)).
-The evaluation protocol of a self-defined task is part of the group's
-reproducibility documentation.
+The evaluation file is best kept with the task, so that the evaluation can be
+reproduced.
 
 ## 8. Common pitfalls
 

@@ -17,7 +17,7 @@ resolution-markers = [
 [manifest]
 members = [
     "data-verification",
-    "physicalai",
+    "general",
 ]
 
 [[package]]
@@ -1400,7 +1400,7 @@ wheels = [
 ]
 
 [[package]]
-name = "physicalai"
+name = "general"
 version = "0.1.0"
 source = { virtual = "." }
 dependencies = [

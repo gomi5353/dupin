@@ -1,6 +1,6 @@
 # Core OWL vocabulary of the verification store.
 #
-# One store per dataset (stores/<dataset>/). The store records what happened,
+# One store per dataset (stores/<repo_name>/). The store records what happened,
 # in the order it happened, as RDF:
 #
 #   ingest  --dataset      a Dataset with its Episodes; each Episode has the
@@ -8,7 +8,7 @@
 #                          Position (first recorded frame, env-local, metres).
 #   ingest  --rollout-log  a Rollout of a policy trained on the Dataset, with
 #                          its Runs (status and initial positions).
-#   verify  --spec         a Spec per given file: the student's
+#   verify  --spec         a Spec per given file: its
 #                          GeneralizationAxes, each with its AxisRequirements.
 #                          The Dataset then has the axes (cp:hasGeneralizationAxis).
 #                          Then a Verification per spec (dataset vs requirements)
@@ -94,14 +94,14 @@ cp:Position a owl:Class ;
     rdfs:label "Position"@en ;
     rdfs:comment "An initial (first-frame) position in the env-local frame, metres, rounded to 6 decimal places."@en .
 
-# ---- Student declarations -----------------------------------------------------
+# ---- Spec declarations -----------------------------------------------------
 
 cp:Spec a owl:Class ;
     rdfs:subClassOf
         [ a owl:Restriction ; owl:onProperty cp:declaresAxis ; owl:someValuesFrom cp:GeneralizationAxis ] ,
         [ a owl:Restriction ; owl:onProperty cp:declaresAxis ; owl:allValuesFrom cp:GeneralizationAxis ] ;
     rdfs:label "Spec"@en ;
-    rdfs:comment "A coverage spec file filled in by the student and put into the store by verify. Its individuals are renamed under the spec's IRI so that several specs can live in one store."@en .
+    rdfs:comment "A coverage spec file filled in by the user and put into the store by verify. Its individuals are renamed under the spec's IRI so that several specs can live in one store."@en .
 
 cp:GeneralizationAxis a owl:Class ;
     rdfs:subClassOf
@@ -114,7 +114,7 @@ cp:AxisRequirement a owl:Class ;
     rdfs:subClassOf
         [ a owl:Restriction ; owl:onProperty [ owl:inverseOf cp:hasRequirement ] ; owl:qualifiedCardinality "1"^^xsd:nonNegativeInteger ; owl:onClass cp:GeneralizationAxis ] ;
     rdfs:label "Axis Requirement"@en ;
-    rdfs:comment "A coverage requirement along one generalization axis, written by the student. Each axis subclasses it with its own requirement class."@en .
+    rdfs:comment "A coverage requirement along one generalization axis, written in a spec. Each axis subclasses it with its own requirement class."@en .
 
 # ---- Verification results -----------------------------------------------------
 
