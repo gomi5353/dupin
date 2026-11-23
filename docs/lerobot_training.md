@@ -47,7 +47,7 @@ Without `--dataset.root`, `lerobot-train` downloads the dataset by itself
 lerobot-train \
   --dataset.repo_id=${HF_USER}/<repo_name> \
   --dataset.root=datasets/${HF_USER}/<repo_name> \
-  --policy.type=diffusion \
+  --policy.type=<type> \
   --policy.device=cuda \
   --output_dir=outputs/train/<job_name> \
   --job_name=<job_name> \
@@ -59,8 +59,8 @@ lerobot-train \
 |---|---|
 | `--dataset.repo_id=${HF_USER}/<repo_name>` | The dataset to train on: the repo id used when recording. |
 | `--dataset.root=datasets/${HF_USER}/<repo_name>` | Local folder of the dataset. Without this flag, the dataset is downloaded from the Hugging Face Hub, which requires uploading it first ([section 2](#2-get-the-dataset), [Getting Started §6](getting_started.md#6-step-3-inspect-and-verify-the-dataset)). |
-| `--policy.type` | Policy architecture. `diffusion` (Diffusion Policy) generates smooth action sequences; `act` (Action Chunking Transformer) predicts a chunk of actions per inference. Other policies are listed in [section 5](#5-other-policies); rollout accepts the types of [Rollout §3](rollout.md#flag-reference). |
-| `--policy.*` | Policy-specific options follow `--policy.type`, for example `--policy.n_obs_steps`, `--policy.horizon`, and `--policy.n_action_steps` for Diffusion Policy, or `--policy.chunk_size` and `--policy.n_action_steps` for ACT. `n_action_steps` is the number of actions that rollout executes after each inference (each action corresponds to one simulation control step.). |
+| `--policy.type=<type>` | The policy to train, one of the policies in [section 4](#4-policies); rollout accepts the types of [Rollout §3](rollout.md#flag-reference). |
+| `--policy.*` | Options of the chosen policy, listed per policy in [section 4](#4-policies). |
 | `--policy.device=cuda` | Trains on the GPU. `cpu` is only useful for quick debugging. |
 | `--output_dir` | Folder for checkpoints, logs, and the configuration, for example `outputs/train/diffusion_cupstacking_v1`. It must not exist yet. |
 | `--job_name` | Name of the run in the logs and on the W&B dashboard. |
@@ -69,8 +69,11 @@ lerobot-train \
 | `--batch_size` | Training batch size (default `8`). A smaller value reduces GPU memory use. |
 | `--steps` | Number of training steps (default `100000`). A checkpoint is saved every `--save_freq` steps (default `20000`) and at the end. |
 
+Training takes from a few hours to more than a day, depending on the dataset
+size and the GPU. Progress is printed in the terminal, and on the Weights &
+Biases dashboard when it is enabled (`wandb login` first).
 
-## 5. Support policies
+## 4. Policies
 
 **Background**
 
@@ -89,12 +92,27 @@ rollout of the resulting checkpoint still runs on an RTX 4090.
 | `pi0`, `pi05` | `--batch_size=8` fits with the memory options in the command below. | Needs a separate environment and access to a gated model. |
 | `vqbet`, `tdmpc`, `sac` | Not supported | See the end of this section. |
 
-Every command below uses the placeholders of [section 3](#3-training-command);
+Every command below uses the placeholders of [section 3](#3-training-command-and-flags);
 add `--wandb.enable=true` as there.
 
-Training takes from a few hours to more than a day, depending on the dataset
-size and the GPU. Progress is printed in the terminal, and on the Weights &
-Biases dashboard when it is enabled (`wandb login` first).
+### Training Diffusion Policy
+
+```bash
+lerobot-train \
+  --dataset.repo_id=${HF_USER}/<repo_name> \
+  --dataset.root=datasets/${HF_USER}/<repo_name> \
+  --policy.type=diffusion \
+  --policy.device=cuda \
+  --output_dir=outputs/train/<job_name> \
+  --job_name=<job_name> \
+  --wandb.enable=true \
+  --policy.repo_id=${HF_USER}/<policy_name>
+```
+
+Diffusion Policy generates smooth action sequences. Its options include
+`--policy.n_obs_steps`, `--policy.horizon` and `--policy.n_action_steps`, the
+number of actions that rollout executes after each inference (each action
+corresponds to one simulation control step).
 
 ### Training ACT
 
@@ -119,18 +137,18 @@ lerobot-train \
 | `--policy.chunk_size` | Number of actions predicted by one inference |
 | `--policy.n_action_steps` | Number of those actions executed before the next inference; at most `chunk_size` |
 
-All other flags are as in the table above.
+All other flags are as in [section 3](#3-training-command-and-flags).
 
 ### Training GR00T
 
 `--policy.type=groot` trains NVIDIA's GR00T N1.5 (3B), fine-tuned from `nvidia/GR00T-N1.5-3B`.
 The first run downloads about 6 GB from the Hugging Face Hub. The required packages and a prebuilt
-FlashAttention wheel are installed by `uv sync` ([Getting Started §3.3](getting_started.md#33-install-the-host-environment)).
+FlashAttention wheel are installed by `make install-gen` ([Getting Started §3.2](getting_started.md#32-install-the-general-environment)).
 
 ```bash
 lerobot-train \
-  --dataset.repo_id=${HF_USER}/<repo_id> \
-  --dataset.root=datasets/${HF_USER}/<repo_id> \
+  --dataset.repo_id=${HF_USER}/<repo_name> \
+  --dataset.root=datasets/${HF_USER}/<repo_name> \
   --policy.type=groot \
   --policy.device=cuda \
   --policy.tune_diffusion_model=false \
@@ -149,8 +167,8 @@ which does not fit on a 24 GB GPU (an RTX 4090 runs out of memory even with `--b
 
 ```bash
 lerobot-train \
-  --dataset.repo_id=${HF_USER}/<repo_id> \
-  --dataset.root=datasets/${HF_USER}/<repo_id> \
+  --dataset.repo_id=${HF_USER}/<repo_name> \
+  --dataset.root=datasets/${HF_USER}/<repo_name> \
   --policy.type=smolvla \
   --policy.device=cuda \
   --policy.push_to_hub=false \
@@ -173,8 +191,8 @@ the unused third camera is left empty, and `--policy.action_mode=auto` keeps the
 FEATURES='{"observation.state":{"type":"STATE","shape":[9]},"observation.images.front":{"type":"VISUAL","shape":[3,480,640]},"observation.images.wrist":{"type":"VISUAL","shape":[3,480,640]}}'
 
 lerobot-train \
-  --dataset.repo_id=${HF_USER}/<repo_id> \
-  --dataset.root=datasets/${HF_USER}/<repo_id> \
+  --dataset.repo_id=${HF_USER}/<repo_name> \
+  --dataset.root=datasets/${HF_USER}/<repo_name> \
   --policy.path=lerobot/xvla-base \
   --policy.device=cuda \
   "--policy.input_features=$FEATURES" \
@@ -208,8 +226,8 @@ source ~/venv_pi/bin/activate
 
 ```bash
 lerobot-train \
-  --dataset.repo_id=${HF_USER}/<repo_id> \
-  --dataset.root=datasets/${HF_USER}/<repo_id> \
+  --dataset.repo_id=${HF_USER}/<repo_name> \
+  --dataset.root=datasets/${HF_USER}/<repo_name> \
   --policy.type=pi0 \
   --policy.device=cuda \
   --policy.dtype=bfloat16 \
@@ -234,7 +252,7 @@ patched `transformers` ([Rollout §3](rollout.md#flag-reference)).
 - `sac`: a reinforcement-learning policy that `lerobot-train` cannot train, and its rollout fails with
   image inputs (`TypeError: list indices must be integers`).
 
-## 6. Multi-GPU training
+## 5. Multi-GPU training
 
 **Background**
 
@@ -245,7 +263,7 @@ where `N` is the number of GPUs:
 accelerate launch --multi_gpu --num_processes=N $(which lerobot-train) <args>
 ```
 
-## 7. Checkpoint layout
+## 6. Checkpoint layout
 
 **Background**
 
@@ -280,7 +298,7 @@ Processor files follow the pattern
 index in the pipeline. Inference loads `config.json`, then
 `model.safetensors`, then the preprocessor and postprocessor with their files.
 
-## 8. Upload a checkpoint
+## 7. Upload a checkpoint
 
 **Background**
 
@@ -295,15 +313,15 @@ hf upload ${HF_USER}/<policy_name> outputs/train/<job_name>/checkpoints/last/pre
 [Rollout §2](rollout.md#2-get-the-checkpoint) describes how
 to download it on another machine.
 
-## 9. Troubleshooting
+## 8. Troubleshooting
 
 **Background**
 
 | Problem | Fix |
 |---|---|
 | `nvidia-smi` not found or shows an error | The NVIDIA driver or CUDA is not installed correctly; follow NVIDIA's installation guide. |
-| `lerobot-train: command not found` | Run `make install-gen` at the repository root and activate `.venv`. |
+| `lerobot-train: command not found` | Run `make install-gen` at the repository root, then `make launch-gen`. |
 | Video decoding error at the first batch (`ffmpeg` not found, or a `torchcodec` / `libavutil` load error) | `ffmpeg` is not installed. Run `sudo apt-get install -y ffmpeg`, check with `ffmpeg -version`, and start again. |
-| Out of memory (OOM) | Reduce `--batch_size`, for example `--batch_size=4`. For GR00T, also `--policy.tune_diffusion_model=false` ([section 5](#5-other-policies)). |
+| Out of memory (OOM) | Reduce `--batch_size`, for example `--batch_size=4`. For GR00T, also `--policy.tune_diffusion_model=false` ([section 4](#4-policies)). |
 | `FileExistsError` for the output directory | Choose a new `--output_dir`. |
 | Training loss does not decrease | Check the dataset: consistent, complete demonstrations ([Getting Started §6](getting_started.md#6-step-3-inspect-and-verify-the-dataset)). |

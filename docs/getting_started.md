@@ -138,58 +138,6 @@ docker run --rm --gpus all ubuntu nvidia-smi
 
 ### 3.2 Install the general environment
 
-Students cannot push to the course repository. Every group therefore works in
-its own **fork**: a copy of the repository under a group member's GitHub
-account. The group's work (state-machine and configuration changes, filled-in
-specs, new verification factors) is committed and
-pushed to the fork, so it is kept, shared within the group, and handed in
-from there. A plain clone of the course repository would leave all changes on
-one machine, with no place to push them.
-
-1. On the course repository's GitHub page, one group member clicks **Fork**
-   and creates the fork under their own account. The other members are added
-   as collaborators (fork **Settings → Collaborators**).
-2. Every member clones the **fork**, not the course repository:
-
-   ```bash
-   git clone https://github.com/<github-user>/robot-learning-from-evaluation-feedback
-   cd robot-learning-from-evaluation-feedback
-   git remote add upstream https://github.com/HCIS-lab/robot-learning-from-evaluation-feedback
-   git remote -v   # origin = the fork (push here), upstream = the course repository
-   ```
-
-3. Work is committed and pushed to the fork as usual:
-
-   ```bash
-   git add <files>
-   git commit -m "<message>"
-   git push origin main
-   ```
-
-4. When the course repository is updated (fixes, new evaluation files), the
-   group merges the updates into its fork:
-
-   ```bash
-   git fetch upstream
-   git merge upstream/main
-   git push origin main
-   ```
-
-   Conflicts appear only where the group changed the same lines as the update.
-
-Notes:
-
-- Datasets, checkpoints, and training outputs (`datasets/`, `checkpoints/`,
-  `outputs/`) are ignored by Git. They are shared through the Hugging Face Hub
-  ([step 3](#6-step-3-inspect-and-verify-the-dataset) and
-  [LeRobot Training §7](lerobot_training.md#8-upload-a-checkpoint)), not
-  through the fork.
-- The Isaac Lab submodule (`dependencies/IsaacLab/`) is fetched by
-  `make install-sim` or the first `make launch-isaaclab`
-  ([section 3.5](#35-launch-the-simulator)).
-
-### 3.3 Install the host environment
-
 From the repository root:
 
 ```bash
@@ -201,11 +149,11 @@ make launch-gen    # opens a shell with .venv active (lerobot-train, hf, ... ava
 then runs `uv sync`. Without `ffmpeg`, `lerobot-train` and `lerobot-dataset-viz` fail when they decode videos; install it with
 `sudo apt-get install -y ffmpeg`.
 
-`make launch-gen` opens a new shell, whose prompt starts with `(general)`; `exit` leaves it. To activate in your current shell instead, run
+`make launch-gen` opens a new shell, whose prompt starts with `(general)`; `exit` leaves it. To activate in the current shell instead, run
 `source .venv/bin/activate`; `deactivate` leaves it. The simulator environment is installed separately in
-[section 3.5](#35-launch-the-simulator).
+[section 3.4](#34-launch-the-simulator).
 
-### 3.4 Log in to Hugging Face and Weights & Biases
+### 3.3 Log in to Hugging Face and Weights & Biases
 
 Log in to **both** services before any training or rollout. Many errors that
 look unrelated (a model that cannot be downloaded, a training run that stops at
@@ -223,9 +171,9 @@ is set again in every new terminal, including the simulator shell.
 Some pretrained models are gated: the Hugging Face account must first accept
 the model's terms on its web page (for example `google/paligemma-3b-pt-224`,
 used by the `pi0` and `pi05` policies; see
-[LeRobot Training §5](lerobot_training.md#5-other-policies)).
+[LeRobot Training §4](lerobot_training.md#4-policies)).
 
-### 3.5 Launch the simulator
+### 3.4 Launch the simulator
 
 **Default: on the host.** The simulator stack is installed once into the
 simulator environment `.venv-sim`, with the same package versions as the
@@ -311,7 +259,7 @@ Other `make` targets:
 | `make fix-perms` | Give files that the container wrote under `datasets/` and `outputs/` back to the host user |
 | `make test` | Run the host-side tests |
 
-### 3.6 Where to run what
+### 3.5 Where to run what
 
 | Work | Environment | Reason |
 |---|---|---|
@@ -319,7 +267,7 @@ Other `make` targets:
 | Training | General environment | The container adds file-access and GPU pass-through overhead. |
 | Verification store (`verify`, queries), dataset inspection, tests | General environment | They only read files and never start the simulator. |
 
-### 3.7 Repository layout
+### 3.6 Repository layout
 
 **Background**
 
@@ -459,8 +407,8 @@ lerobot-train \
   --dataset.root=datasets/${HF_USER}/<repo_name> \
   --policy.type=diffusion \
   --policy.device=cuda \
-  --policy.repo_id=${HF_USER}/<repo_name> \
-  --output_dir=<path/to/checkpoint> \
+  --policy.repo_id=${HF_USER}/<policy_name> \
+  --output_dir=outputs/train/<job_name> \
   --job_name=<job_name> \
   --wandb.enable=true
 ```
@@ -468,14 +416,14 @@ lerobot-train \
 | Argument | Meaning |
 |---|---|
 | `--dataset.repo_id`, `--dataset.root` | The dataset's repo id and its local folder |
-| `--policy.type`, `--policy.device` | Policy architecture (`diffusion` or `act`) and the device to train on |
+| `--policy.type`, `--policy.device` | Policy type ([LeRobot Training §4](lerobot_training.md#4-policies)) and the device to train on |
 | `--policy.repo_id` | Hub repository to which the trained policy is pushed (needs `hf auth login`); `--policy.push_to_hub=false` skips the push |
 | `--output_dir`, `--job_name` | Folder for the results, which must not exist yet, and the run's name |
 | `--wandb.enable` | Logs the training curves to Weights & Biases (needs `wandb login`) |
 
 Training takes from a few hours to more than a day, depending on the dataset
 size and the GPU. The result is a checkpoint folder,
-`outputs/train/cup_stacking_v1/checkpoints/last/pretrained_model`.
+`outputs/train/<job_name>/checkpoints/last/pretrained_model`.
 [LeRobot Training](lerobot_training.md) covers the policy choice, all flags,
 multi-GPU training, the checkpoint layout, and uploading.
 
@@ -490,7 +438,7 @@ number of episodes under the task's eval file, and prints the success rate:
 python scripts/rollout.py \
     --task=eval/cup_stacking_eval.py \
     --policy_type=lerobot-diffusion \
-    --policy_checkpoint_path=outputs/train/cup_stacking_v1/checkpoints/last/pretrained_model \
+    --policy_checkpoint_path=outputs/train/<job_name>/checkpoints/last/pretrained_model \
     --device=cuda --enable_cameras \
     --eval_rounds=50
 ```
