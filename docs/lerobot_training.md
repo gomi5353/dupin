@@ -12,7 +12,7 @@ or follow) or **Background** (explanation without work items).
 
 **Background**
 
-Training runs in the **general environment** (`source .venv/bin/activate`
+Training runs in the **general environment** (`make launch-gen`,
 after `make install-gen`), not in the simulator environment: `.venv-sim` pins the older
 packages that Isaac Sim needs, and the Isaac Lab container adds file-access and
 GPU pass-through overhead that slows training down considerably. `nvidia-smi`

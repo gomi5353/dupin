@@ -1,4 +1,4 @@
-.PHONY: install-gen install-dev check-ffmpeg test \
+.PHONY: install-gen install-dev launch-gen check-uv check-ffmpeg test \
 	submodules submodules-pull \
 	install-sim launch-sim \
 	build-isaaclab launch-isaaclab \
@@ -54,6 +54,14 @@ submodules-pull:
 	git submodule update --remote --recursive
 
 # ---- Python env --------------------------------------------------------------
+# uv creates and fills .venv; without it every install target fails.
+check-uv:
+	@command -v uv >/dev/null || { \
+		echo "uv is missing (needed to create .venv)." >&2; \
+		echo "Install it, then re-run: curl -LsSf https://astral.sh/uv/install.sh | sh   (docs: https://docs.astral.sh/uv/)" >&2; \
+		echo 'If "uv" is not found afterwards: export PATH="$$HOME/.local/bin:$$PATH"' >&2; \
+		exit 1; }
+
 # ffmpeg is a system package that uv cannot install; lerobot-train and
 # lerobot-dataset-viz need it to decode videos. Check only, never install.
 check-ffmpeg:
@@ -62,10 +70,10 @@ check-ffmpeg:
 		echo "Install it, then re-run: sudo apt-get install -y ffmpeg   (macOS: brew install ffmpeg)" >&2; \
 		exit 1; }
 
-install-gen: submodules check-ffmpeg
+install-gen: check-uv check-ffmpeg submodules
 	uv sync
 
-install-dev: submodules check-ffmpeg
+install-dev: check-uv check-ffmpeg submodules
 	uv sync --extra dev
 
 test:
@@ -76,6 +84,10 @@ test:
 		tests/test_rollout_comparison.py \
 		tests/test_image_augmentation_and_object_property.py \
 		tests/test_episode_buffers.py
+
+# Interactive shell with .venv active (exit to leave).
+launch-gen:
+	@bash --rcfile scripts/gen_env.sh -i
 
 # ---- Host simulator (no Docker) ---------------------------------------------
 # Default way to run Isaac Sim with the GUI: a separate .venv-sim on the host

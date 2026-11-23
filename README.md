@@ -20,7 +20,7 @@ Isaac Sim needs older packages (NumPy 1.26, PyTorch 2.7) than training does.
 |---|---|---|
 | Folder | `.venv` | `.venv-sim` (or the Isaac Lab container) |
 | Created by | `make install-gen` | `make install-sim` |
-| Activated by | `source .venv/bin/activate` | `make launch-sim` (a new shell; `exit` leaves it), or `source scripts/sim_env.sh` |
+| Activated by | `make launch-gen` (a new shell; `exit` leaves it), or `source .venv/bin/activate` | `make launch-sim` (a new shell; `exit` leaves it), or `source scripts/sim_env.sh` |
 | Prompt starts with | `general` | `simulator` |
 | Used for | `lerobot-train`, `lerobot-dataset-viz`, `scripts/store.py`, `hf`, `make test` | `scripts/datagen/generate.py`, `scripts/teleop.py`, `scripts/rollout.py`: everything that starts Isaac Sim |
 
