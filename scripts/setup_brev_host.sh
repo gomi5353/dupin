@@ -31,6 +31,9 @@
 # files in the container, so usually only cmake/uv need installing there.
 set -uo pipefail
 
+# Whatever happens below, leave the terminal usable (echo/line editing on).
+trap '[ -t 0 ] && stty sane 2>/dev/null' EXIT
+
 LIBDIR=/usr/lib/x86_64-linux-gnu
 IN_CONTAINER=0
 [ -f /.dockerenv ] && IN_CONTAINER=1
@@ -147,9 +150,11 @@ else
         run_root pkill -f "socat UNIX-LISTEN:/tmp/.X11-unix/X0" 2>/dev/null || true
         run_root mkdir -p /tmp/.X11-unix
         run_root rm -f /tmp/.X11-unix/X0
-        run_root nohup socat UNIX-LISTEN:/tmp/.X11-unix/X0,fork,mode=0777 \
+        # setsid -f: own session, no controlling terminal. A plain `sudo ... &`
+        # shares the terminal and can leave it without echo (typing invisible).
+        run_root setsid -f socat UNIX-LISTEN:/tmp/.X11-unix/X0,fork,mode=0777 \
             "UNIX-CONNECT:/proc/${XPID}/root/tmp/.X11-unix/X0" \
-            >/tmp/xrelay.log 2>&1 </dev/null &
+            >/tmp/xrelay.log 2>&1 </dev/null
         sleep 2
     fi
     if DISPLAY=:0 xdpyinfo >/dev/null 2>&1; then
