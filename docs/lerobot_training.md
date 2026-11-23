@@ -77,11 +77,33 @@ Biases dashboard when it is enabled (`wandb login` first).
 | `--batch_size` | Training batch size (default `8`). A smaller value reduces GPU memory use. |
 | `--steps` | Number of training steps (default `100000`). A checkpoint is saved every `--save_freq` steps (default `20000`) and at the end. |
 
-### Training GR00T (optional)
+## 5. Other policies
+
+**Background**
+
+Diffusion Policy and ACT are the recommended policies. The policies below were
+also trained and rolled out in this repository (RTX 4090, 24 GB, the locked
+`torch==2.7.0` environment). They are optional; the results of the shortest
+runs only show that the pipeline works, not that the policy performs well.
+
+| `--policy.type` | Status | Notes |
+|---|---|---|
+| `diffusion`, `act` | Supported | Recommended. |
+| `groot` | Supported (optional) | `--policy.tune_diffusion_model=false` on a 24 GB GPU. |
+| `smolvla` | Supported (optional) | No extra steps. |
+| `xvla` | Supported (optional), extra options | `--batch_size=4` on a 24 GB GPU; 8 runs out of memory. |
+| `pi0`, `pi05` | Supported (optional), separate environment | Needs a patched `transformers` and access to `google/paligemma-3b-pt-224`. |
+| `vqbet`, `tdmpc`, `sac` | **Not supported** | See the end of this section. |
+
+Every command below uses the placeholders of [section 3](#3-training-command);
+add `--wandb.enable=true` as there. If a 24 GB GPU is too small, an L40S (46 GB) can
+train the policy and an RTX 4090 can still run the rollout.
+
+### Training GR00T
 
 `--policy.type=groot` trains NVIDIA's GR00T N1.5 (3B), fine-tuned from `nvidia/GR00T-N1.5-3B`.
 The first run downloads about 6 GB from the Hugging Face Hub. The required packages and a prebuilt
-FlashAttention wheel are part of the installation (Getting Started, step 0).
+FlashAttention wheel are installed by `uv sync` ([Getting Started §3.3](getting_started.md#33-install-the-host-environment)).
 
 ```bash
 lerobot-train \
@@ -97,11 +119,100 @@ lerobot-train \
 ```
 
 By default GR00T also trains its diffusion action head, 1.07 B trainable parameters in total,
-which does not fit on a 24 GB GPU (an RTX 4090 runs out of memory at the first optimizer step).
+which does not fit on a 24 GB GPU (an RTX 4090 runs out of memory even with `--batch_size=1`).
 `--policy.tune_diffusion_model=false` freezes the action head and trains only the projector
-(518 M parameters), which fits on 24 GB.
+(518 M parameters), which fits on 24 GB. On an L40S (46 GB) the default also fits.
 
-## 5. Multi-GPU training
+### Training SmolVLA
+
+```bash
+lerobot-train \
+  --dataset.repo_id=${HF_USER}/<repo_id> \
+  --dataset.root=datasets/${HF_USER}/<repo_id> \
+  --policy.type=smolvla \
+  --policy.device=cuda \
+  --policy.push_to_hub=false \
+  --output_dir=outputs/train/<job_name> \
+  --job_name=<job_name> \
+  --wandb.enable=true
+```
+
+The first run downloads the vision-language backbone from the Hugging Face Hub.
+
+### Training X-VLA
+
+X-VLA is fine-tuned from the pretrained `lerobot/xvla-base`. Its camera names and
+action format differ from this repository's contract ([Rollout §4](rollout.md#4-policy-input-and-output-contract)),
+so three options adapt it: the inputs are redefined as the `front` and `wrist` cameras,
+the unused third camera is left empty, and `--policy.action_mode=auto` keeps the 8-value action
+(the default is a 20-value action that rollout cannot execute).
+
+```bash
+FEATURES='{"observation.state":{"type":"STATE","shape":[9]},"observation.images.front":{"type":"VISUAL","shape":[3,480,640]},"observation.images.wrist":{"type":"VISUAL","shape":[3,480,640]}}'
+
+lerobot-train \
+  --dataset.repo_id=${HF_USER}/<repo_id> \
+  --dataset.root=datasets/${HF_USER}/<repo_id> \
+  --policy.path=lerobot/xvla-base \
+  --policy.device=cuda \
+  "--policy.input_features=$FEATURES" \
+  --policy.empty_cameras=1 \
+  --policy.action_mode=auto \
+  --policy.push_to_hub=false \
+  --batch_size=4 \
+  --output_dir=outputs/train/<job_name> \
+  --job_name=<job_name> \
+  --wandb.enable=true
+```
+
+`$FEATURES` must be defined in the same terminal; an empty value fails with
+`'str' object has no attribute 'items'`.
+
+### Training pi0 and pi05
+
+These policies build on `google/paligemma-3b-pt-224`, a gated model: open
+<https://huggingface.co/google/paligemma-3b-pt-224> with the same account as `hf auth login` and
+accept the terms once. They also need a patched `transformers` that conflicts with the
+version of this repository's environment, so they run in their own environment, created **outside**
+the repository:
+
+```bash
+uv venv --python 3.11 ~/venv_pi
+uv pip install --python ~/venv_pi/bin/python torch==2.7.0 torchvision==0.22.0 torchcodec==0.5 lerobot==0.4.4 \
+  "transformers @ git+https://github.com/huggingface/transformers.git@fix/lerobot_openpi"
+source ~/venv_pi/bin/activate
+```
+
+```bash
+lerobot-train \
+  --dataset.repo_id=${HF_USER}/<repo_id> \
+  --dataset.root=datasets/${HF_USER}/<repo_id> \
+  --policy.type=pi0 \
+  --policy.device=cuda \
+  --policy.dtype=bfloat16 \
+  --policy.gradient_checkpointing=true \
+  --policy.train_expert_only=true \
+  --policy.push_to_hub=false \
+  --batch_size=8 \
+  --output_dir=outputs/train/<job_name> \
+  --job_name=<job_name> \
+  --wandb.enable=true
+```
+
+Use `--policy.type=pi05` for pi0.5. Do not use `--policy.path=lerobot/pi0_base`: its
+processor files do not match `lerobot==0.4.4`. The rollout of these checkpoints needs the same
+patched `transformers` ([Rollout §3](rollout.md#flag-reference)). If this environment fails to
+install, skip these two policies.
+
+### Not supported
+
+- `vqbet`, `tdmpc`: these LeRobot policies accept only one camera image (`tdmpc` also only square images),
+  while this repository's observations have two cameras (`front`, `wrist`) of 480 × 640. With a single
+  camera they train, but rollout expects every camera as a policy input and stops with a `KeyError`.
+- `sac`: a reinforcement-learning policy that `lerobot-train` cannot train, and its rollout fails with
+  image inputs (`TypeError: list indices must be integers`).
+
+## 6. Multi-GPU training
 
 **Background**
 
@@ -112,7 +223,7 @@ where `N` is the number of GPUs:
 accelerate launch --multi_gpu --num_processes=N $(which lerobot-train) <args>
 ```
 
-## 6. Checkpoint layout
+## 7. Checkpoint layout
 
 **Background**
 
@@ -147,7 +258,7 @@ Processor files follow the pattern
 index in the pipeline. Inference loads `config.json`, then
 `model.safetensors`, then the preprocessor and postprocessor with their files.
 
-## 7. Upload a checkpoint
+## 8. Upload a checkpoint
 
 **Background**
 
@@ -162,7 +273,7 @@ hf upload ${HF_USER}/<policy_name> outputs/train/<job_name>/checkpoints/last/pre
 [Rollout §2](rollout.md#2-get-the-checkpoint) describes how
 to download it on another machine.
 
-## 8. Troubleshooting
+## 9. Troubleshooting
 
 **Background**
 
@@ -170,6 +281,6 @@ to download it on another machine.
 |---|---|
 | `nvidia-smi` not found or shows an error | The NVIDIA driver or CUDA is not installed correctly; follow NVIDIA's installation guide. |
 | `lerobot-train: command not found` | Run `uv sync` at the repository root and activate `.venv`. |
-| Out of memory (OOM) | Reduce `--batch_size`, for example `--batch_size=4`. |
+| Out of memory (OOM) | Reduce `--batch_size`, for example `--batch_size=4`. For GR00T, also `--policy.tune_diffusion_model=false` ([section 5](#5-other-policies)). |
 | `FileExistsError` for the output directory | Choose a new `--output_dir`. |
 | Training loss does not decrease | Check the dataset: consistent, complete demonstrations ([Getting Started §6](getting_started.md#6-step-3-inspect-and-verify-the-dataset)). |

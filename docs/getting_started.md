@@ -181,7 +181,7 @@ Notes:
 - Datasets, checkpoints, and training outputs (`datasets/`, `checkpoints/`,
   `outputs/`) are ignored by Git. They are shared through the Hugging Face Hub
   ([step 3](#6-step-3-inspect-and-verify-the-dataset) and
-  [LeRobot Training §7](lerobot_training.md#7-upload-a-checkpoint)), not
+  [LeRobot Training §7](lerobot_training.md#8-upload-a-checkpoint)), not
   through the fork.
 - The Isaac Lab submodule (`dependencies/IsaacLab/`) is fetched by
   `make install-sim` or the first `make launch-isaaclab`
@@ -196,15 +196,25 @@ uv sync                     # creates .venv with the locked package versions
 source .venv/bin/activate   # makes lerobot-train, hf, ... available
 ```
 
-### 3.4 Log in to Hugging Face
+### 3.4 Log in to Hugging Face and Weights & Biases
+
+Log in to **both** services before any training or rollout. Many errors that
+look unrelated (a model that cannot be downloaded, a training run that stops at
+start-up) come from a missing login.
 
 ```bash
 hf auth login --token <YOUR_HF_TOKEN>
+wandb login                 # asks for the Weights & Biases API key
 export HF_USER=<your-huggingface-username>
 ```
 
-Commands in all guides use `${HF_USER}`. The variable is set again in every
-new terminal, including the simulator shell.
+Commands in all guides use `${HF_USER}` and `--wandb.enable=true`. The variable
+is set again in every new terminal, including the simulator shell.
+
+Some pretrained models are gated: the Hugging Face account must first accept
+the model's terms on its web page (for example `google/paligemma-3b-pt-224`,
+used by the `pi0` and `pi05` policies; see
+[LeRobot Training §5](lerobot_training.md#5-other-policies)).
 
 ### 3.5 Launch the simulator
 
