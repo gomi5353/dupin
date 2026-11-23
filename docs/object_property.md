@@ -9,8 +9,8 @@ specification, and how to read the report for the dataset and for a rollout.
 The workflow, the store, the `verify` command and the queries are common to
 every axis and are described in [Data Verification](data_verification.md).
 
-Every section starts with one of two labels: **Required** (something students
-must do or follow) or **Background** (explanation without work items).
+Every section starts with one of two labels: **Required** (something to do or
+follow) or **Background** (explanation without work items).
 
 ## 1. What the check does and why
 
@@ -44,11 +44,11 @@ the color form in about half of the episodes
 The check answers two questions:
 
 1. **Coverage**: how many dataset episodes refer to each object by its name,
-   and how many by its color, measured against a minimum that the group
-   writes? A reference with enough episodes is **seen**; one with fewer is
+   and how many by its color, measured against a minimum set in the spec? A
+   reference with enough episodes is **seen**; one with fewer is
    **unseen**.
 2. **Unchanged object**: does each object look the same in every episode? It
-   must, since S-PROP changes only the words.
+   should, since S-PROP changes only the words.
 
 ## 2. Where the wording is set
 
@@ -89,9 +89,9 @@ To cover the color form, raise its weight in the task configuration, for
 example `{"name": 0.5, "color": 0.5}`, and record again. A form with a weight
 above 0 needs a phrase for every object, and the weights must be ≥ 0 with a
 positive sum; otherwise the environment refuses to start with a `ValueError`
-naming the problem. Keep the phrases themselves as they are: the evaluation
-files use the same phrases, and the check compares the dataset with exactly
-those words.
+naming the problem. The phrases themselves are best left unchanged: the
+evaluation files use the same phrases, and the check compares the dataset with
+exactly those words.
 
 ### 2.1 The three tasks
 
@@ -127,13 +127,14 @@ that the object never changes ([section 1](#1-what-the-check-does-and-why)).
 The check uses the first recorded frame of each episode. Only environment 0
 is recorded (a LeIsaac limitation).
 
-A quick test after recording a few episodes:
+A quick test after recording a few episodes (general environment):
 
 ```bash
-uv run python -c "import json; f=json.load(open('datasets/<HF_USER>/<dataset_repo>/meta/info.json'))['features']; print([k for k in f if k.startswith('object_color.')])"
-uv run python -c "import pyarrow.parquet as pq; print(pq.read_table('datasets/<HF_USER>/<dataset_repo>/meta/tasks.parquet').to_pandas())"
+uv run python -c "import json; f=json.load(open('datasets/${HF_USER}/<repo_name>/meta/info.json'))['features']; print([k for k in f if k.startswith('object_color.')])"
+uv run python -c "import pyarrow.parquet as pq; print(pq.read_table('datasets/${HF_USER}/<repo_name>/meta/tasks.parquet').to_pandas())"
 ```
 
+Both commands read from the dataset folder `datasets/${HF_USER}/<repo_name>`.
 The first prints one key per object of `object_references`; the second
 lists the distinct task texts. With the recording default, only the name-form
 text appears.
@@ -176,17 +177,17 @@ spec:fork_by_color a cp:ColorReference ;
 **Phrases.** Copy them from `object_references` of the eval file
 (`eval/<task>_eval.py`); they are the same as in the task configuration. The
 phrases describe the wording the policy will meet, so they come from
-evaluation, not from the group's own choice. A phrase matches when the text
+evaluation, not from a free choice. A phrase matches when the text
 contains its words as whole words, case-insensitive ("fork" does not match
 "forklift"). When several phrases of one object match, the longest wins.
 
-**Minimum.** It is the group's decision. With the default form choice, the
+**Minimum.** It can be chosen freely. With the default form choice, the
 name and color episodes come from one random draw per episode, so with
 weights 0.5/0.5 about half of the episodes use each form. A minimum of 10 per
 reference then needs about 20 episodes. Raising the color weight above 0.5
 fills the color reference faster.
 
-**Own minimum per reference (optional).** To require a different number for
+**Own minimum per reference (optional).** To set a different number for
 one reference, add `cp:minEpisodesPerReference` to that reference; it
 replaces the requirement's value for it:
 
@@ -208,16 +209,23 @@ Run `verify` with the filled-in spec
 ([Data Verification §4](data_verification.md#4-run-the-check-and-read-the-report)):
 
 ```bash
-uv run python scripts/store.py verify --store stores/<dataset_repo> \
+uv run python scripts/store.py verify --store stores/<repo_name> \
     --spec my_specs/object_property.ttl
 ```
+
+| Argument | Meaning |
+|---|---|
+| `--store` | Store folder of the dataset, `stores/<repo_name>` |
+| `--spec` | The filled spec to check |
+
+The command runs in the general environment.
 
 Example output, for a spec with only the fork block
 (`minEpisodesPerReference 5`) and 10 episodes recorded with the default
 `reference_weights`:
 
 ```
-Store   : stores/my_dataset
+Store   : stores/<repo_name>
 Spec    : object_property  (/…/my_specs/object_property.ttl)
 Episodes: 10
 
@@ -258,16 +266,21 @@ WARNING   'fork': the task text uses none of the spec's phrases (fork, pink obje
   were changed, or the spec has a typo.
 - **does not look the same**: an episode's color differs from the usual
   color by more than 0.001 in a channel. Something recolored the object;
-  remove that change, since S-PROP must keep the scene the same.
+  remove that change, because this axis keeps the scene the same.
 
 The reference counts are stored on the references (`cp:episodeCount`), so
 they can be queried
 ([Data Verification §6](data_verification.md#6-query-the-store)):
 
 ```bash
-uv run python scripts/store.py query --store stores/<dataset_repo> --query-text \
+uv run python scripts/store.py query --store stores/<repo_name> --query-text \
   'SELECT ?phrase ?n WHERE { ?ref cp:phrase ?phrase ; cp:episodeCount ?n }'
 ```
+
+| Argument | Meaning |
+|---|---|
+| `--store` | Store folder of the dataset, `stores/<repo_name>` |
+| `--query-text` | A SPARQL query; this one lists each reference's phrase and episode count |
 
 ## 6. Compare with a rollout
 
@@ -288,7 +301,9 @@ Each object's runs fall into three groups:
 | **unseen** | The instruction uses a reference with fewer episodes than the minimum (none included) | No | The wording is in the spec but too rare in the dataset: the S-PROP gap. |
 | **(unrecognized)** | The instruction uses none of the spec's phrases | No | The spec does not describe the evaluation's wording. With the shipped eval files and phrases copied from them, this group is empty. |
 
-A run is **in distribution** when every axis of the spec covers it; with several spec files, the [combined verdict](data_verification.md#5-compare-the-dataset-with-a-rollout) needs every spec file to cover it.
+**In distribution** is defined in
+[Data Verification §5](data_verification.md#5-compare-the-dataset-with-a-rollout);
+with this spec alone, a run counts when its reference is seen.
 
 Example output, for the first dataset of [section 5](#5-read-the-report)
 (10 episodes, all by name) and a rollout of 13 runs: 6 by name, 6 by color,
@@ -297,7 +312,7 @@ the third group). The log is synthetic, made up for illustration, not from a
 trained policy:
 
 ```
-Store   : stores/my_dataset
+Store   : stores/<repo_name>
 Spec    : object_property
 Rollout : 20261120-113000  (eval/cutlery_arrangement_eval.py, seed 42)
 Runs    : 13 finished, 6 succeeded
@@ -322,7 +337,7 @@ WARNING   'fork': 6 run(s) used an unseen reference, with fewer dataset episodes
 RESULT: the dataset does NOT cover every rollout run; see above
 ```
 
-What it tells the group:
+What the report shows:
 
 - **Coverage of the evaluation's wording.** `covered` is the share of runs
   whose wording the dataset has enough of. Here only the name-form runs are
@@ -350,7 +365,7 @@ The runs' texts are stored with the rollout (`cp:taskDescription` of each
 `cp:Run`), so the success rate per wording can be queried directly:
 
 ```bash
-uv run python scripts/store.py query --store stores/<dataset_repo> --query-text \
+uv run python scripts/store.py query --store stores/<repo_name> --query-text \
   'SELECT ?text (COUNT(?run) AS ?runs) (SUM(?ok) AS ?successes) WHERE { ?run a cp:Run ; cp:taskDescription ?text ; cp:status ?s . BIND (IF(?s = "succeeded", 1, 0) AS ?ok) } GROUP BY ?text'
 ```
 

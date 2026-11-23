@@ -5,14 +5,14 @@ LeRobot's `lerobot-train`, and what the resulting checkpoint contains. It
 extends step 4 of [Getting Started](getting_started.md) and assumes that setup
 (step 0) is complete and that the dataset has passed the checks of step 3.
 
-Every section starts with one of two labels: **Required** (something students
-must do or follow) or **Background** (explanation without work items).
+Every section starts with one of two labels: **Required** (something to do
+or follow) or **Background** (explanation without work items).
 
 ## 1. Where training runs
 
 **Background**
 
-Training runs on the **host**, in the `uv` environment (`source .venv/bin/activate`
+Training runs in the **general environment** (`source .venv/bin/activate`
 after `uv sync`), not in the simulator environment: `.venv-sim` pins the older
 packages that Isaac Sim needs, and the Isaac Lab container adds file-access and
 GPU pass-through overhead that slows training down considerably. `nvidia-smi`
@@ -27,26 +27,26 @@ The official LeRobot training documentation is at
 
 A dataset recorded on the same machine is used directly: the simulator shell
 and the container both write datasets to the repository's `datasets/` folder,
-so the dataset is at `datasets/${HF_USER}/<repo_id>`.
+so the dataset is at `datasets/${HF_USER}/<repo_name>`.
 
 A dataset on the Hugging Face Hub is downloaded first:
 
 ```bash
-hf download ${HF_USER}/<repo_id> --local-dir datasets/${HF_USER}/<repo_id> --repo-type dataset
+hf download ${HF_USER}/<repo_name> --local-dir datasets/${HF_USER}/<repo_name> --repo-type dataset
 ```
 
 `--revision <tag>` selects a tagged version, for example `--revision v1`.
 Without `--dataset.root`, `lerobot-train` downloads the dataset by itself
-([section 4](#4-flag-reference)).
+([section 3](#3-training-command-and-flags)).
 
-## 3. Training command
+## 3. Training command and flags
 
 **Required**
 
 ```bash
 lerobot-train \
-  --dataset.repo_id=${HF_USER}/<repo_id> \
-  --dataset.root=datasets/${HF_USER}/<repo_id> \
+  --dataset.repo_id=${HF_USER}/<repo_name> \
+  --dataset.root=datasets/${HF_USER}/<repo_name> \
   --policy.type=diffusion \
   --policy.device=cuda \
   --output_dir=outputs/train/<job_name> \
@@ -55,20 +55,12 @@ lerobot-train \
   --policy.repo_id=${HF_USER}/<policy_name>
 ```
 
-Training takes from a few hours to more than a day, depending on the dataset
-size and the GPU. Progress is printed in the terminal, and on the Weights &
-Biases dashboard when it is enabled (`wandb login` first).
-
-## 4. Flag reference
-
-**Background**
-
 | Flag | Description |
 |---|---|
-| `--dataset.repo_id=${HF_USER}/<repo_id>` | The dataset to train on: the repo id used when recording. |
-| `--dataset.root=datasets/${HF_USER}/<repo_id>` | Local folder of the dataset. Without this flag, the dataset is downloaded from the Hugging Face Hub, which requires uploading it first ([section 2](#2-get-the-dataset), [Getting Started §6](getting_started.md#6-step-3-inspect-and-verify-the-dataset)). |
+| `--dataset.repo_id=${HF_USER}/<repo_name>` | The dataset to train on: the repo id used when recording. |
+| `--dataset.root=datasets/${HF_USER}/<repo_name>` | Local folder of the dataset. Without this flag, the dataset is downloaded from the Hugging Face Hub, which requires uploading it first ([section 2](#2-get-the-dataset), [Getting Started §6](getting_started.md#6-step-3-inspect-and-verify-the-dataset)). |
 | `--policy.type` | Policy architecture. `diffusion` (Diffusion Policy) generates smooth action sequences and is a good default for manipulation; `act` (Action Chunking Transformer) is the other recommended choice. Other LeRobot policies are possible as long as rollout supports them ([Rollout §3](rollout.md#flag-reference)). |
-| `--policy.*` | Policy-specific options follow `--policy.type`, for example `--policy.n_obs_steps`, `--policy.horizon`, and `--policy.n_action_steps` for Diffusion Policy, or `--policy.chunk_size` and `--policy.n_action_steps` for ACT. `n_action_steps` is the number of actions that rollout executes after each inference (each lasting one 1/60 s step). |
+| `--policy.*` | Policy-specific options follow `--policy.type`, for example `--policy.n_obs_steps`, `--policy.horizon`, and `--policy.n_action_steps` for Diffusion Policy, or `--policy.chunk_size` and `--policy.n_action_steps` for ACT. `n_action_steps` is the number of actions that rollout executes after each inference (each action corresponds to one simulation control step.). |
 | `--policy.device=cuda` | Trains on the GPU. `cpu` is only useful for quick debugging. |
 | `--output_dir` | Folder for checkpoints, logs, and the configuration, for example `outputs/train/diffusion_cupstacking_v1`. It must not exist yet. |
 | `--job_name` | Name of the run in the logs and on the W&B dashboard. |
@@ -77,7 +69,36 @@ Biases dashboard when it is enabled (`wandb login` first).
 | `--batch_size` | Training batch size (default `8`). A smaller value reduces GPU memory use. |
 | `--steps` | Number of training steps (default `100000`). A checkpoint is saved every `--save_freq` steps (default `20000`) and at the end. |
 
-## 5. Multi-GPU training
+Training takes from a few hours to more than a day, depending on the dataset
+size and the GPU. Progress is printed in the terminal, and on the Weights &
+Biases dashboard when it is enabled (`wandb login` first).
+
+### Training ACT
+
+ACT (Action Chunking Transformer) predicts a chunk of actions per inference.
+
+```bash
+lerobot-train \
+  --dataset.repo_id=${HF_USER}/<repo_name> \
+  --dataset.root=datasets/${HF_USER}/<repo_name> \
+  --policy.type=act \
+  --policy.device=cuda \
+  --policy.chunk_size=100 \
+  --policy.n_action_steps=100 \
+  --output_dir=outputs/train/<job_name> \
+  --job_name=<job_name> \
+  --wandb.enable=true \
+  --policy.repo_id=${HF_USER}/<policy_name>
+```
+
+| Flag | Description |
+|---|---|
+| `--policy.chunk_size` | Number of actions predicted by one inference |
+| `--policy.n_action_steps` | Number of those actions executed before the next inference; at most `chunk_size` |
+
+All other flags are as in the table above.
+
+## 4. Multi-GPU training
 
 **Background**
 
@@ -88,7 +109,7 @@ where `N` is the number of GPUs:
 accelerate launch --multi_gpu --num_processes=N $(which lerobot-train) <args>
 ```
 
-## 6. Checkpoint layout
+## 5. Checkpoint layout
 
 **Background**
 
@@ -123,12 +144,12 @@ Processor files follow the pattern
 index in the pipeline. Inference loads `config.json`, then
 `model.safetensors`, then the preprocessor and postprocessor with their files.
 
-## 7. Upload a checkpoint
+## 6. Upload a checkpoint
 
 **Background**
 
 If the automatic push was disabled, or an extra tagged version is wanted, the
-checkpoint is uploaded from the host:
+checkpoint is uploaded from the general environment:
 
 ```bash
 hf upload ${HF_USER}/<policy_name> outputs/train/<job_name>/checkpoints/last/pretrained_model --repo-type model --revision <tag>
@@ -138,7 +159,7 @@ hf upload ${HF_USER}/<policy_name> outputs/train/<job_name>/checkpoints/last/pre
 [Rollout §2](rollout.md#2-get-the-checkpoint) describes how
 to download it on another machine.
 
-## 8. Troubleshooting
+## 7. Troubleshooting
 
 **Background**
 

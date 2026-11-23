@@ -16,6 +16,7 @@
 #   1. libvulkan1, libGLU, X libs missing     -> Vulkan / libGLU.so.1 errors
 #   2. glvnd egl_vendor.d/10_nvidia.json missing -> ERROR_INCOMPATIBLE_DRIVER
 #   3. libcuda.so link missing                -> PhysX runs on the CPU and hangs
+#   1c. ffmpeg missing                        -> video decoding fails (lerobot-train, lerobot-dataset-viz)
 #   4. uv, cmake, gcc/g++/make missing        -> make install-sim fails while
 #      building a package from source
 #   5. (SSH shell only) noVNC display :0 lives inside the container: relay its
@@ -82,6 +83,15 @@ else
     echo "missing:${MISSING_TOOLS}"
     run_root apt-get update -qq || true
     run_root env DEBIAN_FRONTEND=noninteractive apt-get install -y -qq cmake build-essential
+fi
+
+echo "== 1c. FFmpeg (video decoding of lerobot-train and lerobot-dataset-viz) =="
+if command -v ffmpeg >/dev/null; then
+    echo "present"
+else
+    echo "missing"
+    run_root apt-get update -qq || true
+    run_root env DEBIAN_FRONTEND=noninteractive apt-get install -y -qq ffmpeg
 fi
 
 echo "== 2. NVIDIA EGL vendor file (needed by the Vulkan driver) =="

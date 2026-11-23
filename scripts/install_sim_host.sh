@@ -16,6 +16,9 @@ PY="${VENV}/bin/python"
 ISAACLAB="${ROOT}/dependencies/IsaacLab"
 
 export ACCEPT_EULA=Y OMNI_KIT_ACCEPT_EULA=YES PRIVACY_CONSENT=Y
+# egl_probe 1.0.2 (built from source) declares cmake_minimum_required(2.8.12);
+# CMake >= 4 rejects that unless a policy minimum is given. Harmless on CMake 3.
+export CMAKE_POLICY_VERSION_MINIMUM=3.5
 
 command -v uv >/dev/null || { echo "uv is required: https://docs.astral.sh/uv/" >&2; exit 1; }
 
@@ -45,6 +48,7 @@ for tool in cmake gcc g++ make; do
         exit 1
     }
 done
+echo "cmake $(cmake --version | head -n1 | awk '{print $3}')"
 # The NVIDIA Vulkan ICD initialises through EGL; without the NVIDIA GLVND vendor
 # file only Mesa EGL is found and Isaac Sim fails with ERROR_INCOMPATIBLE_DRIVER.
 if ls /usr/lib/x86_64-linux-gnu/libEGL_nvidia.so.0 >/dev/null 2>&1 \
@@ -70,7 +74,7 @@ git -C "${ROOT}" submodule update --init --recursive
 
 if [ ! -x "${PY}" ]; then
     echo "== Creating ${VENV} (Python 3.11) =="
-    uv venv "${VENV}" --python 3.11 --seed
+    uv venv "${VENV}" --python 3.11 --seed --prompt simulator
 fi
 
 echo "== Installing pinned packages (requirements-sim.txt) =="

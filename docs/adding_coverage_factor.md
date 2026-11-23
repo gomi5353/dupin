@@ -1,13 +1,12 @@
 # Adding a New Dataset Coverage Factor
 
-This guide describes how to extend data verification to another factor that
-a group wants to investigate, for example the camera viewpoint, the object
-orientation, the table appearance, or the motion speed. It extends step 6 of
-[Getting Started](getting_started.md).
+This guide describes how to extend data verification to another factor, for
+example the camera viewpoint, the object orientation, the table appearance, or
+the motion speed. It extends step 6 of [Getting Started](getting_started.md).
 
-It assumes familiarity with [Data Verification](data_verification.md) and
-with the three verifiers that already exist: they are complete worked
-examples, and this guide points to them instead of repeating them.
+It builds on [Data Verification](data_verification.md) and on the three
+verifiers that already exist: they are complete worked examples, and this
+guide points to them instead of repeating them.
 
 | STAR-Gen axis | Verifier (`axes/<axis>/`) | Factor | Requirement class |
 |---|---|---|---|
@@ -18,8 +17,8 @@ examples, and this guide points to them instead of repeating them.
 `image_augmentation` is the shortest of the three and the closest model for a
 new numeric factor; `object_property` is the model for a categorical one.
 
-Every section starts with one of two labels: **Required** (something that an
-extension must do) or **Background** (explanation without work items).
+Every section starts with one of two labels: **Required** (steps of an
+extension) or **Background** (explanation without work items).
 
 ## 1. Decide between a rule, a factor, and an axis
 
@@ -101,15 +100,15 @@ The store, the commands (`ingest`, `verify`, `query`, `explore`) and the core
 vocabulary stay as they are; the new verifier plugs into them:
 
 ```text
-recorder ── writes <factor>.<name> per frame ──▶ LeRobot v3 dataset ─┐
+recorder ── writes <factor>.<name> per frame ──▶ LeRobot v3 dataset  ─┐
 rollout.py ── logs factors.<factor> per episode ──▶ rollout JSONL log ┤
-                                                                     │ ingest  (+ every verifier's ingest steps)
-                                                                     ▼
-                                     stores/<dataset_repo>/  (RDF: facts, specs, results)
-group's specs (copies of specs/<task>/*.ttl) ── verify --spec ──────▶│ verify  (core SHACL + the SHACL rules and
-                                                                     │          Python steps of each spec's verifiers)
-                                                                     ▼
-                                     findings/  ──▶ report, explore, SPARQL query
+                                                                      │ ingest  (+ every verifier's ingest steps)
+                                                                      ▼
+                                      stores/<repo_name>/  (RDF: facts, specs, results)
+specs (copies of specs/<task>/*.ttl) ── verify --spec ──────▶│ verify  (core SHACL + the SHACL rules and
+                                                                      │          Python steps of each spec's verifiers)
+                                                                      ▼
+                                       findings/  ──▶ report, explore, SPARQL query
 ```
 
 A verifier lives in its own package and is registered in one list:
@@ -159,8 +158,7 @@ is the base for every verification factor: it already writes the
 `object_position.*`, `lighting.*` and `object_color.*` columns and each
 episode's task text
 ([Data Collection §5](data_collection.md#5-the-recorder-and-the-dataset)).
-A new factor is added next to them, so the existing columns stay in the
-dataset.
+A new factor is added next to them; the existing columns stay.
 
 1. **Say what to record in the task configuration.** Like
    `recorded_light_names`, a list in
@@ -193,24 +191,26 @@ dataset.
    recorded step instead of the scene goes in `build_lerobot_frame()` of the
    template, like the object positions.
 
-One short episode is recorded and its raw output inspected before any RDF work:
+Before any RDF work, one short episode is recorded and its raw output inspected:
 
 ```bash
-uv run python -c "import json; print(json.load(open('datasets/${HF_USER}/<dataset_repo>/meta/info.json'))['features'].get('camera_height.front'))"
+uv run python -c "import json; print(json.load(open('datasets/${HF_USER}/<repo_name>/meta/info.json'))['features'].get('camera_height.front'))"
 
 uv run python - <<'PY'
 import pyarrow.parquet as pq
 
 table = pq.read_table(
-    "datasets/<HF_USER>/<dataset_repo>/data/chunk-000/file-000.parquet",
+    "datasets/${HF_USER}/<repo_name>/data/chunk-000/file-000.parquet",
     columns=["episode_index", "frame_index", "camera_height.front"],
 )
 print(table.slice(0, 5))
 PY
 ```
 
-This separates recording failures from verifier failures. Only environment 0
-is recorded, so a recording runs with one environment.
+The first command prints the declared feature from `meta/info.json`. The second
+prints the first five rows of the column (`columns` limits what is read from
+the Parquet file). This separates recording failures from verifier failures.
+Only environment 0 is recorded, so the recording runs with one environment.
 
 ## 5. Read and aggregate the column
 
@@ -331,8 +331,8 @@ error from `dataset_errors()` (section 9).
 
 **Required**
 
-There is no spec generator: groups copy the shipped specs from
-`specs/<task>/` and replace every `TODO`
+There is no spec generator: the shipped specs are copied from
+`specs/<task>/` and every `TODO` is replaced
 ([Data Verification §3](data_verification.md#3-specs)). A new verifier
 therefore ships one spec per task, named after the verifier:
 `specs/<task>/camera_viewpoint.ttl`. The existing spec files are the model:
@@ -445,11 +445,17 @@ VERIFIERS: list[Verifier] = [
 No new command is needed: the same commands now cover the factor.
 
 ```bash
-uv run python scripts/store.py ingest --dataset datasets/${HF_USER}/<dataset_repo>   # adds the camera height to each episode
+uv run python scripts/store.py ingest --dataset datasets/${HF_USER}/<repo_name>   # adds the camera height to each episode
 cp specs/<task>/camera_viewpoint.ttl my_specs/                                     # replace every "TODO"
-uv run python scripts/store.py verify --store stores/<dataset_repo> \
+uv run python scripts/store.py verify --store stores/<repo_name> \
     --spec my_specs/object_pose.ttl my_specs/camera_viewpoint.ttl
 ```
+
+| Argument | Meaning |
+|---|---|
+| `ingest --dataset <path>` | The dataset directory; the new verifier adds its column to each episode |
+| `--store <path>` | The store to verify |
+| `--spec <files>` | One spec file per axis to check; the options of `verify` are in [Data Verification §4](data_verification.md#4-run-the-check-and-read-the-report) |
 
 `verify` refuses a spec that declares no axis class of a registered verifier.
 
@@ -496,7 +502,7 @@ No eval file is read: the runs' own values show what the rollout used.
    (`cp:LightingRolloutShape` is the example). A violation there stops the
    comparison.
 3. **`compare(graph, rollout, dataset, comparison)`** places each finished
-   run into a bin of the group's own binning (a value outside the domain falls
+   run into a bin of the spec's own binning (a value outside the domain falls
    into a bin of the same width outside it, which `lattice_index()` computes),
    marks the run covered when its bin is inside the domain and has at least
    the minimum number of dataset episodes, and returns an `AxisComparison`
@@ -561,7 +567,7 @@ but not that the recorder reads the intended simulator quantity.
 
 **Required**
 
-Another student can:
+The extension is complete when it is possible to:
 
 - understand the factor, unit, sampling, and aggregation;
 - collect it in a LeRobot v3 dataset;

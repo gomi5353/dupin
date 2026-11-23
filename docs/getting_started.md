@@ -1,13 +1,13 @@
 # Getting Started
 
-This guide walks through the whole course-project pipeline, from installing the
-software to diagnosing a trained policy. It is the main path through the
-documentation. Each step explains what students do and why, gives the essential
-commands, and links to a detailed guide where more explanation is needed.
+This guide walks through the whole pipeline, from installing the software to
+diagnosing a trained policy. It is the main path through the documentation.
+Each step explains what to do and why, gives the essential commands, and links
+to a detailed guide where more explanation is needed.
 
 Every section starts with one of two labels:
 
-- **Required**: something that students must do or follow.
+- **Required**: something to do or follow.
 - **Background**: an explanation that the required steps depend on. It
   contains no work items.
 
@@ -15,19 +15,20 @@ Every section starts with one of two labels:
 
 **Background**
 
-Students pick one manipulation task, collect demonstrations for it in
-simulation with a provided data-collection method, verify the collected data, train an imitation-learning policy with
-LeRobot, and evaluate the policy in the simulator.
+One manipulation task is picked, demonstrations for it are collected in
+simulation with a provided data-collection method, the collected data is
+verified, an imitation-learning policy is trained with LeRobot, and the policy
+is evaluated in the simulator.
 
 | Step | What happens | Runs in | Output | Detailed guide |
 |---|---|---|---|---|
-| [0. Set up](#3-step-0-set-up-the-machine) | Install the software and start the simulator | Host | Working environments | This guide |
+| [0. Set up](#3-step-0-set-up-the-machine) | Install the software and start the simulator | General environment | Working environments | This guide |
 | [1. Choose a task](#4-step-1-choose-a-task) | Select one of the three predefined tasks | – | Task id | [Data Collection §1](data_collection.md#1-the-two-methods) |
 | [2. Record](#5-step-2-record-demonstrations) | Record demonstrations with the state machine or keyboard teleoperation | Simulator environment | LeRobot v3 dataset | [Data Collection](data_collection.md) |
-| [3. Inspect and verify](#6-step-3-inspect-and-verify-the-dataset) | Look at the episodes and check them against the group's specs on three generalization axes | Host | Verification report | [Dataset Visualizer](lerobot_dataset_visualizer.md), [Data Verification](data_verification.md) |
-| [4. Train](#7-step-4-train-a-policy) | Train a policy on the dataset | Host | Policy checkpoint | [LeRobot Training](lerobot_training.md) |
+| [3. Inspect and verify](#6-step-3-inspect-and-verify-the-dataset) | Look at the episodes and check them against specs on three generalization axes | General environment | Verification report | [Dataset Visualizer](lerobot_dataset_visualizer.md), [Data Verification](data_verification.md) |
+| [4. Train](#7-step-4-train-a-policy) | Train a policy on the dataset | General environment | Policy checkpoint | [LeRobot Training](lerobot_training.md) |
 | [5. Evaluate](#8-step-5-evaluate-the-policy) | Run the policy in the simulator | Simulator environment | Success rate | [Rollout](rollout.md) |
-| [6. Diagnose and iterate](#9-step-6-diagnose-and-iterate) | Relate failures to gaps in the data, then collect again | Host | Next round of data | [Data Verification §5](data_verification.md#5-compare-the-dataset-with-a-rollout), [Adding a Coverage Factor](adding_coverage_factor.md) |
+| [6. Diagnose and iterate](#9-step-6-diagnose-and-iterate) | Relate failures to gaps in the data, then collect again | General environment | Next round of data | [Data Verification §5](data_verification.md#5-compare-the-dataset-with-a-rollout) |
 
 The steps form a loop rather than a single pass: a failed evaluation usually
 leads back to step 2 with a better-targeted collection.
@@ -38,8 +39,8 @@ record ──▶ inspect & verify ──▶ train ──▶ evaluate ──▶ d
   └───────────────────────────────────────────────────────┘
 ```
 
-Advanced Level groups that define their own task add one step before
-recording: [Adding a New Task](adding_new_task.md).
+A self-defined task adds one step before recording:
+[Adding a New Task](adding_new_task.md).
 
 ## 2. Key terms
 
@@ -49,9 +50,9 @@ recording: [Adding a New Task](adding_new_task.md).
 |---|---|
 | Host machine | The GPU computer itself, with its own operating system, files, and GPU driver. |
 | Docker container | An isolated environment that runs on the host. It shares the host's operating-system kernel and GPU, but has its own file system and installed software. It is started from an *image*, a packaged snapshot of an operating system and software built from the repository's `Dockerfile`. |
-| Simulator environment | The Python environment that holds Isaac Sim 5.1.0, Isaac Lab, LeIsaac, and LeRobot at fixed versions, because the simulator depends on exact CUDA and Vulkan versions. Everything that starts the simulator runs here. By default it is `.venv-sim` on the host (`make install-sim`); the Isaac Lab container is an alternative with the same versions. |
-| Isaac Lab container | The project's Docker container, an alternative simulator environment built from the `Dockerfile`. |
-| `uv` environment | A Python virtual environment on the host, in `.venv`, created by [`uv`](https://docs.astral.sh/uv/) from the repository's `uv.lock`, so that every group gets the same package versions. Training and data verification run here. It cannot run Isaac Sim. |
+| General environment | The Python environment `.venv` for everything that does not start the simulator ([README](../README.md#python-environments)). |
+| Simulator environment | The Python environment `.venv-sim` (or the Isaac Lab container) for everything that starts the simulator ([README](../README.md#python-environments)). |
+| Isaac Lab container | The repository's Docker container, an alternative simulator environment built from the `Dockerfile`. |
 | Isaac Sim | NVIDIA's robot simulator: physics, rendering, and sensors. |
 | Isaac Lab | A robot-learning framework on top of Isaac Sim. It turns a simulated scene into an environment with `reset()` and `step()`. |
 | LeIsaac | A library on top of Isaac Lab that connects it to LeRobot, including a recorder that writes LeRobot datasets. |
@@ -67,8 +68,8 @@ recording: [Adding a New Task](adding_new_task.md).
 | Checkpoint | A saved policy: its weights, configuration, and normalization statistics. |
 | Rollout | Running a policy in the simulator for a number of episodes to measure its success rate. |
 | Generalization axis | One way in which the evaluation conditions can differ from the demonstrations, taken from the STAR-Gen taxonomy. The repository checks three axes, each with one *factor*: **Object Poses** (factor object position), **Image Augmentations** (factor lighting), and **Object Properties** (factor referencing objects by color). |
-| Spec | A Turtle (`.ttl`) file in which the group states what its dataset must cover on one axis, for example the table area per object and the episodes per cell. Each predefined task ships one spec per axis in `specs/<task>/`, with every value left as `TODO`; the group copies and fills them in. |
-| Data verification | The check of a dataset against the group's specs (`scripts/store.py verify`). It reports, per axis, where the dataset has too few episodes, and compares rollouts with the dataset. |
+| Spec | A Turtle (`.ttl`) file that states what a dataset should cover on one axis, for example the table area per object and the episodes per cell. Each predefined task ships one spec per axis in `specs/<task>/`, with every value left as `TODO`; the specs are copied and filled in. |
+| Data verification | The check of a dataset against specs (`scripts/store.py verify`). It reports, per axis, where the dataset has too few episodes, and compares rollouts with the dataset. |
 
 ## 3. Step 0: Set up the machine
 
@@ -77,8 +78,8 @@ recording: [Adding a New Task](adding_new_task.md).
 ### 3.1 Requirements
 
 - A Linux x86_64 machine with an NVIDIA RTX GPU (16 GB VRAM or more) and
-  driver 570 or newer (`nvidia-smi` must work). Groups without one can use a
-  cloud GPU; see
+  driver 570 or newer (`nvidia-smi` must work). Without one, a cloud GPU can be
+  used; see
   [Cloud GPU Setup with GlowsAI](https://docs.google.com/presentation/d/1xPHm3gNNvLbX7aOWnY_xW5dfVLEa9XiBuskMbRsgxI8/edit?usp=sharing).
   Recording and rollout render camera images, which needs a GPU with RT cores
   (GeForce RTX, RTX A/Ada/PRO, L40S). Data-center GPUs without RT cores
@@ -88,7 +89,7 @@ recording: [Adding a New Task](adding_new_task.md).
   desktop session for the Isaac Sim window.
 - Git with submodule support.
 - Only for the container alternative
-  ([section 3.5](#35-launch-the-simulator)): Docker and the
+  ([section 3.4](#34-launch-the-simulator)): Docker and the
   [NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html),
   which lets containers use the GPU (`docker run --gpus ...`). Without it,
   the launch commands fail with
@@ -135,81 +136,33 @@ sudo systemctl restart docker
 docker run --rm --gpus all ubuntu nvidia-smi
 ```
 
-### 3.2 Fork and clone the repository
+### 3.2 Install the general environment
 
-Students cannot push to the course repository. Every group therefore works in
-its own **fork**: a copy of the repository under a group member's GitHub
-account. The group's work (state-machine and configuration changes, filled-in
-specs, new verification factors) is committed and
-pushed to the fork, so it is kept, shared within the group, and handed in
-from there. A plain clone of the course repository would leave all changes on
-one machine, with no place to push them.
-
-1. On the course repository's GitHub page, one group member clicks **Fork**
-   and creates the fork under their own account. The other members are added
-   as collaborators (fork **Settings → Collaborators**).
-2. Every member clones the **fork**, not the course repository:
-
-   ```bash
-   git clone https://github.com/<github-user>/robot-learning-from-evaluation-feedback
-   cd robot-learning-from-evaluation-feedback
-   git remote add upstream https://github.com/HCIS-lab/robot-learning-from-evaluation-feedback
-   git remote -v   # origin = the fork (push here), upstream = the course repository
-   ```
-
-3. Work is committed and pushed to the fork as usual:
-
-   ```bash
-   git add <files>
-   git commit -m "<message>"
-   git push origin main
-   ```
-
-4. When the course repository is updated (fixes, new evaluation files), the
-   group merges the updates into its fork:
-
-   ```bash
-   git fetch upstream
-   git merge upstream/main
-   git push origin main
-   ```
-
-   Conflicts appear only where the group changed the same lines as the update.
-
-Notes:
-
-- Datasets, checkpoints, and training outputs (`datasets/`, `checkpoints/`,
-  `outputs/`) are ignored by Git. They are shared through the Hugging Face Hub
-  ([step 3](#6-step-3-inspect-and-verify-the-dataset) and
-  [LeRobot Training §7](lerobot_training.md#7-upload-a-checkpoint)), not
-  through the fork.
-- The Isaac Lab submodule (`dependencies/IsaacLab/`) is fetched by
-  `make install-sim` or the first `make launch-isaaclab`
-  ([section 3.5](#35-launch-the-simulator)).
-
-### 3.3 Install the host environment
-
-From the root of the cloned fork:
+From the repository root:
 
 ```bash
 uv sync                     # creates .venv with the locked package versions
 source .venv/bin/activate   # makes lerobot-train, hf, ... available
 ```
 
-### 3.4 Log in to Hugging Face
+The prompt then starts with `(general)`; `deactivate` leaves the environment. The simulator environment is installed separately in
+[section 3.4](#34-launch-the-simulator).
+
+### 3.3 Log in to Hugging Face
 
 ```bash
-hf auth login --token <YOUR_HF_TOKEN>
+hf auth login --token <YOUR_HF_TOKEN>   # also needed to upload datasets and policies
+wandb login                             # asks for the Weights & Biases API key
 export HF_USER=<your-huggingface-username>
 ```
 
 Commands in all guides use `${HF_USER}`. The variable is set again in every
 new terminal, including the simulator shell.
 
-### 3.5 Launch the simulator
+### 3.4 Launch the simulator
 
-**Default: on the host.** The simulator stack is installed once into a
-separate environment, `.venv-sim`, with the same package versions as the
+**Default: on the host.** The simulator stack is installed once into the
+simulator environment `.venv-sim`, with the same package versions as the
 container (`requirements-sim.txt`):
 
 ```bash
@@ -217,11 +170,12 @@ make install-sim   # once; downloads about 20 GB, takes a while
 make launch-sim    # opens a shell with .venv-sim active, in the repository root
 ```
 
-`make launch-sim` opens a new shell; `exit` leaves it. In an existing
-terminal, `source scripts/sim_env.sh` does the same. The shell sets the
+`make launch-sim` opens a new shell, whose prompt starts with `(simulator)`;
+`exit` leaves it. In an existing terminal, `source scripts/sim_env.sh` does the
+same. The shell sets the
 variables the container sets: it accepts the Isaac Sim license, and points
-LeRobot's dataset folder (`HF_LEROBOT_HOME`) to `datasets/`, so a recorded
-dataset appears in `datasets/<hf_user>/<name>`. The first start of Isaac Sim
+LeRobot's dataset folder to `datasets/`, so a recorded
+dataset appears in `datasets/${HF_USER}/<repo_name>`. The first start of Isaac Sim
 compiles shaders and takes several minutes.
 The Isaac Sim window opens on the display in `DISPLAY`, so the shell is
 started from a terminal on the machine's desktop. If the window cannot open
@@ -252,11 +206,6 @@ noVNC desktop to the host, so a run without `--headless` and with
 `DISPLAY=:0` appears at `localhost:6080`; that connection is lost on reboot, run
 the script again to restore it.
 
-`.venv-sim` and `.venv` are kept separate because Isaac Sim needs older
-versions (NumPy 1.26, PyTorch 2.7) than the `uv` environment. Training and
-verification commands (`uv run ...`, `lerobot-train`) are run outside the
-simulator shell.
-
 **Alternative: the Isaac Lab container.** For machines where the host
 installation is not possible, for example the GlowsAI cloud machines:
 
@@ -277,7 +226,7 @@ What the container shares with the host:
   round.
 - `datasets/` on the host is mounted as LeRobot's dataset folder
   (`~/.cache/huggingface/lerobot`), so a dataset recorded in the container
-  appears in `datasets/<hf_user>/<name>` on the host.
+  appears in `datasets/${HF_USER}/<repo_name>` on the host.
 - The host's `.venv` and `.venv-sim` are hidden inside the container; the
   container has its own Python installation.
 - The container is deleted when it exits. Anything written outside the
@@ -287,23 +236,22 @@ Other `make` targets:
 
 | Target | Purpose |
 |---|---|
-| `make install` | Initialize submodules and run `uv sync` |
-| `make install-sim` | Install the simulator environment `.venv-sim` on the host |
+| `make install-sim` | Install the simulator environment `.venv-sim` on the host (initializes the submodules first) |
 | `make launch-sim` | Open a shell with `.venv-sim` active |
 | `make build-isaaclab` | Build the image without launching it |
 | `make check-isaaclab-gpu` | Check that the image sees the GPU, Vulkan, and CUDA |
 | `make fix-perms` | Give files that the container wrote under `datasets/` and `outputs/` back to the host user |
 | `make test` | Run the host-side tests |
 
-### 3.6 Where to run what
+### 3.5 Where to run what
 
 | Work | Environment | Reason |
 |---|---|---|
 | Recording, rollout | Simulator environment (`make launch-sim`, or the container) | Both start the simulator, which needs the pinned GPU and rendering stack. |
-| Training | Host `uv` environment | The container adds file-access and GPU pass-through overhead. |
-| Verification store (`verify`, queries), dataset inspection, tests | Host `uv` environment | They only read files and never start the simulator. |
+| Training | General environment | The container adds file-access and GPU pass-through overhead. |
+| Verification store (`verify`, queries), dataset inspection, tests | General environment | They only read files and never start the simulator. |
 
-### 3.7 Repository layout
+### 3.6 Repository layout
 
 **Background**
 
@@ -315,20 +263,20 @@ Other `make` targets:
 | `scripts/datagen/generate.py`, `scripts/teleop.py` | The two data-collection methods: state machine and keyboard teleoperation. |
 | `scripts/rollout.py` | Runs a trained policy in the simulator and reports the success rate. |
 | `scripts/store.py` | Command-line interface of the verification store (`ingest`, `verify`, `explore`, `query`). |
-| `specs/<task>/` | The shipped specs of each predefined task, one per axis: `object_pose.ttl`, `image_augmentation.ttl`, `object_property.ttl`. Every value is `TODO`; the group copies them and fills them in. |
+| `specs/<task>/` | The shipped specs of each predefined task, one per axis: `object_pose.ttl`, `image_augmentation.ttl`, `object_property.ttl`. Every value is `TODO`; they are copied and filled in. |
 | `queries/` | Example SPARQL queries over a store. |
-| `tests/` | Host-side tests (`make test`). |
+| `tests/` | Tests of the general environment (`make test`). |
 | `dependencies/IsaacLab/` | Isaac Lab as a Git submodule. Not edited. |
 | `requirements-sim.txt`, `scripts/install_sim_host.sh`, `scripts/sim_env.sh` | The host simulator environment: pinned versions, installer, and shell setup. |
 | `Dockerfile`, `Makefile` | The container image, and the commands that install and launch both simulator environments. |
 | `datasets/`, `outputs/`, `checkpoints/` | Recorded datasets, training and rollout outputs (including the rollout logs in `outputs/rollout/`); not tracked by Git. |
-| `stores/` | Verification stores, one per dataset (`stores/<dataset_repo>/`), written by `scripts/store.py`; not tracked by Git. |
+| `stores/` | Verification stores, one per dataset (`stores/<repo_name>/`), written by `scripts/store.py`; not tracked by Git. |
 
 ## 4. Step 1: Choose a task
 
 **Required**
 
-Each group works on one of three predefined tasks:
+Three tasks are predefined:
 
 | Task | Task id (recording) | Eval file (rollout) | Episode length |
 |---|---|---|---|
@@ -342,9 +290,8 @@ object positions and randomization. The episode length is the time a policy gets
 during evaluation.
 
 [Data Collection §1](data_collection.md#1-the-two-methods) lists each task's
-scene objects, success check, and task text. Advanced Level groups that
-define their own task follow [Adding a New Task](adding_new_task.md) and then
-continue with step 2.
+scene objects, success check, and task text. A self-defined task follows
+[Adding a New Task](adding_new_task.md) and then continues with step 2.
 
 ## 5. Step 2: Record demonstrations
 
@@ -352,7 +299,7 @@ continue with step 2.
 
 Demonstrations are recorded in the simulator shell with one of two provided
 methods: the **state machine**, which solves the task by script, or **keyboard
-teleoperation**, where a group member drives the robot. For example:
+teleoperation**, where a person drives the robot. For example:
 
 ```bash
 python scripts/datagen/generate.py \
@@ -362,27 +309,35 @@ python scripts/datagen/generate.py \
     --lerobot_dataset_repo_id ${HF_USER}/cup-stacking-demos
 ```
 
-Groups may adjust the state machine and the task configuration, for example
-the object randomization ranges, the light ranges, or how often the task text
-refers to the objects by color, as long as the rollout contract is kept. How
-many episodes to record, and which positions, lights, and wordings they must
-cover, is the group's decision and is revisited in step 6.
-[Data Collection](data_collection.md) describes both methods, what may be
-adjusted, and the recorder.
+| Argument | Meaning |
+|---|---|
+| `--task` | Task id of the task to record |
+| `--num_demos` | Number of attempts; only successful ones are saved |
+| `--device cuda --enable_cameras` | Simulate on the GPU, and render the camera images that the dataset contains |
+| `--headless` | Run without the Isaac Sim window |
+| `--record --use_lerobot_recorder` | Save the attempts as a LeRobot dataset |
+| `--lerobot_dataset_repo_id` | Repo id `${HF_USER}/<repo_name>`; the dataset is written to `datasets/${HF_USER}/<repo_name>` |
+
+The state machine and the task configuration can be adjusted, for example the
+object randomization ranges, the light ranges, or how often the task text
+refers to the objects by color. How many episodes to record, and which
+positions, lights, and wordings they cover, is open and is revisited in step 6.
+[Data Collection](data_collection.md) describes both methods, the adjustable
+settings, and the recorder.
 
 ## 6. Step 3: Inspect and verify the dataset
 
 **Required**
 
-Before training, every dataset is checked in two ways, on the host:
+Before training, a dataset is checked in two ways, in the general environment:
 
 1. **Visual inspection.** A few episodes are watched with the
    [LeRobot Dataset Visualizer](lerobot_dataset_visualizer.md), to confirm
    that the camera views, the motion, and the episode boundaries are correct.
 2. **Data verification.** The dataset is put into a verification store (RDF
-   files under `stores/<dataset_repo>/`). The group copies the shipped specs of
-   its task from `specs/<task>/`, one file per generalization axis, and
-   replaces every `TODO` with its own values: for example the table area each
+   files under `stores/<repo_name>/`). The shipped specs of the task are
+   copied from `specs/<task>/`, one file per generalization axis, and every
+   `TODO` is replaced with own values: for example the table area each
    object must cover and the episodes per cell (Object Poses), the light ranges
    (Image Augmentations), or the phrases that refer to each object by name and
    by color (Object Properties). `verify` checks the dataset against every
@@ -399,14 +354,20 @@ Before training, every dataset is checked in two ways, on the host:
        --spec my_specs/object_pose.ttl my_specs/image_augmentation.ttl my_specs/object_property.ttl
    ```
 
-   An axis without a spec file is not checked. [Data Verification](data_verification.md)
+   | Argument | Meaning |
+   |---|---|
+   | `ingest --dataset` | Reads the dataset folder into a new store, named after the folder (`stores/cup-stacking-demos`) |
+   | `verify --store` | The store to check |
+   | `verify --spec` | The filled-in spec files, one per axis; an axis without a spec file is not checked |
+
+   [Data Verification](data_verification.md)
    explains the workflow and the report; the axis pages
    ([Object Poses](object_pose.md), [Image Augmentations](image_augmentation.md),
    [Object Properties](object_property.md)) explain how to choose each
    spec's values.
 
-Running the check is required for every dataset. Its values are the group's
-own decision, and the report is evidence for the group's analysis, not a grade.
+The values in the specs are chosen freely. The report is a diagnostic that
+supports the analysis, not a pass/fail grade.
 
 To train from the Hugging Face Hub, or to use the hosted visualizer, the
 dataset is uploaded first:
@@ -415,22 +376,34 @@ dataset is uploaded first:
 hf upload ${HF_USER}/cup-stacking-demos datasets/${HF_USER}/cup-stacking-demos --repo-type dataset
 ```
 
+`hf upload <repo id> <local folder>` copies the folder to the Hub repository,
+and `--repo-type dataset` marks it as a dataset.
+
 ## 7. Step 4: Train a policy
 
 **Required**
 
-Training runs on the host with LeRobot's `lerobot-train`:
+Training runs in the general environment with LeRobot's `lerobot-train`:
 
 ```bash
 lerobot-train \
-  --dataset.repo_id=${HF_USER}/cup-stacking-demos \
-  --dataset.root=datasets/${HF_USER}/cup-stacking-demos \
+  --dataset.repo_id=${HF_USER}/<repo_name> \
+  --dataset.root=datasets/${HF_USER}/<repo_name> \
   --policy.type=diffusion \
   --policy.device=cuda \
-  --policy.push_to_hub=false \
-  --output_dir=outputs/train/cup_stacking_v1 \
-  --job_name=cup_stacking_v1
+  --policy.repo_id=${HF_USER}/<repo_name> \
+  --output_dir=<path/to/checkpoint> \
+  --job_name=<job_name> \
+  --wandb.enable=true
 ```
+
+| Argument | Meaning |
+|---|---|
+| `--dataset.repo_id`, `--dataset.root` | The dataset's repo id and its local folder |
+| `--policy.type`, `--policy.device` | Policy architecture (`diffusion` or `act`) and the device to train on |
+| `--policy.repo_id` | Hub repository to which the trained policy is pushed (needs `hf auth login`); `--policy.push_to_hub=false` skips the push |
+| `--output_dir`, `--job_name` | Folder for the results, which must not exist yet, and the run's name |
+| `--wandb.enable` | Logs the training curves to Weights & Biases (needs `wandb login`) |
 
 Training takes from a few hours to more than a day, depending on the dataset
 size and the GPU. The result is a checkpoint folder,
@@ -451,11 +424,18 @@ python scripts/rollout.py \
     --policy_type=lerobot-diffusion \
     --policy_checkpoint_path=outputs/train/cup_stacking_v1/checkpoints/last/pretrained_model \
     --device=cuda --enable_cameras \
-    --eval_rounds=20
+    --eval_rounds=50
 ```
 
+| Argument | Meaning |
+|---|---|
+| `--task` | The evaluation file of the task |
+| `--policy_type`, `--policy_checkpoint_path` | The policy architecture (`lerobot-<type>`) and the checkpoint's `pretrained_model` folder |
+| `--device cuda --enable_cameras` | Simulate on the GPU, and render the images that the policy needs |
+| `--eval_rounds` | Number of evaluation episodes |
+
 [Rollout](rollout.md) lists all flags and the input and output
-features that a submitted policy must use.
+features that a policy should use.
 
 ## 9. Step 6: Diagnose and iterate
 
@@ -479,10 +459,6 @@ starts with the data:
 
 Coverage is a diagnostic, not a proof: an uncovered region is evidence of a
 possible gap in the data, while complete coverage does not guarantee success.
-A group that suspects another factor, such as object orientation or the
-camera viewpoint, can select it from the STAR-Gen taxonomy or another paper
-and follow
-[Adding a New Dataset Coverage Factor](adding_coverage_factor.md).
 
 ## 10. Documentation map
 
@@ -498,5 +474,4 @@ and follow
 | [Object Properties: Referencing Objects by Color](object_property.md) | Steps 3 and 6 | The color-reference spec, its report, and its rollout comparison |
 | [LeRobot Training](lerobot_training.md) | Step 4 | Training flags, multi-GPU, checkpoint layout, upload |
 | [Rollout](rollout.md) | Step 5 | Rollout flags, eval files, policy input and output contract |
-| [Adding a New Task](adding_new_task.md) | Step 1, Advanced Level | Writing, registering, and testing a new task configuration |
-| [Adding a New Dataset Coverage Factor](adding_coverage_factor.md) | Step 6 | Extending data verification to another axis or factor |
+| [Adding a New Task](adding_new_task.md) | Step 1, self-defined task | Writing, registering, and testing a new task configuration |

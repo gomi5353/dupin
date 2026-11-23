@@ -1,13 +1,13 @@
 # Rollout (Policy Evaluation)
 
 This guide describes how a trained policy is evaluated in the simulator with
-`scripts/rollout.py`, and which input and output features a submitted policy
-must use. It extends step 5 of [Getting Started](getting_started.md) and
+`scripts/rollout.py`, and which input and output features a policy should
+use. It extends step 5 of [Getting Started](getting_started.md) and
 assumes that setup (step 0) is complete and that a checkpoint exists
 ([LeRobot Training](lerobot_training.md)).
 
-Every section starts with one of two labels: **Required** (something students
-must do or follow) or **Background** (explanation without work items).
+Every section starts with one of two labels: **Required** (something to do
+or follow) or **Background** (explanation without work items).
 
 ## 1. What rollout does
 
@@ -28,9 +28,7 @@ ranges, and episode length. The final ranking uses a separate private
 configuration with different object positions, so a policy that only works on
 the public file's exact positions is not enough.
 
-Rollout never reads the recording task configuration (`packages/simulator/src/simulator/tasks/<task>/<task>_env_cfg.py`). A dataset recorded under a modified configuration must still produce a policy that
-fits [section 4](#4-policy-input-and-output-contract)
-([Data Collection §4](data_collection.md#4-adjusting-the-collection)).
+When modifying the recording task configuration (`packages/simulator/src/simulator/tasks/<task>/<task>_env_cfg.py`), ensure that the resulting dataset remains compatible with the policy input and output contract expected by the rollout script (see [section 4](#4-policy-input-and-output-contract)([Data Collection §4](data_collection.md#4-adjusting-the-collection))). In particular, check that the observations and actions used during training match those expected during rollout.
 
 | Task | Eval file | Episode length |
 |---|---|---|
@@ -71,6 +69,23 @@ python scripts/rollout.py \
     --eval_rounds=50
 ```
 
+### Flag reference
+
+| Flag | Description |
+|---|---|
+| `--task` | The task to evaluate on: an eval file under `eval/` (see the table above). It also accepts a registered task id or a `module:Class` reference; the module of a `module:Class` must be importable, for example by running from the repository root with `PYTHONPATH=.` ([section 5](#5-evaluating-a-self-defined-task)). |
+| `--policy_type` | **Required.** `lerobot-<type>`, where `<type>` is the `--policy.type` used in training. Accepted values: `lerobot-diffusion`, `lerobot-act`, `lerobot-smolvla`, `lerobot-pi0`, `lerobot-pi05`, `lerobot-vqbet`, `lerobot-tdmpc`, `lerobot-sac`, `lerobot-groot`, `lerobot-xvla`. Rollout has been run end to end with `lerobot-diffusion`, `lerobot-act`, and `lerobot-groot`; the others are accepted but untested here, and some need extra packages or gated weights. |
+| `--policy_checkpoint_path` | **Required.** The checkpoint's `pretrained_model` folder (the one containing `config.json` and `model.safetensors`). |
+| `--policy_action_horizon` | Number of actions executed from each inference before the policy runs again. Overrides `n_action_steps` from the checkpoint, which is used by default. It must be positive and at most the number of actions one inference predicts: `horizon - n_obs_steps + 1` for Diffusion Policy, `chunk_size` for ACT. ACT with temporal ensembling only accepts `1`. The values in use are printed at start. |
+| `--policy_language_instruction` | Language instruction for language-conditioned policies, the same for every episode. By default each episode gets its own task text from the eval file (by name or by color), which is also logged as `instruction`. |
+| `--device=cuda` | Runs simulation and inference on the GPU. |
+| `--enable_cameras` | Enables camera rendering. Required, because the policy needs images. |
+| `--eval_rounds` | Total number of evaluation episodes, counted over all environments (with `--num_envs 2` and `--eval_rounds 1`, one episode is run). `0` (the default) removes the time limit and never stops by itself: every episode runs until success or a manual reset (`R` in the GUI), then the next one starts, and no final success rate is printed. Use a positive value for a graded run. |
+| `--episode_length_s` | Episode length in seconds. By default the task's graded length is used; the value in use is printed at start. |
+| `--seed` | Seed of the object-position, lighting, and reference-form randomization (default `42`). A fixed seed compares policies on the same episodes. |
+| `--num_envs` | Number of environments simulated in parallel (default 1); this many episodes run at once, and the total is still capped by `--eval_rounds`. |
+| `--headless` | Runs without the GUI window. |
+
 Besides the success rate, every rollout writes a per-episode log to
 `outputs/rollout/<timestamp>.jsonl` (no flag needed). After a header line,
 there is one line per episode:
@@ -96,40 +111,24 @@ plate), each as `pos` (env-local, metres) and `rot` (quaternion w, x, y, z).
 They are for reference only; the comparison ignores them.
 
 Putting the log into the training dataset's verification store and running
-`verify` with the group's specs shows, for every axis, which rollout episodes
+`verify` with the specs shows, for every axis, which rollout episodes
 the dataset does not cover and where to record next
 ([Data Verification §5](data_verification.md#5-compare-the-dataset-with-a-rollout)):
 
 ```bash
-uv run python scripts/store.py ingest --store stores/<dataset_repo> --rollout-log outputs/rollout/<timestamp>.jsonl
-uv run python scripts/store.py verify --store stores/<dataset_repo> \
+uv run python scripts/store.py ingest --store stores/<repo_name> --rollout-log outputs/rollout/<timestamp>.jsonl
+uv run python scripts/store.py verify --store stores/<repo_name> \
     --spec my_specs/object_pose.ttl my_specs/image_augmentation.ttl my_specs/object_property.ttl
 ```
-
-### Flag reference
-
-| Flag | Description |
-|---|---|
-| `--task` | The task to evaluate on: an eval file under `eval/` (see the table above). It also accepts a registered task id or a `module:Class` reference; the module of a `module:Class` must be importable, for example by running from the repository root with `PYTHONPATH=.` ([section 5](#5-evaluating-a-self-defined-task)). |
-| `--policy_type` | **Required.** `lerobot-<type>`, where `<type>` is the `--policy.type` used in training. Accepted values: `lerobot-diffusion`, `lerobot-act`, `lerobot-smolvla`, `lerobot-pi0`, `lerobot-pi05`, `lerobot-vqbet`, `lerobot-tdmpc`, `lerobot-sac`, `lerobot-groot`, `lerobot-xvla`. Rollout has been run end to end with `lerobot-diffusion` and `lerobot-groot`; the others are accepted but untested here, and some need extra packages or gated weights. |
-| `--policy_checkpoint_path` | **Required.** The checkpoint's `pretrained_model` folder (the one containing `config.json` and `model.safetensors`). |
-| `--policy_action_horizon` | Number of actions executed from each inference before the policy runs again. Overrides `n_action_steps` from the checkpoint, which is used by default. It must be positive and at most the number of actions one inference predicts: `horizon - n_obs_steps + 1` for Diffusion Policy, `chunk_size` for ACT. ACT with temporal ensembling only accepts `1`. The values in use are printed at start. |
-| `--policy_language_instruction` | Language instruction for language-conditioned policies, the same for every episode. By default each episode gets its own task text from the eval file (by name or by color), which is also logged as `instruction`. |
-| `--device=cuda` | Runs simulation and inference on the GPU. |
-| `--enable_cameras` | Enables camera rendering. Required, because the policy needs images. |
-| `--eval_rounds` | Total number of evaluation episodes, counted over all environments (with `--num_envs 2` and `--eval_rounds 1`, one episode is run). `0` (the default) removes the time limit and never stops by itself: every episode runs until success or a manual reset (`R` in the GUI), then the next one starts, and no final success rate is printed. Use a positive value for a graded run. |
-| `--episode_length_s` | Episode length in seconds. By default the task's graded length is used; the value in use is printed at start. |
-| `--seed` | Seed of the object-position, lighting, and reference-form randomization (default `42`). A fixed seed compares policies on the same episodes. |
-| `--num_envs` | Number of environments simulated in parallel (default 1); this many episodes run at once, and the total is still capped by `--eval_rounds`. |
-| `--headless` | Runs without the GUI window. |
 
 ## 4. Policy input and output contract
 
 **Required**
 
-Rollout feeds the policy exactly the features below and expects the action
-below. A checkpoint submitted for evaluation must use only these input
-features and predict only this output. The dataset may contain other columns
+Rollout feeds the policy the features below and applies the action below. A
+policy that needs other inputs cannot be fed by rollout, and one trained with
+other camera poses, controller settings, or action meanings may still run but
+usually performs much worse. The dataset may contain other columns
 (for example `object_position.*`, `lighting.*`, `object_color.*`); LeRobot ignores them because they are neither
 `observation.*` nor `action`.
 
@@ -143,8 +142,8 @@ features and predict only this output. The dataset may contain other columns
 These are the features that the repository recorder writes
 ([Data Collection §5](data_collection.md#5-the-recorder-and-the-dataset)),
 so a policy trained with default settings on such a dataset satisfies the
-contract. Groups may experiment with other features, but the submitted
-checkpoint must follow this table.
+contract. Other features can be tried in training, but the policy that is
+evaluated should follow this table.
 
 ## 5. Evaluating a self-defined task
 
@@ -158,8 +157,8 @@ checkpoint must follow this table.
 | Path to a `.py` file that registers a task when imported | `--task eval/cup_stacking_eval.py` |
 | `module:Class` reference | `--task my_pkg.tasks.eval:MyEvalEnvCfg` |
 
-The eval files use the second form. An Advanced Level group that defines its
-own task ([Adding a New Task](adding_new_task.md)) can evaluate on its task id
-directly, or write its own evaluation file in the same form as the files in
+The eval files use the second form. A self-defined task
+([Adding a New Task](adding_new_task.md)) can be evaluated by its task id
+directly, or by an own evaluation file in the same form as the files in
 `eval/`: a task configuration class plus a `gym.register(...)` call with a
 unique `TASK_ID`.
