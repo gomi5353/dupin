@@ -52,6 +52,15 @@ run_root() {
     ${SUDO} "$@"
 }
 
+# apt_install <pkgs...>: wait for the apt/dpkg lock (a fresh VM runs its own
+# first-boot apt jobs for several minutes) instead of failing, and record failure.
+apt_install() {
+    local lock="-o DPkg::Lock::Timeout=900"
+    run_root apt-get ${lock} update -qq || true
+    run_root env DEBIAN_FRONTEND=noninteractive apt-get ${lock} install -y -qq "$@" \
+        || { echo "  apt-get install failed: $*" >&2; FAILED=1; }
+}
+
 echo "== 1. Libraries =="
 LDCACHE="$(ldconfig -p)"
 MISSING_LIBS=""
@@ -62,14 +71,16 @@ if [ -z "${MISSING_LIBS}" ]; then
     echo "present"
 else
     echo "missing:${MISSING_LIBS}"
-    run_root apt-get update -qq || true
-    run_root env DEBIAN_FRONTEND=noninteractive apt-get install -y -qq \
-        libvulkan1 vulkan-tools libglu1-mesa libxt6 libx11-6 libxrandr2 libxinerama1 \
+    apt_install libvulkan1 vulkan-tools libglu1-mesa libxt6 libx11-6 libxrandr2 libxinerama1 \
         libxcursor1 libxi6 libegl1 libsm6 x11-utils x11-xserver-utils
+    LDCACHE="$(ldconfig -p)"
+    for lib in ${MISSING_LIBS}; do
+        grep -q "${lib}" <<<"${LDCACHE}" || { echo "  still missing after install: ${lib}" >&2; FAILED=1; }
+    done
 fi
 # Tools for the X relay (host only).
 if [ "${IN_CONTAINER}" = 0 ] && ! command -v socat >/dev/null; then
-    run_root env DEBIAN_FRONTEND=noninteractive apt-get install -y -qq socat x11-utils x11-xserver-utils
+    apt_install socat x11-utils x11-xserver-utils
 fi
 
 echo "== 1b. Build tools (cmake, gcc, g++, make) =="
@@ -81,8 +92,7 @@ if [ -z "${MISSING_TOOLS}" ]; then
     echo "present"
 else
     echo "missing:${MISSING_TOOLS}"
-    run_root apt-get update -qq || true
-    run_root env DEBIAN_FRONTEND=noninteractive apt-get install -y -qq cmake build-essential
+    apt_install cmake build-essential
 fi
 
 echo "== 1c. FFmpeg (video decoding of lerobot-train and lerobot-dataset-viz) =="
@@ -90,8 +100,7 @@ if command -v ffmpeg >/dev/null; then
     echo "present"
 else
     echo "missing"
-    run_root apt-get update -qq || true
-    run_root env DEBIAN_FRONTEND=noninteractive apt-get install -y -qq ffmpeg
+    apt_install ffmpeg
 fi
 
 echo "== 2. NVIDIA EGL vendor file (needed by the Vulkan driver) =="
@@ -147,6 +156,21 @@ else
         echo "DISPLAY=:0 reachable (GUI runs show on localhost:6080)"
     else
         echo "WARNING: DISPLAY=:0 still unreachable, see /tmp/xrelay.log" >&2
+        FAILED=1
+    fi
+fi
+
+echo "== NVIDIA driver (kernel module vs user-space libraries) =="
+if command -v nvidia-smi >/dev/null; then
+    if SMI="$(nvidia-smi --query-gpu=name,driver_version --format=csv,noheader 2>&1)"; then
+        echo "${SMI}"
+        case "${SMI}" in
+            *,\ 580.*) ;;
+            *) echo "WARNING: Isaac Sim 5.1 is validated with the 580.x driver; other branches (e.g. 595.x) may segfault in librtx.scenedb.plugin.so. Prefer a 580.x instance." >&2 ;;
+        esac
+    else
+        echo "${SMI}" >&2
+        echo "ERROR: NVIDIA driver is broken here (kernel module and libraries differ). Reboot once; if it persists, do not use this instance." >&2
         FAILED=1
     fi
 fi
