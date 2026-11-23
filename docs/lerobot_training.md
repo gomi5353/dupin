@@ -67,7 +67,7 @@ Biases dashboard when it is enabled (`wandb login` first).
 |---|---|
 | `--dataset.repo_id=${HF_USER}/<repo_id>` | The dataset to train on: the repo id used when recording. |
 | `--dataset.root=datasets/${HF_USER}/<repo_id>` | Local folder of the dataset. Without this flag, the dataset is downloaded from the Hugging Face Hub, which requires uploading it first ([section 2](#2-get-the-dataset), [Getting Started §6](getting_started.md#6-step-3-inspect-and-verify-the-dataset)). |
-| `--policy.type` | Policy architecture. `diffusion` (Diffusion Policy) generates smooth action sequences and is a good default for manipulation; `act` (Action Chunking Transformer) is the other recommended choice. Other LeRobot policies are possible as long as rollout supports them ([Rollout §3](rollout.md#flag-reference)). |
+| `--policy.type` | Policy architecture. `diffusion` (Diffusion Policy) generates smooth action sequences; `act` (Action Chunking Transformer) predicts a chunk of actions per inference. Other policies are listed in [section 5](#5-other-policies); rollout accepts the types of [Rollout §3](rollout.md#flag-reference). |
 | `--policy.*` | Policy-specific options follow `--policy.type`, for example `--policy.n_obs_steps`, `--policy.horizon`, and `--policy.n_action_steps` for Diffusion Policy, or `--policy.chunk_size` and `--policy.n_action_steps` for ACT. `n_action_steps` is the number of actions that rollout executes after each inference (each lasting one 1/60 s step). |
 | `--policy.device=cuda` | Trains on the GPU. `cpu` is only useful for quick debugging. |
 | `--output_dir` | Folder for checkpoints, logs, and the configuration, for example `outputs/train/diffusion_cupstacking_v1`. It must not exist yet. |
@@ -81,23 +81,21 @@ Biases dashboard when it is enabled (`wandb login` first).
 
 **Background**
 
-Diffusion Policy and ACT are the recommended policies. The policies below were
-also trained and rolled out in this repository (RTX 4090, 24 GB, the locked
-`torch==2.7.0` environment). They are optional; the results of the shortest
-runs only show that the pipeline works, not that the policy performs well.
+`--policy.type` accepts the policies below in addition to `diffusion` and `act`.
+The GPU column states what to expect on an RTX 4090 (24 GB). Where the memory is
+not enough, or only a very small batch size fits, train on an L40S (46 GB); the
+rollout of the resulting checkpoint still runs on an RTX 4090.
 
-| `--policy.type` | Status | Notes |
+| `--policy.type` | RTX 4090 (24 GB) | Notes |
 |---|---|---|
-| `diffusion`, `act` | Supported | Recommended. |
-| `groot` | Supported (optional) | `--policy.tune_diffusion_model=false` on a 24 GB GPU. |
-| `smolvla` | Supported (optional) | No extra steps. |
-| `xvla` | Supported (optional), extra options | `--batch_size=4` on a 24 GB GPU; 8 runs out of memory. |
-| `pi0`, `pi05` | Supported (optional), separate environment | Needs a patched `transformers` and access to `google/paligemma-3b-pt-224`. |
-| `vqbet`, `tdmpc`, `sac` | **Not supported** | See the end of this section. |
+| `groot` | Runs out of memory with the default settings, even with `--batch_size=1`. Runs with `--policy.tune_diffusion_model=false` (the action head stays frozen). | On an L40S the default settings fit. |
+| `smolvla` | Fits. | |
+| `xvla` | `--batch_size=4` fits; `--batch_size=8` runs out of memory. | Use an L40S for a larger batch size. |
+| `pi0`, `pi05` | `--batch_size=8` fits with the memory options in the command below. | Needs a separate environment and access to a gated model. |
+| `vqbet`, `tdmpc`, `sac` | Not supported | See the end of this section. |
 
 Every command below uses the placeholders of [section 3](#3-training-command);
-add `--wandb.enable=true` as there. If a 24 GB GPU is too small, an L40S (46 GB) can
-train the policy and an RTX 4090 can still run the rollout.
+add `--wandb.enable=true` as there.
 
 ### Training GR00T
 
@@ -121,7 +119,7 @@ lerobot-train \
 By default GR00T also trains its diffusion action head, 1.07 B trainable parameters in total,
 which does not fit on a 24 GB GPU (an RTX 4090 runs out of memory even with `--batch_size=1`).
 `--policy.tune_diffusion_model=false` freezes the action head and trains only the projector
-(518 M parameters), which fits on 24 GB. On an L40S (46 GB) the default also fits.
+(518 M parameters), which fits on 24 GB. Training the action head as well needs an L40S (46 GB).
 
 ### Training SmolVLA
 
@@ -165,6 +163,7 @@ lerobot-train \
   --wandb.enable=true
 ```
 
+`--batch_size=4` is the largest value that fits on an RTX 4090; use an L40S for more.
 `$FEATURES` must be defined in the same terminal; an empty value fails with
 `'str' object has no attribute 'items'`.
 
@@ -201,8 +200,7 @@ lerobot-train \
 
 Use `--policy.type=pi05` for pi0.5. Do not use `--policy.path=lerobot/pi0_base`: its
 processor files do not match `lerobot==0.4.4`. The rollout of these checkpoints needs the same
-patched `transformers` ([Rollout §3](rollout.md#flag-reference)). If this environment fails to
-install, skip these two policies.
+patched `transformers` ([Rollout §3](rollout.md#flag-reference)).
 
 ### Not supported
 
