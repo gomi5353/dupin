@@ -714,8 +714,8 @@ def main():
     rollout_log.close()
     print(
         f"[rollout] per-episode log written to {rollout_log.path}; put it into your dataset's store, then verify:"
-        f" uv run python scripts/store.py ingest --store stores/<dataset_repo> --rollout-log {rollout_log.path}"
-        " && uv run python scripts/store.py verify --store stores/<dataset_repo>",
+        f" uv run python scripts/store.py ingest --store stores/<repo_name> --rollout-log {rollout_log.path}"
+        " && uv run python scripts/store.py verify --store stores/<repo_name>",
         flush=True,
     )
 

@@ -529,8 +529,7 @@ What `verify` does, per given spec file:
 
 Additional rules are written as SHACL shapes in a separate `.ttl` file and
 passed with `verify --extra-shapes`; they run in the dataset check. An example
-is in [Object Poses §8](object_pose.md#8-how-it-works). A new axis needs a new
-verifier under `axes/`, registered in `registry.py`.
+is in [Object Poses §8](object_pose.md#8-how-it-works).
 
 ## 8. Troubleshooting
 
@@ -564,7 +563,7 @@ General messages. Messages of one axis are in its guide
 | `Spec name '…' must use only letters, digits, '-', '_' and '.', without '__'` | The spec file name has other characters | Rename the file |
 | `Dataset has no 'object_position.<name>' column, which the spec requires` (or `'lighting.<name>'`, `'object_color.<name>'`) | The spec names an object or light the dataset did not record, or the dataset was recorded before the task recorded that factor | Fix the name in the spec, or record with the repository recorder; see the axis guide |
 | `No rollout '…' in the store (ingested: …)` | `--rollout` names a rollout that was not ingested | Use a name from `explore`, or ingest the log |
-| `ingest --rollout-log needs --store stores/<dataset>: …` | No store given for the log | Pass the store of the training dataset |
+| `ingest --rollout-log needs --store stores/<repo_name>: …` | No store given for the log | Pass the store of the training dataset |
 | `Rollout log not found: …`, `…: the first line must be the rollout header`, `…: log version …, expected 1` | Wrong file, or a log not written by `scripts/rollout.py` | Pass `outputs/rollout/<timestamp>.jsonl` |
 | `Rollout '…' has no finished run (all aborted or none run)` | Every episode of the log was aborted | Run the rollout again |
 | `The rollout's checkpoint was trained on '…', not on …` (warning) | The log was put into the store of another dataset than the one the policy learned from | Ingest the log into the training dataset's store |

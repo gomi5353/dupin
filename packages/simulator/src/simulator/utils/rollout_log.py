@@ -26,8 +26,8 @@ columns; see ``scene_factors.py``); a task without lights logs none.
 reads which reference form it used).
 
 ``factors`` is keyed by factor (STAR-Gen): ``object_position`` (axis Object
-Poses), ``lighting`` (axis Image Augmentations). A group that adds a factor logs
-its value under its own key (see ``docs/adding_coverage_factor.md``).
+Poses), ``lighting`` (axis Image Augmentations). A further factor logs its value
+under its own key.
 
 Read back by ``data_verification.rollout_log``; keep ``ROLLOUT_LOG_VERSION`` and
 the ``*_FACTOR`` names in sync with it.

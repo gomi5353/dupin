@@ -3,7 +3,7 @@
 Run any of them over a store:
 
 ```bash
-uv run python scripts/store.py query --store stores/<dataset_repo> --query-file queries/<file>.rq
+uv run python scripts/store.py query --store stores/<repo_name> --query-file queries/<file>.rq
 ```
 
 The prefixes `cp:`, `rdf:`, `rdfs:`, `owl:` and `xsd:` are predefined; `ds:` is
@@ -29,4 +29,4 @@ Compare numbers with `FILTER`, not by writing them in a triple pattern:
 nothing, because indices are stored as `xsd:nonNegativeInteger` and `2` is an
 `xsd:integer`.
 
-Keep your own queries in `stores/<dataset_repo>/queries/`.
+Keep your own queries in `stores/<repo_name>/queries/`.

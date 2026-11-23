@@ -1,4 +1,4 @@
-"""Object Properties axis (STAR-Gen S-PROP): does the dataset refer to each object in the ways the student requires?
+"""Object Properties axis (STAR-Gen S-PROP): does the dataset refer to each object in the ways the spec requires?
 
 Only the task text changes; the objects never do. Factor: referencing objects
 based on color ("the pink object" instead of "the fork").

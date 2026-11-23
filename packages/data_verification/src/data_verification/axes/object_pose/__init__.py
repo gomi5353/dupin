@@ -1,4 +1,4 @@
-"""Object Poses axis (STAR-Gen VB-POSE), factor object position (STAR-Gen: manipulated object pose; position only): are the objects' initial positions spread over the area the student requires?
+"""Object Poses axis (STAR-Gen VB-POSE), factor object position (STAR-Gen: manipulated object pose; position only): are the objects' initial positions spread over the area the spec requires?
 
 Files:
   ontology.ttl        ObjectPoseAxis, its requirement, area, grid, cells, run placements

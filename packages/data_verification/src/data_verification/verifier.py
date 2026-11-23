@@ -1,13 +1,12 @@
 """The verifier interface: one registered verifier per generalization axis.
 
 A verifier owns one axis: its ontology, its SHACL shapes (dataset side and
-rollout side), the checks of a student's spec, and optional Python steps. ``verify`` runs
+rollout side), the checks of a spec, and optional Python steps. ``verify`` runs
 the SHACL shapes of every registered verifier; the Python steps add what SHACL
 cannot say well (counts, tables, run placements, hints). A verifier that only
 needs rules can leave every Python step at its default.
 
-Register a verifier in ``data_verification/registry.py``. See
-docs/adding_coverage_factor.md.
+Register a verifier in ``data_verification/registry.py``.
 """
 
 from __future__ import annotations
@@ -126,7 +125,7 @@ class Verifier:
         return sorted(str(n) for n in graph.objects(dataset, CP.recordedObject))
 
     def spec_errors(self, spec: Graph) -> list[str]:
-        """Problems that stop ``verify`` for this spec (e.g. TODO left, values not numbers). ``spec`` is the student's file."""
+        """Problems that stop ``verify`` for this spec (e.g. TODO left, values not numbers). ``spec`` is the spec file."""
         return []
 
     def derive_spec(self, spec: Graph) -> None:

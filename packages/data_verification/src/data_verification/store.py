@@ -1,12 +1,12 @@
 """The verification store: one directory of Turtle files per dataset, read as one RDF graph.
 
-    stores/<dataset>/
+    stores/<repo_name>/
         dataset.ttl                       ingest --dataset: dataset, episodes, initial positions
         rollouts/<rollout>.ttl            ingest --rollout-log: rollout, runs, statuses, initial positions
-        specs/<spec>.ttl                  verify --spec: the student's spec (renamed), derived cells
+        specs/<spec>.ttl                  verify --spec: the spec (renamed), derived cells
         findings/<spec>.ttl               verify: Verification of the dataset against the spec
         findings/<spec>__<rollout>.ttl    verify: Comparison of the rollout's runs under the spec
-        queries/                          the group's own SPARQL queries
+        queries/                          custom SPARQL queries
 
 Each file is rewritten as a whole (written to a temporary file, then renamed),
 so an interrupted command never leaves half a file. Raw captures stay where
@@ -175,7 +175,7 @@ def ingest_dataset(dataset_root: str | Path, stores: str | Path = STORES, name: 
 
 
 def ingest_rollout(store: Store, log_path: str | Path) -> URIRef:
-    """Write stores/<dataset>/rollouts/<log name>.ttl from a rollout log (outputs/rollout/<timestamp>.jsonl)."""
+    """Write stores/<repo_name>/rollouts/<log name>.ttl from a rollout log (outputs/rollout/<timestamp>.jsonl)."""
     try:
         log = read_rollout_log(log_path)
     except RolloutLogError as exc:

@@ -2,7 +2,7 @@
 
 To add an axis, create data_verification/axes/<axis>/ with a Verifier subclass
 (see axes/object_pose/) and append an instance here. A spec may only use
-axis classes that a registered verifier checks. Guide: docs/adding_coverage_factor.md.
+axis classes that a registered verifier checks.
 """
 
 from __future__ import annotations
