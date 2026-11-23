@@ -12,6 +12,18 @@ requires-python = ">=3.10, <3.12"
 dependencies = [
     "lerobot==0.4.4",
     "data-verification",
+    # torch 2.7 matches the simulator environment and has a prebuilt flash-attn wheel (GR00T).
+    "torch==2.7.0",
+    "torchvision==0.22.0",
+    "torchcodec==0.5",
+    # GR00T policy: the packages of lerobot[groot]; flash-attn is a prebuilt wheel, not a source build.
+    "peft>=0.13.0,<1.0",
+    "timm>=1.0.0,<1.1",
+    "dm-tree>=0.1.8,<1.0",
+    "decord>=0.6.0,<1.0",
+    # SmolVLA policy (lerobot[smolvla]).
+    "num2words>=0.5.14,<0.6",
+    "flash-attn @ https://github.com/Dao-AILab/flash-attention/releases/download/v2.8.3.post2/flash_attn-2.8.3.post2%2Bcu12torch2.7cxx11abiTRUE-cp311-cp311-linux_x86_64.whl ; sys_platform == 'linux' and platform_machine == 'x86_64' and python_version == '3.11'",
 ]
 
 [project.optional-dependencies]

@@ -136,4 +136,9 @@ RUN printf "numpy==1.26.0\npyarrow==21.0.0\npandas==3.0.6\n" > /tmp/sim-constrai
 RUN python -m pip install --upgrade pip==26.0.1 \
     && python -m pip install --no-deps numpy==1.26.0
 
+# GR00T policy (lerobot[groot] without its flash-attn source build; the wheel is prebuilt for torch 2.7) and SmolVLA (num2words).
+RUN python -m pip install --no-deps \
+        decord==0.6.0 num2words==0.5.14 dm-tree==0.1.10 peft==0.22.0 timm==1.0.31 \
+        "https://github.com/Dao-AILab/flash-attention/releases/download/v2.8.3.post2/flash_attn-2.8.3.post2%2Bcu12torch2.7cxx11abiTRUE-cp311-cp311-linux_x86_64.whl"
+
 CMD ["/bin/bash"]

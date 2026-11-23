@@ -138,6 +138,58 @@ docker run --rm --gpus all ubuntu nvidia-smi
 
 ### 3.2 Install the general environment
 
+Students cannot push to the course repository. Every group therefore works in
+its own **fork**: a copy of the repository under a group member's GitHub
+account. The group's work (state-machine and configuration changes, filled-in
+specs, new verification factors) is committed and
+pushed to the fork, so it is kept, shared within the group, and handed in
+from there. A plain clone of the course repository would leave all changes on
+one machine, with no place to push them.
+
+1. On the course repository's GitHub page, one group member clicks **Fork**
+   and creates the fork under their own account. The other members are added
+   as collaborators (fork **Settings → Collaborators**).
+2. Every member clones the **fork**, not the course repository:
+
+   ```bash
+   git clone https://github.com/<github-user>/robot-learning-from-evaluation-feedback
+   cd robot-learning-from-evaluation-feedback
+   git remote add upstream https://github.com/HCIS-lab/robot-learning-from-evaluation-feedback
+   git remote -v   # origin = the fork (push here), upstream = the course repository
+   ```
+
+3. Work is committed and pushed to the fork as usual:
+
+   ```bash
+   git add <files>
+   git commit -m "<message>"
+   git push origin main
+   ```
+
+4. When the course repository is updated (fixes, new evaluation files), the
+   group merges the updates into its fork:
+
+   ```bash
+   git fetch upstream
+   git merge upstream/main
+   git push origin main
+   ```
+
+   Conflicts appear only where the group changed the same lines as the update.
+
+Notes:
+
+- Datasets, checkpoints, and training outputs (`datasets/`, `checkpoints/`,
+  `outputs/`) are ignored by Git. They are shared through the Hugging Face Hub
+  ([step 3](#6-step-3-inspect-and-verify-the-dataset) and
+  [LeRobot Training §7](lerobot_training.md#8-upload-a-checkpoint)), not
+  through the fork.
+- The Isaac Lab submodule (`dependencies/IsaacLab/`) is fetched by
+  `make install-sim` or the first `make launch-isaaclab`
+  ([section 3.5](#35-launch-the-simulator)).
+
+### 3.3 Install the host environment
+
 From the repository root:
 
 ```bash
@@ -151,9 +203,13 @@ then runs `uv sync`. Without `ffmpeg`, `lerobot-train` and `lerobot-dataset-viz`
 
 `make launch-gen` opens a new shell, whose prompt starts with `(general)`; `exit` leaves it. To activate in your current shell instead, run
 `source .venv/bin/activate`; `deactivate` leaves it. The simulator environment is installed separately in
-[section 3.4](#34-launch-the-simulator).
+[section 3.5](#35-launch-the-simulator).
 
-### 3.3 Log in to Hugging Face
+### 3.4 Log in to Hugging Face and Weights & Biases
+
+Log in to **both** services before any training or rollout. Many errors that
+look unrelated (a model that cannot be downloaded, a training run that stops at
+start-up) come from a missing login.
 
 ```bash
 hf auth login --token <YOUR_HF_TOKEN>   # also needed to upload datasets and policies
@@ -161,10 +217,15 @@ wandb login                             # asks for the Weights & Biases API key
 export HF_USER=<your-huggingface-username>
 ```
 
-Commands in all guides use `${HF_USER}`. The variable is set again in every
-new terminal, including the simulator shell.
+Commands in all guides use `${HF_USER}` and `--wandb.enable=true`. The variable
+is set again in every new terminal, including the simulator shell.
 
-### 3.4 Launch the simulator
+Some pretrained models are gated: the Hugging Face account must first accept
+the model's terms on its web page (for example `google/paligemma-3b-pt-224`,
+used by the `pi0` and `pi05` policies; see
+[LeRobot Training §5](lerobot_training.md#5-other-policies)).
+
+### 3.5 Launch the simulator
 
 **Default: on the host.** The simulator stack is installed once into the
 simulator environment `.venv-sim`, with the same package versions as the
@@ -250,7 +311,7 @@ Other `make` targets:
 | `make fix-perms` | Give files that the container wrote under `datasets/` and `outputs/` back to the host user |
 | `make test` | Run the host-side tests |
 
-### 3.5 Where to run what
+### 3.6 Where to run what
 
 | Work | Environment | Reason |
 |---|---|---|
@@ -258,7 +319,7 @@ Other `make` targets:
 | Training | General environment | The container adds file-access and GPU pass-through overhead. |
 | Verification store (`verify`, queries), dataset inspection, tests | General environment | They only read files and never start the simulator. |
 
-### 3.6 Repository layout
+### 3.7 Repository layout
 
 **Background**
 
