@@ -103,6 +103,7 @@ not displayed; they are checked with
 |---|---|
 | "Dataset not found" in the Space | Typo in the repo id, or a private dataset while not signed in. Opening the dataset's Hub page shows whether it is visible. |
 | Video panel blank while the plots load | Videos failed to encode during recording, or were not uploaded. The local folder should contain `videos/observation.images.*/chunk-*/file-*.mp4`. |
+| Local viewer fails when decoding a video (`ffmpeg` not found, or a `torchcodec` / `libavutil` load error) | `ffmpeg` is not installed. Run `sudo apt-get install -y ffmpeg` and check with `ffmpeg -version`. |
 | A camera is missing | The scene's cameras were changed ([Data Collection §4](data_collection.md#4-adjusting-the-collection)). |
 | Episode ends early or late | A changed state-machine phase duration or success range, or **N** pressed too early in teleoperation; compare the last frame with the task's success check ([Data Collection §1](data_collection.md#1-the-two-methods)). |
 

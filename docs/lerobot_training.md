@@ -13,7 +13,7 @@ or follow) or **Background** (explanation without work items).
 **Background**
 
 Training runs in the **general environment** (`source .venv/bin/activate`
-after `uv sync`), not in the simulator environment: `.venv-sim` pins the older
+after `make install-gen`), not in the simulator environment: `.venv-sim` pins the older
 packages that Isaac Sim needs, and the Isaac Lab container adds file-access and
 GPU pass-through overhead that slows training down considerably. `nvidia-smi`
 must list the GPU.
@@ -166,7 +166,8 @@ to download it on another machine.
 | Problem | Fix |
 |---|---|
 | `nvidia-smi` not found or shows an error | The NVIDIA driver or CUDA is not installed correctly; follow NVIDIA's installation guide. |
-| `lerobot-train: command not found` | Run `uv sync` at the repository root and activate `.venv`. |
+| `lerobot-train: command not found` | Run `make install-gen` at the repository root and activate `.venv`. |
+| Video decoding error at the first batch (`ffmpeg` not found, or a `torchcodec` / `libavutil` load error) | `ffmpeg` is not installed. Run `sudo apt-get install -y ffmpeg`, check with `ffmpeg -version`, and start again. |
 | Out of memory (OOM) | Reduce `--batch_size`, for example `--batch_size=4`. |
 | `FileExistsError` for the output directory | Choose a new `--output_dir`. |
 | Training loss does not decrease | Check the dataset: consistent, complete demonstrations ([Getting Started §6](getting_started.md#6-step-3-inspect-and-verify-the-dataset)). |

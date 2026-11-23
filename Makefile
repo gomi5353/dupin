@@ -1,4 +1,4 @@
-.PHONY: install install-dev test \
+.PHONY: install-gen install-dev check-ffmpeg test \
 	submodules submodules-pull \
 	install-sim launch-sim \
 	build-isaaclab launch-isaaclab \
@@ -54,10 +54,18 @@ submodules-pull:
 	git submodule update --remote --recursive
 
 # ---- Python env --------------------------------------------------------------
-install: submodules
+# ffmpeg is a system package that uv cannot install; lerobot-train and
+# lerobot-dataset-viz need it to decode videos. Check only, never install.
+check-ffmpeg:
+	@command -v ffmpeg >/dev/null || { \
+		echo "ffmpeg is missing (needed to decode dataset videos)." >&2; \
+		echo "Install it, then re-run: sudo apt-get install -y ffmpeg   (macOS: brew install ffmpeg)" >&2; \
+		exit 1; }
+
+install-gen: submodules check-ffmpeg
 	uv sync
 
-install-dev: submodules
+install-dev: submodules check-ffmpeg
 	uv sync --extra dev
 
 test:

@@ -141,9 +141,13 @@ docker run --rm --gpus all ubuntu nvidia-smi
 From the repository root:
 
 ```bash
-uv sync                     # creates .venv with the locked package versions
+make install-gen            # creates .venv with the locked package versions
 source .venv/bin/activate   # makes lerobot-train, hf, ... available
 ```
+
+`make install-gen` first initializes the submodules and checks that `ffmpeg` is installed (it stops with the install command if not), then runs
+`uv sync`. Without `ffmpeg`, `lerobot-train` and `lerobot-dataset-viz` fail when they decode videos; install it with
+`sudo apt-get install -y ffmpeg`.
 
 The prompt then starts with `(general)`; `deactivate` leaves the environment. The simulator environment is installed separately in
 [section 3.4](#34-launch-the-simulator).
@@ -236,6 +240,7 @@ Other `make` targets:
 
 | Target | Purpose |
 |---|---|
+| `make install-gen` | Install the general environment `.venv` (initializes the submodules, checks `ffmpeg`, runs `uv sync`) |
 | `make install-sim` | Install the simulator environment `.venv-sim` on the host (initializes the submodules first) |
 | `make launch-sim` | Open a shell with `.venv-sim` active |
 | `make build-isaaclab` | Build the image without launching it |
