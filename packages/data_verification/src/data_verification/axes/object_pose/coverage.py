@@ -147,14 +147,6 @@ class ObjectPositionCheck(AxisCheck):
                 f"y={table.y_range[0]:.3f}..{table.y_range[1]:.3f}  "
                 f"covered {table.cells_covered}/{table.cells_total} cells (>= {table.min_episodes_per_cell} each)"
             )
-            width = max(3, *(len(str(n)) for row in table.counts for n in row))
-            for j in reversed(range(len(table.counts))):  # +y at the top
-                cells = " ".join(
-                    f"{n:>{width}}" if n >= table.min_episodes_per_cell else f"{str(n) + '!':>{width}}"
-                    for n in table.counts[j]
-                )
-                lines.append(f"  y{j:<2} {cells}")
-            lines.append("       " + " ".join(f"{'x' + str(i):>{width}}" for i in range(len(table.counts[0]) if table.counts else 0)))
             lines.append("")
         return lines
 

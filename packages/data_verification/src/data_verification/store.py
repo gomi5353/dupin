@@ -23,6 +23,7 @@ import os
 import shutil
 from dataclasses import dataclass
 from datetime import datetime, timezone
+import re
 from pathlib import Path
 from urllib.parse import quote
 
@@ -233,6 +234,34 @@ def _provenance(graph: Graph, node: URIRef, source: Path, digest: str) -> None:
 _KEEP_PREFIXES = (str(CP), DATA, str(RDF), str(RDFS), str(OWL), str(XSD), str(SH), str(DCTERMS))
 
 
+# `cp:phrase fork .` : a property followed by a bare word (no quotes, no prefix, not a number or true/false).
+_BARE_VALUE = re.compile(r"^\s*(?:[A-Za-z][\w-]*:)?[A-Za-z][\w-]*\s+(?P<value>[A-Za-z_][\w-]*(?:\s+[A-Za-z_][\w-]*)*)\s*[;.,]?\s*(?:#.*)?$")
+
+
+def _turtle_hint(path: Path, message: str) -> str:
+    """A one-line fix for the most common spec typo: text written without quotes."""
+    found = re.search(r"at line (\d+)", message)
+    try:
+        lines = path.read_text().splitlines()
+    except OSError:
+        return ""
+    if not found:
+        return ""
+    number = int(found.group(1))
+    for n in (number, number - 1, number + 1):  # the parser may report the neighbouring line
+        if 1 <= n <= len(lines):
+            line = lines[n - 1]
+            m = _BARE_VALUE.match(line)
+            if m and m.group("value") not in ("a", "true", "false"):
+                value = m.group("value")
+                return (
+                    f"\n          line {n}: {line.strip()}"
+                    f"\n          Text values need double quotes: write \"{value}\" instead of {value}. "
+                    "Numbers are written without quotes."
+                )
+    return "\n          Check the line above for a missing quote, a missing '.' or ';' at the end of a statement, or an unknown prefix."
+
+
 def load_spec(store: Store, spec_path: str | Path, name: str | None = None) -> URIRef:
     """Check a spec file, rename its individuals under the spec's IRI, derive its nodes, write specs/<name>.ttl.
 
@@ -252,7 +281,7 @@ def load_spec(store: Store, spec_path: str | Path, name: str | None = None) -> U
     except FileNotFoundError:
         raise StoreError(f"Spec file not found: {path}") from None
     except Exception as exc:  # rdflib raises several parser error types
-        raise StoreError(f"Spec is not valid Turtle: {exc}") from None
+        raise StoreError(f"Spec is not valid Turtle: {exc}{_turtle_hint(path, str(exc))}") from None
 
     axes = [(s, o) for s, o in spec.subject_objects(RDF.type) if registry.verifier_for(o) is not None]
     errors = []

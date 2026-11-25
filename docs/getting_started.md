@@ -363,18 +363,21 @@ Before training, a dataset is checked in two ways, in the general environment:
    ```bash
    uv run python scripts/store.py ingest --dataset datasets/${HF_USER}/cup-stacking-demos
    mkdir -p my_specs
-   cp specs/cup_stacking/object_pose.ttl specs/cup_stacking/image_augmentation.ttl \
-      specs/cup_stacking/object_property.ttl my_specs/
-   # replace every "TODO" in the copies, then:
+   cp specs/cup_stacking/object_pose.ttl my_specs/
+   # replace every "TODO" in the copy, then:
    uv run python scripts/store.py verify --store stores/cup-stacking-demos \
-       --spec my_specs/object_pose.ttl my_specs/image_augmentation.ttl my_specs/object_property.ttl
+       --spec my_specs/object_pose.ttl
    ```
+
+   To check another axis, copy its spec the same way and append it after the
+   first: `--spec my_specs/object_pose.ttl my_specs/image_augmentation.ttl`
+   (the same as repeating `--spec`).
 
    | Argument | Meaning |
    |---|---|
    | `ingest --dataset` | Reads the dataset folder into a new store, named after the folder (`stores/cup-stacking-demos`) |
    | `verify --store` | The store to check |
-   | `verify --spec` | The filled-in spec files, one per axis; an axis without a spec file is not checked |
+   | `verify --spec` | The filled-in spec file; append more files, one per axis, to check more axes. An axis without a spec file is not checked |
 
    [Data Verification](data_verification.md)
    explains the workflow and the report; the axis pages

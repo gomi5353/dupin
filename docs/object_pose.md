@@ -256,18 +256,17 @@ Spec    : object_pose  (/home/<user>/<repo>/my_specs/object_pose.ttl)
 Episodes: 12
 
 [blue_cup] x=8.800..9.000  y=6.400..6.600  covered 3/4 cells (>= 3 each)
-  y1    3  1!
-  y0    5   3
-        x0  x1
 
 [pink_cup] x=9.000..9.200  y=6.380..6.580  covered 4/4 cells (>= 3 each)
-  y1    3   3
-  y0    3   3
-        x0  x1
 
 VIOLATION 'blue_cup' cell (i=1, j=1) x=[8.9, 9] y=[6.5, 6.6] has 1 episode(s); needs at least 3  [spec/object_pose/blue_cup_grid/cell/3]
 
 RESULT: coverage spec NOT met
+
+Findings written to stores/<repo_name>/findings/
+Figures written to stores/<repo_name>/figures/ (2):
+  stores/<repo_name>/figures/object_pose__blue_cup.png
+  stores/<repo_name>/figures/object_pose__pink_cup.png
 ```
 
 How to read it:
@@ -275,9 +274,12 @@ How to read it:
 - **Header** `[blue_cup] x=… y=… covered N/M cells`: the object's area from
   the spec, and how many of its cells have at least `minEpisodesPerCell`
   episodes.
-- **Grid**: each number is the count of episodes whose object started in that
-  cell; `!` marks a count below the minimum. Columns are x (`x0` is the
-  `areaXMin` side), rows are y, with **+y at the top**.
+- **Figure** `object_pose__<object>.png`: a heatmap of the object's grid with x
+  and y in metres (**+y at the top**). Each cell shows its episode count (the
+  numbers are left out for grids larger than 12 × 12); red cells have fewer
+  episodes than the minimum, green ones have enough. The black frame is the
+  area from the spec. Pass `--no-figures` to skip the figures. The next `verify` replaces
+  them, also when it checks only another axis.
 - **VIOLATION**: one line per thin or empty cell, with its exact bounds; these
   are the places to collect next. The node name at the end
   (`spec/object_pose/blue_cup_grid/cell/3`) is the cell's row-major index
@@ -329,27 +331,11 @@ Rollout : 20261103-142530  (eval/cup_stacking_eval.py, seed 42)
 Runs    : 20 finished, 8 succeeded
 
 [blue_cup] your area x=8.800..9.000 y=6.400..6.600, cell 0.1 x 0.1, 2x2 cells, >= 3 episodes each
-  dataset episodes : rollout runs per cell (! = runs started where the dataset has fewer than 3 episodes)
-  y1    3:0  1:5!
-  y0    5:5   3:0
-          x0    x1
-  rollout successes / runs per cell (- = no runs)
-  y1      -   1/5
-  y0    4/5     -
-          x0    x1
   10 run(s) started outside your area, in 2 cell(s) of the same size
   covered: 1/4 sampled cells, 5/20 runs (25%)
   success: 4/5 covered vs 4/15 not covered
 
 [pink_cup] your area x=9.000..9.200 y=6.380..6.580, cell 0.1 x 0.1, 2x2 cells, >= 3 episodes each
-  dataset episodes : rollout runs per cell (! = runs started where the dataset has fewer than 3 episodes)
-  y1    3:5   3:5
-  y0    3:5   3:5
-          x0    x1
-  rollout successes / runs per cell (- = no runs)
-  y1    3/5   2/5
-  y0    1/5   2/5
-          x0    x1
   covered: 4/4 sampled cells, 20/20 runs (100%)
   success: 8/20 covered vs 0/0 not covered
 
@@ -372,8 +358,7 @@ How to read it:
 | Part | Meaning | In the example above |
 |---|---|---|
 | **Header** `[blue_cup] your area … cell … NxM cells` | The area and grid for the object, from the spec. | Cell size (9.0 − 8.8) / 2 = 0.1 by (6.6 − 6.4) / 2 = 0.1. |
-| **Dataset grid** `episodes:runs` | Per cell of the spec's grid, +y at the top as in the dataset check: the dataset episodes that started there, then the rollout runs that started there. `!` = the cell has runs but fewer than `minEpisodesPerCell` episodes, so those runs are not covered. Outcomes are not in this grid. | `5:5` (x0, y0): 5 episodes, 5 runs: covered. `1:5!` (x1, y1): 1 episode, minimum 3, 5 runs: not covered. `3:0` (x0, y1): enough episodes, no runs, so not judged. |
-| **Outcome grid** `successes/runs` | Per cell: how many of the runs that started there succeeded. `-` = no runs. Says nothing about the dataset; read it next to the dataset grid. | `4/5` (x0, y0): 4 of the 5 runs succeeded. `1/5` (x1, y1): 1 of 5 succeeded, in the cell the dataset grid marks thin. |
+| **Figure** `<spec>__<rollout>__<object>.png` | Two heatmaps with +y at the top. Left: dataset episodes per cell (red = fewer than `minEpisodesPerCell`, so runs there are not covered). Right: the rollout runs that started in each cell, coloured by success rate (red = all failed, green = all succeeded, grey = no runs). Cells outside the area that runs started in are drawn too. | `blue_cup`, cell (x1, y1): red on the left (1 episode, minimum 3), red on the right (1 of 5 runs succeeded): the place to record next. Cell (x0, y1): green on the left, grey on the right: enough episodes, no runs, so not judged. |
 | **outside your area** | Runs that started outside the area, and how many lattice cells of the grid's size they fall into. They are not covered. | 10 runs started at y 6.38–6.4, below `areaYMin` 6.4: in cells (0, −1) and (1, −1). |
 | **covered** | Covered cells / cells with runs (outside cells included), and the runs in covered cells / all runs. | `blue_cup`: only (x0, y0) of the 4 sampled cells is covered, so 1/4 cells and 5/20 runs. `pink_cup`: 4/4 cells, 20/20 runs. |
 | **success** | Success rate of the covered runs compared with the other runs. | `blue_cup`: 4/5 vs 1 + 1 + 2 = 4 of 15. `pink_cup`: all 20 runs covered, so 8/20 vs 0/0. |

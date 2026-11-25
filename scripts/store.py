@@ -8,15 +8,15 @@ Guide: docs/data_verification.md
   # 1. Put the dataset into a new store (again after recording more episodes)
   uv run python scripts/store.py ingest --dataset datasets/${HF_USER}/<repo_name>
 
-  # 2. Copy the specs of the axes you want checked (specs/<task>/), replace every "TODO"
-  cp specs/<task>/object_pose.ttl specs/<task>/image_augmentation.ttl my_specs/
+  # 2. Copy the spec of an axis (specs/<task>/), replace every "TODO"
+  cp specs/<task>/object_pose.ttl my_specs/
 
   # 3. After a rollout (scripts/rollout.py writes outputs/rollout/<timestamp>.jsonl), put it into the store
   uv run python scripts/store.py ingest --store stores/<repo_name> --rollout-log outputs/rollout/<timestamp>.jsonl
 
   # 4. Check the dataset against your specs and compare every rollout; specs and results go into the store
-  uv run python scripts/store.py verify --store stores/<repo_name> \\
-      --spec my_specs/object_pose.ttl my_specs/image_augmentation.ttl
+  #    (append the specs of other axes after the first to check them in the same run)
+  uv run python scripts/store.py verify --store stores/<repo_name> --spec my_specs/object_pose.ttl
 
   # 5. Ask the store
   uv run python scripts/store.py explore --store stores/<repo_name>
@@ -70,6 +70,14 @@ def cmd_verify(args: argparse.Namespace) -> int:
     blocks += [format_combined(c) for c in result.combined]
     print(("\n\n" + "=" * 80 + "\n\n").join(blocks))
     print(f"\nFindings written to {store.root / 'findings'}/")
+    if not args.no_figures:
+        from data_verification.figures import save_figures
+
+        figures = save_figures(store.root, result)
+        if figures:
+            print(f"Figures written to {store.root / 'figures'}/ ({len(figures)}):")
+            for path in figures:
+                print(f"  {path}")
     if args.json:
         args.json.parent.mkdir(parents=True, exist_ok=True)
         args.json.write_text(json.dumps(result.to_dict(), indent=2) + "\n")
@@ -181,6 +189,7 @@ def main() -> int:
     )
     verify.add_argument("--rollout", action="append", help="Only this ingested rollout; repeatable (default: all).")
     verify.add_argument("--no-rollouts", action="store_true", help="Check the dataset only.")
+    verify.add_argument("--no-figures", action="store_true", help="Do not write the coverage heatmaps to <store>/figures/.")
     verify.add_argument("--no-hints", action="store_true", help="Do not print suggested next steps (they are still stored as Info findings).")
     verify.add_argument("--strict", action="store_true", help="Also fail on warnings.")
     verify.add_argument("--json", type=Path, help="Also write the full result as JSON.")

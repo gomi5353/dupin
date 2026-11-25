@@ -8,6 +8,7 @@ version = "0.1.0"
 description = "Verification store for LeRobot datasets: RDF/OWL facts, SHACL + Python verifiers, SPARQL queries."
 requires-python = ">=3.10"
 dependencies = [
+    "matplotlib",
     "numpy",
     "pyarrow",
     "pyshacl>=0.30",

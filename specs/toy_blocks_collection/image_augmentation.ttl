@@ -5,9 +5,9 @@
 #
 #   uv run python scripts/store.py verify --store stores/<repo_name> --spec <your copy>
 #
-# To check several axes in one run, list one spec file per axis:
-# --spec my_specs/object_pose.ttl my_specs/image_augmentation.ttl
-# my_specs/object_property.ttl. Axes without a spec file are not checked.
+# To check another axis in the same run, append its spec file after this one
+# (--spec a.ttl b.ttl, the same as repeating --spec). Axes without a spec
+# file are not checked.
 #
 # The light is the task's RectLight (scene name rect_light). Each episode's
 # intensity and color temperature at its first frame are read from the

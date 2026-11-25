@@ -5,14 +5,15 @@
 # left ..." becomes "place the pink object on the left ...". The task
 # configuration lists the phrases per object (object_references, e.g.
 # {"name": "fork", "color": "pink object"}) and how often each form is used
-# (reference_weights). Fill in every "TODO" below in a copy of this file, then
-# verify your dataset with it:
+# (reference_weights). The phrases below are already filled in: they are the
+# wording of the evaluation, so leave them unchanged. Fill in every "TODO"
+# (the minimum) in a copy of this file, then verify your dataset with it:
 #
 #   uv run python scripts/store.py verify --store stores/<repo_name> --spec <your copy>
 #
-# To check several axes in one run, list one spec file per axis:
-# --spec my_specs/object_pose.ttl my_specs/image_augmentation.ttl
-# my_specs/object_property.ttl. Axes without a spec file are not checked.
+# To check another axis in the same run, append its spec file after this one
+# (--spec a.ttl b.ttl, the same as repeating --spec). Axes without a spec
+# file are not checked.
 #
 # Each episode uses the reference whose phrase its task text contains (whole
 # words, case-insensitive). The checks: every reference below is used by at
@@ -48,15 +49,17 @@ spec:fork_reference_object a cp:TaskObject ;
     # dataset column object_color.fork.
     cp:name "fork" .
 
-# The phrase the task text uses when it refers to the object by its name:
+# The phrase the task text uses when it refers to the object by its name
+# (already filled in from the evaluation file; leave it unchanged):
 # object_references["fork"]["name"] in the task configuration.
 spec:fork_by_name a cp:NameReference ;
-    cp:phrase "TODO" .
+    cp:phrase "fork" .
 
-# The phrase the task text uses when it refers to the object by its color:
+# The phrase the task text uses when it refers to the object by its color
+# (already filled in from the evaluation file; leave it unchanged):
 # object_references["fork"]["color"] in the task configuration.
 spec:fork_by_color a cp:ColorReference ;
-    cp:phrase "TODO" .
+    cp:phrase "pink object" .
 # --- END OBJECT ---
 
 # --- BEGIN OBJECT ---
@@ -76,13 +79,15 @@ spec:knife_reference_object a cp:TaskObject ;
     # dataset column object_color.knife.
     cp:name "knife" .
 
-# The phrase the task text uses when it refers to the object by its name:
+# The phrase the task text uses when it refers to the object by its name
+# (already filled in from the evaluation file; leave it unchanged):
 # object_references["knife"]["name"] in the task configuration.
 spec:knife_by_name a cp:NameReference ;
-    cp:phrase "TODO" .
+    cp:phrase "knife" .
 
-# The phrase the task text uses when it refers to the object by its color:
+# The phrase the task text uses when it refers to the object by its color
+# (already filled in from the evaluation file; leave it unchanged):
 # object_references["knife"]["color"] in the task configuration.
 spec:knife_by_color a cp:ColorReference ;
-    cp:phrase "TODO" .
+    cp:phrase "orange object" .
 # --- END OBJECT ---

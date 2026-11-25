@@ -141,7 +141,6 @@ class LightingCheck(AxisCheck):
                 f"[{table.light}] intensity={float(r.i0):g}..{float(r.i1):g}  temperature={float(r.t0):g}..{float(r.t1):g} K  "
                 f"covered {table.cells_covered}/{table.cells_total} cells (>= {r.min_episodes} each)"
             )
-            lines += grid_lines([[f"{n}" + ("" if n >= r.min_episodes else "!") for n in row] for row in table.counts])
             lines.append("")
         return lines
 
@@ -201,6 +200,8 @@ class LightComparison:
     req: Requirement
     cells: dict[tuple[int, int], LightRunCell] = field(default_factory=dict)
     """Lattice cells that runs started in."""
+    counts: Counter = field(default_factory=Counter)
+    """Dataset episodes per cell of the requirement grid (row-major index), for every cell."""
 
     @property
     def runs(self) -> int:
@@ -231,15 +232,7 @@ class LightingComparison(AxisComparison):
                 f"[{light.light}] intensity={float(r.i0):g}..{float(r.i1):g}  temperature={float(r.t0):g}..{float(r.t1):g} K, "
                 f"{r.ni}x{r.nt} cells, >= {r.min_episodes} episodes each"
             )
-            texts = [["-"] * r.ni for _ in range(r.nt)]
-            outside = 0
-            for c in light.cells.values():
-                if c.inside:
-                    texts[c.j][c.i] = f"{c.episodes}:{c.successes}/{c.runs}" + ("" if c.covered else "!")
-                else:
-                    outside += c.runs
-            lines.append(f"  dataset episodes : rollout successes/runs per cell (! = fewer than {r.min_episodes} episodes, - = no runs)")
-            lines += grid_lines(texts)
+            outside = sum(c.runs for c in light.cells.values() if not c.inside)
             if outside:
                 lines.append(f"  {outside} run(s) started with the light outside your ranges")
             not_covered = light.runs - light.runs_covered
@@ -285,7 +278,7 @@ def compare_lighting(graph: Graph, rollout: URIRef, dataset: URIRef, comparison:
     result.run_covered = {index: True for index in outcome}
     for req in reqs:
         counts = cell_counts(req, lights.get(req.light, {}))
-        comparison_light = LightComparison(req.light, req)
+        comparison_light = LightComparison(req.light, req, counts=counts)
         for index, (intensity, temperature) in sorted(runs.get(req.light, {}).items()):
             i, j = req.lattice(intensity, temperature)
             inside = req.inside(i, j)
@@ -319,16 +312,6 @@ def compare_lighting(graph: Graph, rollout: URIRef, dataset: URIRef, comparison:
                 )
             )
     return result
-
-
-def grid_lines(texts: list[list[str]]) -> list[str]:
-    """Rows of ``texts`` (row j = color temperature bin) with the coolest bin at the top."""
-    if not texts or not texts[0]:
-        return []
-    width = max(4, *(len(t) for row in texts for t in row)) + 1
-    lines = [f"  T{j:<2} " + " ".join(f"{t:>{width}}" for t in texts[j]) for j in reversed(range(len(texts)))]
-    lines.append("      " + " ".join(f"{'I' + str(i):>{width}}" for i in range(len(texts[0]))))
-    return lines
 
 
 def _decimal(value: float) -> Literal:

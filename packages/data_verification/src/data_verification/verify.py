@@ -20,6 +20,7 @@ from rdflib import RDF, XSD, Graph, Literal, URIRef
 
 from .graph import CP, rollout_iri, spec_iri
 from . import registry
+from .report import MAX_FINDING_LINES, MAX_HINT_LINES, cap
 from .store import Store, StoreError, drop_spec, load_spec, now, ontology, source_changes, write_graph
 from .verifier import AxisCheck, AxisComparison, Finding, Verifier, core_graph, pct, rate, run_shacl
 
@@ -382,13 +383,15 @@ def format_check(report: CheckReport, max_nodes: int = 3) -> str:
     ]
     for axis in report.axes:
         lines += axis.lines()
-    for error in report.errors:
-        lines.append(f"ERROR     {error}")
+    lines += cap([f"ERROR     {error}" for error in report.errors], MAX_FINDING_LINES, "ERROR lines")
     for kind, findings in (("VIOLATION", report.violations), ("WARNING", report.warnings)):
+        by_verifier: dict[str, list[str]] = {}
         for f in findings:
             nodes = ", ".join(_short_node(n) for n in f.focus_nodes[:max_nodes])
             more = f" (+{f.count - max_nodes} more)" if f.count > max_nodes else ""
-            lines.append(f"{kind:<9} {f.message}  [{nodes}{more}]")
+            by_verifier.setdefault(f.verifier, []).append(f"{kind:<9} {f.message}  [{nodes}{more}]")
+        for texts in by_verifier.values():
+            lines += cap(texts, MAX_FINDING_LINES, f"{kind} lines")
     lines.append("")
     lines.append("RESULT: coverage spec met" if report.passed else "RESULT: coverage spec NOT met")
     return "\n".join(lines)
@@ -416,9 +419,8 @@ def format_comparison(result: RolloutComparison, hints: bool = True, max_nodes: 
         )
         lines.append("")
     if hints:
-        lines += result.hint_lines()
-    for error in result.errors:
-        lines.append(f"ERROR     {error}")
+        lines += cap(result.hint_lines(), MAX_HINT_LINES, "hint lines")
+    lines += cap([f"ERROR     {error}" for error in result.errors], MAX_FINDING_LINES, "ERROR lines")
     for f in result.warnings:
         nodes = ", ".join(_short_node(n) for n in f.focus_nodes[:max_nodes])
         more = f" (+{f.count - max_nodes} more)" if f.count > max_nodes else ""

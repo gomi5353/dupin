@@ -150,8 +150,8 @@ spec:rect_light_requirement a cp:LightingRequirement ;
 | `cp:lightName` | Light to check; matches `lighting.<name>` in the dataset | Text in quotes (already filled: `"rect_light"`) |
 | `cp:intensityMin`, `cp:intensityMax` | Intensity range the dataset should cover | Number, **no quotes** (`2500.0`) |
 | `cp:colorTemperatureMin`, `cp:colorTemperatureMax` | Color temperature range, in kelvin | Number, no quotes (`3000.0`) |
-| `cp:numBinsIntensity` | Number of cells along the intensity range (columns `I0`, `I1`, ...) | Whole number ≥ 1, no quotes (`3`) |
-| `cp:numBinsColorTemperature` | Number of cells along the color temperature range (rows `T0`, `T1`, ...) | Whole number ≥ 1, no quotes (`2`) |
+| `cp:numBinsIntensity` | Number of cells along the intensity range (columns, numbered from 0 at `intensityMin`) | Whole number ≥ 1, no quotes (`3`) |
+| `cp:numBinsColorTemperature` | Number of cells along the color temperature range (rows, numbered from 0 at `colorTemperatureMin`) | Whole number ≥ 1, no quotes (`2`) |
 | `cp:minEpisodesPerCell` | Episodes needed in each cell | Whole number ≥ 1, no quotes (`2`) |
 
 The minimum must be smaller than the maximum in both ranges. One requirement
@@ -223,25 +223,29 @@ Spec    : image_augmentation  (/…/my_specs/image_augmentation.ttl)
 Episodes: 20
 
 [rect_light] intensity=2500..8000  temperature=3000..6500 K  covered 3/6 cells (>= 2 each)
-  T1     1!    14     2
-  T0     0!     2    1!
-         I0    I1    I2
 
 VIOLATION 'rect_light' cell (i=0, j=0) intensity=[2500, 4333.33] temperature=[3000, 4750] K has 0 episode(s); needs at least 2  [spec/image_augmentation/rect_light_requirement/cell/0]
 VIOLATION 'rect_light' cell (i=2, j=0) intensity=[6166.67, 8000] temperature=[3000, 4750] K has 1 episode(s); needs at least 2  [spec/image_augmentation/rect_light_requirement/cell/2]
 VIOLATION 'rect_light' cell (i=0, j=1) intensity=[2500, 4333.33] temperature=[4750, 6500] K has 1 episode(s); needs at least 2  [spec/image_augmentation/rect_light_requirement/cell/3]
 
 RESULT: coverage spec NOT met
+
+Findings written to stores/<repo_name>/findings/
+Figures written to stores/<repo_name>/figures/ (1):
+  stores/<repo_name>/figures/image_augmentation__rect_light.png
 ```
 
 How to read it:
 
-- **Grid**: each number is the count of episodes whose light started in that
-  cell; `!` marks a count below the minimum. Columns `I0`, `I1`, ... are
-  intensity bins (`I0` at `intensityMin`); rows `T0`, `T1`, ... are color
-  temperature bins, with the **coolest (highest kelvin) bin at the top**.
-- All 12 default-range episodes fall into one cell (`I1`, `T1`, 14 episodes
-  in total): the default ranges lie inside it. Only the 8 later episodes
+- **Figure** `image_augmentation__rect_light.png`: a heatmap of the grid with
+  intensity on the x axis and color temperature (K) on the y axis, so the
+  **coolest (highest kelvin) bin is at the top**. Each cell shows its episode
+  count (the numbers are left out for grids larger than 12 × 12); red cells
+  have fewer episodes than the minimum, green ones have enough. The black
+  frame is the range from the spec. Pass `--no-figures` to skip the figures. The next `verify` replaces
+  them, also when it checks only another axis.
+- All 12 default-range episodes fall into one cell (middle intensity, high
+  temperature, 14 episodes in total): the default ranges lie inside it. Only the 8 later episodes
   spread over the other cells.
 - **VIOLATION**: one line per cell below the minimum, with its exact bounds.
   These are the light conditions to record next. The node name at the end is
@@ -295,10 +299,6 @@ Rollout : 20261120-101500  (eval/cutlery_arrangement_eval.py, seed 42)
 Runs    : 20 finished, 7 succeeded
 
 [rect_light] intensity=2500..8000  temperature=3000..6500 K, 3x2 cells, >= 2 episodes each
-  dataset episodes : rollout successes/runs per cell (! = fewer than 2 episodes, - = no runs)
-  T1   1:0/3!  14:2/2   2:1/6
-  T0   0:0/4!   2:4/4  1:0/1!
-           I0      I1      I2
   covered: 12/20 runs (60%)
   success: 7/12 covered vs 0/8 not covered
 
@@ -317,7 +317,7 @@ RESULT: the dataset does NOT cover every rollout run; see above
 
 | Part | Meaning | In the example above |
 |---|---|---|
-| **Grid** `episodes:successes/runs` | Per cell: dataset episodes, then rollout successes out of the runs whose light fell there. `!` = the cell has runs but fewer episodes than the minimum. `-` = no runs. | `0:0/4!` (`I0`, `T0`, dim and warm): no episodes, 4 runs, all failed. `2:4/4` (`I1`, `T0`): 2 episodes, all 4 runs succeeded. |
+| **Figure** `<spec>__<rollout>__<light>.png` | Two heatmaps of the same grid. Left: dataset episodes per cell (red = fewer than the minimum). Right: the rollout runs that started in each cell, coloured by success rate (red = all failed, green = all succeeded, grey = no runs), with `successes/runs` written in the cell for small grids. | The dim, warm corner (`0` episodes, 4 runs, all failed) is red on the left and red on the right: missing data. The cell with 2 episodes and 4 of 4 runs succeeded is green on both. |
 | **outside your ranges** | Shown only when runs fell outside the spec's ranges. | None: the spec uses the eval ranges. |
 | **covered** | Runs in covered cells / all runs. | 2 + 6 + 4 = 12 of 20. |
 | **success** | Success rate of the covered runs against the other runs. A much lower rate outside points to missing data rather than the model. | 7/12 against 0/8. |

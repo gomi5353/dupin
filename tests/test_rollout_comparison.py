@@ -104,20 +104,6 @@ def test_run_in_a_short_cell_asks_to_record_there(tmp_path: Path, spec: Path) ->
     assert result.runs_in_distribution == 1
 
 
-def test_report_keeps_dataset_counts_and_outcomes_in_separate_grids(tmp_path: Path, spec: Path) -> None:
-    dataset = full_dataset(tmp_path, CELL_CENTERS[:3])  # cell (1, 1) has no episode
-    text = format_comparison(run(tmp_path, spec, [(0.15, 0.15, "failed"), (0.05, 0.05, "succeeded")], dataset=dataset))
-    lines = text.splitlines()
-    data = lines.index(next(line for line in lines if "dataset episodes : rollout runs" in line))
-    outcome = lines.index(next(line for line in lines if "rollout successes / runs" in line))
-    # +y at the top: row y1 first. Dataset grid: episodes:runs, ! on the thin cell with runs.
-    assert lines[data + 1].split() == ["y1", "1:0", "0:1!"]
-    assert lines[data + 2].split() == ["y0", "1:1", "1:0"]
-    # Outcome grid: successes/runs only, no coverage mark.
-    assert lines[outcome + 1].split() == ["y1", "-", "0/1"]
-    assert lines[outcome + 2].split() == ["y0", "1/1", "-"]
-
-
 def test_hints_can_be_left_out_of_the_report_but_are_stored(tmp_path: Path, spec: Path) -> None:
     dataset = full_dataset(tmp_path, CELL_CENTERS[:3])
     store = store_with(tmp_path, spec, dataset)

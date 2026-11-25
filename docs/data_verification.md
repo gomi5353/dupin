@@ -61,11 +61,10 @@ The whole round, from the repository root:
 ```bash
 uv run python scripts/store.py ingest --dataset datasets/${HF_USER}/<repo_name>
 mkdir -p my_specs
-cp specs/<task>/object_pose.ttl specs/<task>/object_property.ttl my_specs/   # fill every "TODO"
+cp specs/<task>/object_pose.ttl my_specs/   # fill every "TODO"
 uv run python scripts/store.py ingest --store stores/<repo_name> \
     --rollout-log outputs/rollout/<timestamp>.jsonl
-uv run python scripts/store.py verify --store stores/<repo_name> \
-    --spec my_specs/object_pose.ttl my_specs/object_property.ttl
+uv run python scripts/store.py verify --store stores/<repo_name> --spec my_specs/object_pose.ttl
 uv run python scripts/store.py explore --store stores/<repo_name>
 uv run python scripts/store.py query --store stores/<repo_name> --query-file queries/uncovered_cells.rq
 ```
@@ -75,7 +74,7 @@ uv run python scripts/store.py query --store stores/<repo_name> --query-file que
 | `--dataset <path>` | The LeRobot dataset directory to ingest; the store is created from it |
 | `--store <path>` | The store to work on (`stores/<repo_name>`) |
 | `--rollout-log <file>` | A rollout log to ingest |
-| `--spec <files>` | The spec files to check |
+| `--spec <file>` | The spec to check; append the specs of other axes after it to check them in the same run |
 | `--query-file <file>` | A SPARQL file to run |
 
 `ingest --dataset` creates `stores/<repo_name>/dataset.ttl`: the dataset,
@@ -150,19 +149,33 @@ Rules:
 **Required**
 
 ```bash
-uv run python scripts/store.py verify --store stores/<repo_name> \
-    --spec my_specs/object_pose.ttl my_specs/object_property.ttl
+uv run python scripts/store.py verify --store stores/<repo_name> --spec my_specs/object_pose.ttl
 ```
 
-`--spec a.ttl b.ttl` and `--spec a.ttl --spec b.ttl` are the same. `verify`
-checks the dataset against every given spec, prints one report per spec, then
+To check another axis in the same run, append its spec file after the first
+one: `--spec my_specs/object_pose.ttl my_specs/image_augmentation.ttl` is the
+same as repeating the flag, `--spec my_specs/object_pose.ttl --spec
+my_specs/image_augmentation.ttl`. `verify` checks the dataset against every
+given spec, prints one report per spec, then
 compares every ingested rollout with every spec
 ([section 5](#5-compare-the-dataset-with-a-rollout)), and writes the results
 into `stores/<repo_name>/findings/`. Reports are separated by a line of
-`=`.
+`=`. It also draws the coverage grids as heatmaps into
+`stores/<repo_name>/figures/` (one PNG per object or light, and per rollout),
+so even a 100 × 100 grid can be read; `--no-figures` skips them. The terminal
+shows no grid tables.
 
-Every report has the same frame. Example, with an Object Poses spec that is
-filled in and an Object Properties spec that still has `TODO` values:
+**Every `verify` replaces all figures.** The folder holds the figures of the
+last `verify` only, like the specs and findings. Verifying only the Object
+Poses spec therefore deletes the lighting figure of an earlier run that
+checked the Image Augmentations spec. To keep all figures, check every axis in
+one run (`--spec a.ttl b.ttl c.ttl`) or copy the PNGs elsewhere first.
+
+Long lists are cut so the report stays readable: each verifier prints at most
+10 `VIOLATION`, `WARNING` or `ERROR` lines, the hints at most 15, followed by
+`... and N more ...`. The full lists are in `findings/`.
+
+Every report has the same frame. Example, for an Object Poses spec:
 
 ```
 Store   : stores/<repo_name>
@@ -170,30 +183,23 @@ Spec    : object_pose  (/home/<user>/<repo>/my_specs/object_pose.ttl)
 Episodes: 12
 
 [blue_cup] x=8.800..9.000  y=6.400..6.600  covered 3/4 cells (>= 3 each)
-  ...
 
 VIOLATION 'blue_cup' cell (i=1, j=1) x=[8.9, 9] y=[6.5, 6.6] has 1 episode(s); needs at least 3  [spec/object_pose/blue_cup_grid/cell/3]
 
 RESULT: coverage spec NOT met
 
-================================================================================
-
-Store   : stores/<repo_name>
-Spec    : object_property  (my_specs/object_property.ttl)
-Episodes: 12
-
-ERROR     Spec still has TODO values: blue_cup color reference: phrase, blue_cup name reference: phrase, blue_cup: minEpisodesPerReference, pink_cup color reference: phrase, pink_cup name reference: phrase, pink_cup: minEpisodesPerReference
-
-RESULT: coverage spec NOT met
-
 Findings written to stores/<repo_name>/findings/
+Figures written to stores/<repo_name>/figures/ (1):
+  stores/<repo_name>/figures/object_pose__blue_cup.png
 ```
 
 How to read it:
 
 - **Header**: the store, the spec (its name and the file it came from) and
   the number of episodes.
-- **Axis blocks** (`[blue_cup] …`): tables of each axis in the spec. Their
+- **Axis blocks** (`[blue_cup] …`): a summary line per object, light or
+  reference of each axis in the spec, with the coverage figures written next to
+  the report. Their
   meaning is in the axis guides: [Object Poses](object_pose.md),
   [Image Augmentations](image_augmentation.md),
   [Object Properties](object_property.md).
@@ -215,7 +221,7 @@ episode count, so the same results can be queried later
 
 | Option of `verify` | Effect |
 |---|---|
-| `--spec a.ttl [b.ttl ...]` | **Required.** The spec files, one per axis; repeatable |
+| `--spec a.ttl [b.ttl ...]` | **Required.** The spec file; append more files (one per axis) to check several axes; repeatable |
 | `--rollout <timestamp>` | Compares only this ingested rollout; repeatable (default: all) |
 | `--no-rollouts` | Checks the dataset only, without comparing rollouts |
 | `--no-hints` | Leaves suggested next steps out of the printed rollout comparison (still stored as `Info` findings) |
@@ -299,15 +305,14 @@ then verify with the same specs:
 ```bash
 uv run python scripts/store.py ingest --store stores/<repo_name> \
     --rollout-log outputs/rollout/<timestamp>.jsonl
-uv run python scripts/store.py verify --store stores/<repo_name> \
-    --spec my_specs/object_pose.ttl my_specs/object_property.ttl
+uv run python scripts/store.py verify --store stores/<repo_name> --spec my_specs/object_pose.ttl
 ```
 
 | Argument | Meaning |
 |---|---|
 | `--store stores/<repo_name>` | The store of the dataset the evaluated policy was trained on |
 | `--rollout-log <file>` | The rollout log to put into the store |
-| `--spec <files>` | The specs to compare with, as in [section 4](#4-run-the-check-and-read-the-report) |
+| `--spec <file>` | The spec to compare with (more specs can be appended), as in [section 4](#4-run-the-check-and-read-the-report) |
 
 `ingest --rollout-log` writes `stores/<repo_name>/rollouts/<timestamp>.ttl`:
 the rollout with its eval file, seed and checkpoint, and every run with its
@@ -456,6 +461,7 @@ stores/<repo_name>/
 ├── rollouts/<timestamp>.ttl          ingest --rollout-log
 ├── findings/<spec>.ttl               verify: the dataset against the spec
 ├── findings/<spec>__<timestamp>.ttl  verify: the rollout against the spec
+├── figures/*.png                     verify: coverage heatmaps (all replaced on every verify)
 └── queries/                          custom SPARQL queries
 ```
 
@@ -507,6 +513,61 @@ Comparison (verifiedAt, runsInDistribution)       (verify)
   `Violation` (a requirement is not met), `Warning`, or `Info` (a suggested
   next step).
 
+The same vocabulary as a diagram, with the three axis modules. Solid arrows
+are written by `ingest` or in the spec; dotted arrows are added by `verify`.
+
+```mermaid
+graph TD
+  %% recorded by ingest
+  D[Dataset] -->|hasEpisode| EP[Episode]
+  EP -->|hasTaskObject| TO[TaskObject]
+  TO -->|hasPosition| POS[Position]
+  EP -->|hasLightCondition| LC[LightCondition]
+  EP -->|hasObjectColor| OC[ObjectColor]
+  RO[Rollout] -->|hasDataset| D
+  RO -->|hasFixedObject| TO
+  RO -->|hasRun| RUN[Run]
+  RUN -->|hasTaskObject| TO
+  RUN -->|hasLightCondition| LC
+
+  %% written in the spec
+  SP[Spec] -->|declaresAxis| AX[GeneralizationAxis]
+  AX -->|hasRequirement| RQ[AxisRequirement]
+  D -.->|hasGeneralizationAxis| AX
+
+  %% axis modules
+  AX --- AXP[ObjectPoseAxis]
+  AX --- AXI[ImageAugmentationAxis]
+  AX --- AXO[ObjectPropertyAxis]
+  RQ --- RQP[ObjectPositionRequirement]
+  RQ --- RQI[LightingRequirement]
+  RQ --- RQO[ColorReferenceRequirement]
+  RQP -->|hasTaskObject| TO
+  RQP -->|hasAreaConfiguration| AC[AreaConfiguration]
+  AC -->|hasCoverageGrid| CG[CoverageGrid]
+  CG -.->|hasCell| CE[Cell]
+  LCE[LightingCell] -.->|ofRequirement| RQI
+  RQO -->|hasTaskObject| TO
+  RQO -->|hasReference| REF[ObjectReference]
+  REF --- NR[NameReference]
+  REF --- CR[ColorReference]
+
+  %% verify results
+  VE[Verification] -.->|ofSpec| SP
+  VE -.->|onDataset| D
+  VE -.->|hasFinding| FI[Finding]
+  CMP[Comparison] -.->|ofSpec| SP
+  CMP -.->|ofRollout| RO
+  CMP -.->|inDistributionRun| RUN
+  CMP -.->|hasFinding| FI
+  CMP -.->|hasPlacement| PL[RunPlacement / LightingPlacement / ReferencePlacement]
+  PL -.->|ofRun| RUN
+  PL -.->|ofRequirement| RQ
+```
+
+`---` links are subclass relations (the left class is the parent). The
+placement is one node per run and requirement, with the class of its axis.
+
 What `verify` does, per given spec file:
 
 1. Checks the spec (no `TODO`, value types, ranges) and copies it into
@@ -551,7 +612,7 @@ General messages. Messages of one axis are in its guide
 | `The dataset … changed after it entered the store; run: ingest --dataset …` | Episodes were recorded or files changed after the last ingest | Run the printed `ingest` command, then `verify` |
 | `The rollout … changed after it entered the store; run: ingest --rollout-log …` | The log was written to again after `ingest`, for example the rollout was still running | Run the printed `ingest` command after the rollout has ended |
 | `STALE: The spec … changed after it entered the store; run: verify --spec …` (in `explore`) | The spec file was edited after the last `verify` | Run `verify` again with the spec |
-| `the following arguments are required: --spec` | `verify` without `--spec` | Pass every spec to check: `--spec my_specs/object_pose.ttl ...` |
+| `the following arguments are required: --spec` | `verify` without `--spec` | Pass the spec to check: `--spec my_specs/object_pose.ttl` (append further specs to check more axes) |
 | `Two spec files are both named '<name>.ttl'; give each spec its own file name` | Two `--spec` files with the same file name, e.g. from two directories | Rename one; the file name is the spec's name in the store |
 | `Spec file not found: …` | Wrong path | Fix the path |
 | `Spec is not valid Turtle: …` | Syntax error, usually a missing `;` or `.` | Compare with the shipped spec: `;` between the fields of one block, `.` at the end of a block |

@@ -112,21 +112,23 @@ plate), each as `pos` (env-local, metres) and `rot` (quaternion w, x, y, z).
 They are for reference only; the comparison ignores them.
 
 Putting the log into the training dataset's verification store and running
-`verify` with the specs shows, for every axis, which rollout episodes
+`verify` with your spec shows, for every axis in it, which rollout episodes
 the dataset does not cover and where to record next
 ([Data Verification §5](data_verification.md#5-compare-the-dataset-with-a-rollout)):
 
 ```bash
 uv run python scripts/store.py ingest --store stores/<repo_name> --rollout-log outputs/rollout/<timestamp>.jsonl
-uv run python scripts/store.py verify --store stores/<repo_name> \
-    --spec my_specs/object_pose.ttl my_specs/image_augmentation.ttl my_specs/object_property.ttl
+uv run python scripts/store.py verify --store stores/<repo_name> --spec my_specs/object_pose.ttl
 ```
+
+Append the specs of the other axes after the first to compare them in the
+same run (`--spec a.ttl b.ttl`, the same as repeating `--spec`).
 
 ## 4. Policy input and output contract
 
 **Required**
 
-Rollout feeds the policy the features below and applies the action below. A
+Rollout feeds the policy the inputs below and applies the output below. A
 policy that needs other inputs cannot be fed by rollout, and one trained with
 other camera poses, controller settings, or action meanings may still run but
 usually performs much worse. The dataset may contain other columns
@@ -138,6 +140,7 @@ usually performs much worse. The dataset may contain other columns
 | `observation.state` | Input | float32 | `(9,)` | Measured joint positions in the order `panda_joint1..7, panda_finger_joint1, panda_finger_joint2`; arm in rad, fingers in m. |
 | `observation.images.front` | Input | image/video | `(480, 640, 3)` | RGB uint8, height × width × channels, from the fixed front camera. |
 | `observation.images.wrist` | Input | image/video | `(480, 640, 3)` | RGB uint8, from the wrist camera. |
+| `task` | Input | string | — | The task text of the episode (see `--policy_language_instruction`). Language-conditioned policies use it; Diffusion Policy and ACT ignore it. |
 | `action` | Output | float32 | `(8,)` | `[0:7]` absolute joint-position targets in rad; `[7]` gripper: `< 0` closes, `≥ 0` opens (±1 in recorded data). |
 
 These are the features that the repository recorder writes

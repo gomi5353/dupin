@@ -9,9 +9,9 @@
 #
 #   uv run python scripts/store.py verify --store stores/<repo_name> --spec <your copy>
 #
-# To check several axes in one run, list one spec file per axis:
-# --spec my_specs/object_pose.ttl my_specs/image_augmentation.ttl
-# my_specs/object_property.ttl. Axes without a spec file are not checked.
+# To check another axis in the same run, append its spec file after this one
+# (--spec a.ttl b.ttl, the same as repeating --spec). Axes without a spec
+# file are not checked.
 #
 # verify renames the individuals below (spec:...) under the store's IRI for
 # this spec, so several copies of this file can share one store.

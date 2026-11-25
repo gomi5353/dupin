@@ -161,23 +161,31 @@ spec:fork_reference_object a cp:TaskObject ;
     cp:name "fork" .
 
 spec:fork_by_name a cp:NameReference ;
-    cp:phrase "TODO" .
+    cp:phrase "fork" .
 
 spec:fork_by_color a cp:ColorReference ;
-    cp:phrase "TODO" .
+    cp:phrase "pink object" .
 ```
+
+Only `cp:minEpisodesPerReference` is left as `"TODO"`. The phrases are already
+filled in from the evaluation file.
 
 | Field | Meaning | Type |
 |---|---|---|
 | `cp:name` | Object to check; matches the `object_references` key and `object_color.<name>` | Text in quotes (already filled) |
-| `cp:phrase` of the `cp:NameReference` | The words the task text uses for the object's name form: `object_references["fork"]["name"]` | Text in quotes (`"fork"`) |
-| `cp:phrase` of the `cp:ColorReference` | The words for its color form: `object_references["fork"]["color"]` | Text in quotes (`"pink object"`) |
+| `cp:phrase` of the `cp:NameReference` | The words the task text uses for the object's name form: `object_references["fork"]["name"]` | Text in quotes (`"fork"`), already filled in |
+| `cp:phrase` of the `cp:ColorReference` | The words for its color form: `object_references["fork"]["color"]` | Text in quotes (`"pink object"`), already filled in |
 | `cp:minEpisodesPerReference` | Episodes needed for **each** reference of the object, name and color alike, to count as seen | Whole number ≥ 1, no quotes (`10`) |
 
-**Phrases.** Copy them from `object_references` of the eval file
-(`eval/<task>_eval.py`); they are the same as in the task configuration. The
-phrases describe the wording the policy will meet, so they come from
-evaluation, not from a free choice. A phrase matches when the text
+**Phrases.** They are already filled in with the wording of the evaluation
+(`object_references` of `eval/<task>_eval.py`, the same as in the task
+configuration); leave them unchanged. The phrases describe the wording the
+policy will meet, so they come from evaluation, not from a free choice. A
+phrase of your own (or the object's key, such as `green_block`, instead of its
+name phrase `bridge`) matches no episode text, and the check then reports the
+reference as unseen even though the data is fine. If you changed
+`object_references` in your recording configuration, the dataset check still
+uses the evaluation's words, so those episodes count as unrecognized. A phrase matches when the text
 contains its words as whole words, case-insensitive ("fork" does not match
 "forklift"). When several phrases of one object match, the longest wins.
 
@@ -382,7 +390,7 @@ common messages (store, changed dataset, Turtle syntax, ...) are in
 | Severity | Message | Cause | Fix |
 |---|---|---|---|
 | Error | `Dataset has no 'object_color.<name>' column, which the spec requires to check that the object never changes (...)` | Dataset recorded without `--use_lerobot_recorder`, or the object is not in `object_references`; or a typo in `cp:name` | Record again ([section 3](#3-what-the-dataset-records)); check the name |
-| Error | `Spec still has TODO values: ...` | Unfilled phrases or minimum | Fill them in ([section 4](#4-write-the-specification)) |
+| Error | `Spec still has TODO values: ...` | Unfilled minimum (the phrases are filled in already) | Fill them in ([section 4](#4-write-the-specification)) |
 | Error | `...: minEpisodesPerReference must be a whole number without quotes, got ...` | Quoted number or fraction | Write `10`, not `"10"` |
 | Error | `fork: minEpisodesPerReference must be at least 1, got 0` | Zero or negative minimum | Use a positive whole number |
 | Error | `fork: no reference (cp:hasReference)` | The `cp:hasReference` line was deleted | Restore it from the shipped spec |
