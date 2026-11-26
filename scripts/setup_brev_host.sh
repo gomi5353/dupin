@@ -25,7 +25,7 @@
 #      X socket to the host so a GUI run (DISPLAY=:0) shows on localhost:6080.
 #   5b. (SSH shell only) noVNC desktop runs on the host as a software X server
 #      (Xtigervnc :1): Vulkan cannot present to it. Start a GPU X display
-#      (scripts/start_gpu_display.sh, :2) published on noVNC port 6081.
+#      (scripts/start_gpu_display.sh, :2) published on the VM's noVNC port 6080.
 #
 # Fixes need root. The script decides itself: as root it runs commands directly
 # (root needs no `sudo`), as a user it uses `sudo` only if
@@ -298,14 +298,14 @@ elif [ "${HOST_VNC}" != 1 ]; then
 else
     nv_driver_pkg_info
     NEED=""
-    for cmd in Xorg x11vnc openbox websockify; do
+    for cmd in Xorg x11vnc startxfce4 websockify; do
         command -v "${cmd}" >/dev/null || NEED="${NEED} ${cmd}"
     done
     if [ -n "${NEED}" ] || ! dpkg-query -W xserver-xorg-video-nvidia-"${NV_BRANCH:-x}" >/dev/null 2>&1; then
-        echo "installing X server, NVIDIA Xorg driver, x11vnc, openbox, noVNC"
+        echo "installing X server, NVIDIA Xorg driver, x11vnc, XFCE, noVNC"
         run_root apt-get update -qq >/dev/null 2>&1 || true
         if [ -n "${NV_BRANCH}" ]; then
-            apt_install xserver-xorg-core x11vnc openbox novnc websockify \
+            apt_install xserver-xorg-core x11vnc xfce4 dbus-x11 novnc websockify \
                 "$(nv_pkg_spec "xserver-xorg-video-nvidia-${NV_BRANCH}")"
         else
             echo "  driver is not an apt package: install the NVIDIA Xorg driver yourself" >&2
@@ -358,7 +358,7 @@ echo
 if [ "${FAILED}" = 0 ]; then
     if [ "${GPU_DISPLAY_STARTED}" = 1 ]; then
         echo "OK. Next: make install-sim && make launch-sim"
-        echo "GUI: open the noVNC page on port 6081 (not 6080); make launch-sim sets DISPLAY to the GPU display."
+        echo "GUI: reload the noVNC page (the Brev novnc-... link): it now shows the GPU desktop. Open a terminal THERE; make launch-sim sets DISPLAY to it."
     else
         echo "OK. Next: make install-sim && make launch-sim"
     fi

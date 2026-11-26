@@ -42,14 +42,15 @@ if [ -z "${XDG_RUNTIME_DIR:-}" ]; then
     mkdir -p "${XDG_RUNTIME_DIR}" 2>/dev/null && chmod 700 "${XDG_RUNTIME_DIR}" 2>/dev/null
 fi
 
-# GPU X display started by scripts/start_gpu_display.sh (Brev noVNC GUI, port
-# 6081): use it for the Isaac Sim window. The software desktop cannot show it.
+# GPU X display started by scripts/start_gpu_display.sh (the Brev noVNC
+# link then shows it): use it for the Isaac Sim window. The software desktop
+# cannot show it.
 if [ -f /tmp/gpu_display.env ]; then
     # shellcheck disable=SC1091
     . /tmp/gpu_display.env
     if [ -n "${GPU_DISPLAY:-}" ] && [ -S "/tmp/.X11-unix/X${GPU_DISPLAY#:}" ]; then
         export DISPLAY="${GPU_DISPLAY}"
-        echo "DISPLAY=${DISPLAY} (GPU display; view it on noVNC port 6081)"
+        echo "DISPLAY=${DISPLAY} (GPU display; shown on the noVNC page)"
     fi
 fi
 
