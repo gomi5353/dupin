@@ -16,11 +16,14 @@ from data_verification import (
     format_combined,
     format_comparison,
     ingest_dataset,
-    ingest_rollout,
+    compare_store,
     load_spec,
+    read_rollout,
     registry,
     verify_store,
 )
+from data_verification.store import build_spec
+from data_verification.verify import compare_rollout
 from data_verification.graph import CP
 from data_verification.rollout_log import OBJECT_POSITION_FACTOR, ROLLOUT_LOG_VERSION, RolloutLogError, read_rollout_log
 from data_verification.store import ontology
@@ -65,8 +68,7 @@ def stored_specs(store) -> list[Path]:
 
 
 def compare(store, log: Path):
-    ingest_rollout(store, log)
-    (result,) = verify_store(store, stored_specs(store), rollouts=[log.stem]).comparisons
+    (result,) = compare_store(store, stored_specs(store), [log]).comparisons
     return result
 
 
@@ -104,16 +106,12 @@ def test_run_in_a_short_cell_asks_to_record_there(tmp_path: Path, spec: Path) ->
     assert result.runs_in_distribution == 1
 
 
-def test_hints_can_be_left_out_of_the_report_but_are_stored(tmp_path: Path, spec: Path) -> None:
+def test_hints_can_be_left_out_of_the_report(tmp_path: Path, spec: Path) -> None:
     dataset = full_dataset(tmp_path, CELL_CENTERS[:3])
     store = store_with(tmp_path, spec, dataset)
     result = compare(store, write_log(tmp_path / "run.jsonl", [(0.15, 0.15, "failed")]))
     assert "Record more episodes here" in format_comparison(result)
     assert "Record more episodes here" not in format_comparison(result, hints=False)
-    graph = store.graph()
-    infos = [str(graph.value(f, CP.message)) for f in graph.subjects(CP.severity, None) if str(graph.value(f, CP.severity)) == "Info"]
-    assert any(m.startswith("Record more episodes here") for m in infos)
-    assert {str(graph.value(f, CP.verifier)) for f in graph.subjects(CP.severity, None)} == {"object_pose"}
 
 
 def test_area_upper_edge_and_inner_edges_follow_the_check(tmp_path: Path, spec: Path) -> None:
@@ -156,28 +154,32 @@ def test_aborted_runs_are_kept_but_not_counted(tmp_path: Path, spec: Path) -> No
     store = store_with(tmp_path, spec)
     result = compare(store, write_log(tmp_path / "run.jsonl", [(0.05, 0.05, "succeeded"), (0.15, 0.05, "aborted"), (0.15, 0.15, "failed")]))
     assert (result.runs, result.successes, result.aborted) == (2, 1, 1)
-    graph = Graph().parse(store.rollout_file("run"))
-    assert {str(s) for s in graph.objects(None, CP.status)} == {"succeeded", "failed", "aborted"}
+    graph, name = read_rollout(store, tmp_path / "run.jsonl")
+    assert name == "run" and {str(s) for s in graph.objects(None, CP.status)} == {"succeeded", "failed", "aborted"}
     (rollout,) = graph.subjects(RDF.type, CP.Rollout)
     assert (graph.value(rollout, CP.totalEpisodes).toPython(), graph.value(rollout, CP.successEpisodes).toPython()) == (2, 1)
+    assert not (store.root / "rollouts").exists(), "the log is not ingested"
 
 
 def test_rollout_has_its_training_dataset_and_runs_are_not_episodes(tmp_path: Path, spec: Path) -> None:
     store = store_with(tmp_path, spec, full_dataset(tmp_path, CELL_CENTERS[:1]))
     result = compare(store, write_log(tmp_path / "run.jsonl", [(0.15, 0.15, "succeeded")] * 3))
-    graph = store.graph()
+    graph = read_rollout(store, tmp_path / "run.jsonl")[0]
     (rollout,) = graph.subjects(RDF.type, CP.Rollout)
     assert graph.value(rollout, CP.hasDataset) == store.dataset
-    assert len(list(graph.subjects(RDF.type, CP.Run))) == 3 and len(list(graph.subjects(RDF.type, CP.Episode))) == 1
+    assert len(list(graph.subjects(RDF.type, CP.Run))) == 3 and not list(graph.subjects(RDF.type, CP.Episode))
+    assert len(list(store.graph().subjects(RDF.type, CP.Episode))) == 1
     # Three runs in cell (1, 1) do not count as dataset coverage there.
     assert cube(result).cells[1][1].episodes == 0 and result.runs_in_distribution == 0
 
 
-def test_comparison_is_stored_with_placements(tmp_path: Path, spec: Path) -> None:
+def test_comparison_graph_has_placements(tmp_path: Path, spec: Path) -> None:
     store = store_with(tmp_path, spec, full_dataset(tmp_path, CELL_CENTERS[:3]))
-    compare(store, write_log(tmp_path / "run.jsonl", [(0.05, 0.05, "succeeded"), (0.15, 0.15, "failed"), (0.3, 0.05, "failed")]))
-    assert (store.root / "findings" / "spec__run.ttl").is_file()
-    graph = store.graph()
+    log = write_log(tmp_path / "run.jsonl", [(0.05, 0.05, "succeeded"), (0.15, 0.15, "failed"), (0.3, 0.05, "failed")])
+    rollout_graph, name = read_rollout(store, log)
+    _, spec_graph, spec_name = build_spec(store, spec)
+    _, graph = compare_rollout(store, spec_name, spec_graph, rollout_graph, name)
+    graph += rollout_graph
     (comparison,) = graph.subjects(RDF.type, CP.Comparison)
     assert list(graph.objects(comparison, CP.inDistributionRun)) == [URIRef(f"{store.dataset}/rollout/run/run/0")]
     placements = {
@@ -225,10 +227,10 @@ def test_every_axis_must_cover_a_run(tmp_path: Path, spec: Path, monkeypatch) ->
     spec.write_text(SPEC + f"spec:light a <{light}ImageAugmentationAxis> ; cp:hasRequirement spec:dim .\nspec:dim a <{light}LightingRequirement> .\n")
     store = store_with(tmp_path, spec)
     assert len(list(Graph().parse(store.dataset_file).objects(None, URIRef(light + "lux")))) == 4, "ingest hook adds the factor"
-    (check,) = verify_store(store, stored_specs(store), rollouts=[]).checks
+    (check,) = verify_store(store, stored_specs(store)).checks
     assert [(v.message, v.verifier) for v in check.violations] == [("cp:hasRequirement: Lighting needs two requirements", "lighting")]
     result = compare(store, write_log(tmp_path / "run.jsonl", [(x, y, "succeeded") for x, y in CELL_CENTERS], extra=None))
-    assert len(list(Graph().parse(store.rollout_file("run")).objects(None, URIRef(light + "lux")))) == 4
+    assert len(list(read_rollout(store, tmp_path / "run.jsonl")[0].objects(None, URIRef(light + "lux")))) == 4
     assert [a.axis for a in result.axes] == ["object_pose", "lighting"]
     assert result.runs_in_distribution == 2 and not result.fully_covered
 
@@ -242,7 +244,7 @@ def test_checkpoint_trained_on_another_dataset_is_warned(tmp_path: Path, spec: P
     result = compare(store, log)
     assert result.passed and any("trained on 'someone/other'" in w.message for w in result.warnings)
     (checkpoint / "train_config.json").write_text(json.dumps({"dataset": {"repo_id": "me/ds"}}))
-    result = compare(store, log)  # ingested again: the repo_id is read at ingest
+    result = compare(store, log)  # the log is read again: the repo_id is read at compare
     assert not any("trained on" in w.message for w in result.warnings)
 
 
@@ -251,13 +253,59 @@ def test_all_aborted_is_an_error(tmp_path: Path, spec: Path) -> None:
     assert not result.passed and "no finished run" in result.errors[0]
 
 
-def test_rollout_log_appended_after_ingest_is_stale(tmp_path: Path, spec: Path) -> None:
+def test_each_compare_reads_the_log_again(tmp_path: Path, spec: Path) -> None:
     store = store_with(tmp_path, spec)
     log = write_log(tmp_path / "run.jsonl", [(0.05, 0.05, "succeeded")])
-    ingest_rollout(store, log)
-    log.write_text(log.read_text() + json.dumps({"type": "episode", "episode": 1, "status": "failed", "factors": {}}) + "\n")
-    (result,) = verify_store(store, stored_specs(store)).comparisons
-    assert any("ingest --rollout-log" in e for e in result.errors)
+    assert compare(store, log).runs == 1
+    log.write_text(log.read_text() + json.dumps({"type": "episode", "episode": 1, "status": "failed", "factors": {"object_position": {"cube": [0.15, 0.05, 0.9]}}}) + "\n")
+    assert compare(store, log).runs == 2, "no stale copy of the log"
+
+
+def test_compare_only_sees_the_logs_it_is_given(tmp_path: Path, spec: Path) -> None:
+    store = store_with(tmp_path, spec)
+    old = write_log(tmp_path / "old.jsonl", [(0.05, 0.05, "succeeded")])
+    new = write_log(tmp_path / "new.jsonl", [(0.15, 0.05, "failed")])
+    compare(store, old)
+    (result,) = compare_store(store, stored_specs(store), [new]).comparisons
+    assert result.rollout == "new" and (result.runs, result.successes) == (1, 0)
+
+
+def test_compare_stores_its_result_next_to_the_verify_findings(tmp_path: Path, spec: Path) -> None:
+    store = store_with(tmp_path, spec, full_dataset(tmp_path, CELL_CENTERS[:3]))
+    verify_store(store, [spec])
+    log = write_log(tmp_path / "run.jsonl", [(0.05, 0.05, "succeeded"), (0.15, 0.15, "failed"), (0.3, 0.05, "failed")])
+    compare(store, log)
+    assert sorted(p.name for p in (store.root / "findings").glob("*.ttl")) == ["spec.ttl", "spec__run.ttl"]
+    assert not (store.root / "rollouts").exists(), "the log is not ingested"
+    graph = store.graph()
+    (comparison,) = graph.subjects(RDF.type, CP.Comparison)
+    assert list(graph.objects(comparison, CP.inDistributionRun)) == [URIRef(f"{store.dataset}/rollout/run/run/0")]
+    assert len(list(graph.subjects(RDF.type, CP.Run))) == 3
+
+
+def test_compare_replaces_its_result_and_verify_ignores_it(tmp_path: Path, spec: Path) -> None:
+    store = store_with(tmp_path, spec)
+    log = write_log(tmp_path / "run.jsonl", [(0.05, 0.05, "succeeded")])
+    compare(store, log)
+    log.write_text(log.read_text() + json.dumps({"type": "episode", "episode": 1, "status": "failed", "factors": {"object_position": {"cube": [0.15, 0.05, 0.9]}}}) + "\n")
+    compare(store, log)
+    graph = store.graph()
+    assert len(list(graph.subjects(RDF.type, CP.Run))) == 2 and len(list(graph.subjects(RDF.type, CP.Comparison))) == 1
+    assert verify_store(store, [spec]).comparisons == [], "verify reads no comparison"
+    assert not (store.root / "findings" / "spec__run.ttl").exists(), "a verified spec invalidates its old comparisons"
+
+
+def test_no_save_writes_nothing(tmp_path: Path, spec: Path) -> None:
+    store = store_with(tmp_path, spec)
+    log = write_log(tmp_path / "run.jsonl", [(0.05, 0.05, "succeeded")])
+    (result,) = compare_store(store, [spec], [log], write=False).comparisons
+    assert result.runs == 1 and not (store.root / "findings").exists()
+
+
+def test_unreadable_log_is_reported(tmp_path: Path, spec: Path) -> None:
+    store = store_with(tmp_path, spec)
+    result = compare_store(store, [spec], [tmp_path / "missing.jsonl"])
+    assert not result.passed and result.comparisons == [] and result.checks[0].errors
 
 
 def test_rollout_needs_an_existing_store(tmp_path: Path) -> None:
@@ -276,7 +324,7 @@ def test_fixed_poses_in_header_are_stored_and_not_compared(tmp_path: Path, spec:
     store = store_with(tmp_path, spec)
     result = compare(store, log)
     assert result.passed and [o.object_name for o in axis(result).objects] == ["cube"]
-    graph = store.graph()
+    graph = read_rollout(store, log)[0]
     (fixed,) = graph.objects(None, CP.hasFixedObject)
     assert str(graph.value(fixed, CP.name)) == "plate"
 
@@ -460,8 +508,7 @@ def test_several_spec_files_get_a_combined_verdict(tmp_path: Path) -> None:
     strict.write_text(SPEC.replace("cp:minEpisodesPerCell 1", "cp:minEpisodesPerCell 2"))
     store, _ = ingest_dataset(full_dataset(tmp_path, CELL_CENTERS + [CELL_CENTERS[0]]), tmp_path / "stores")
     log = write_log(tmp_path / "rollout" / "run.jsonl", [(x, y, "succeeded") for x, y in CELL_CENTERS])
-    ingest_rollout(store, log)
-    result = verify_store(store, [loose, strict])
+    result = compare_store(store, [loose, strict], [log])
     by_spec = {c.spec: c for c in result.comparisons}
     assert by_spec["loose"].inside_runs == [0, 1, 2, 3]
     assert by_spec["strict"].inside_runs == [0]
@@ -475,16 +522,16 @@ def test_several_spec_files_get_a_combined_verdict(tmp_path: Path) -> None:
 
 def test_one_spec_file_has_no_combined_verdict(tmp_path: Path, spec: Path) -> None:
     store = store_with(tmp_path, spec)
-    ingest_rollout(store, write_log(tmp_path / "rollout" / "run.jsonl", [(0.05, 0.05, "succeeded")]))
-    assert verify_store(store, [spec]).combined == []
+    log = write_log(tmp_path / "rollout" / "run.jsonl", [(0.05, 0.05, "succeeded")])
+    assert compare_store(store, [spec], [log]).combined == []
 
 
 def test_failed_spec_is_left_out_of_the_combined_verdict(tmp_path: Path, spec: Path) -> None:
     broken = tmp_path / "broken.ttl"
     broken.write_text(SPEC.replace("cp:minEpisodesPerCell 1", 'cp:minEpisodesPerCell "TODO"'))
     store = store_with(tmp_path, spec)
-    ingest_rollout(store, write_log(tmp_path / "rollout" / "run.jsonl", [(0.05, 0.05, "succeeded")]))
-    result = verify_store(store, [spec, broken])
+    log = write_log(tmp_path / "rollout" / "run.jsonl", [(0.05, 0.05, "succeeded")])
+    result = compare_store(store, [spec, broken], [log])
     assert [c.spec for c in result.comparisons] == ["spec"]
     (combined,) = result.combined
     assert combined.specs == ["spec"] and combined.skipped == ["broken"]

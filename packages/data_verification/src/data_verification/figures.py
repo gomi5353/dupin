@@ -1,9 +1,10 @@
-"""Heatmap figures of the coverage grids, written into ``<store>/figures/`` by ``verify``.
+"""Heatmap figures of the coverage grids.
 
-Dataset check: one figure per requirement, episodes per cell (red = fewer than
-the minimum). Rollout comparison: the same plus the rollout runs per cell
-(colour = success rate, grey = no runs); cells outside the area that runs
-started in are drawn too.
+``verify`` writes ``<store>/figures/<spec>__<object>.png``: one figure per
+requirement, episodes per cell (red = fewer than the minimum). ``compare``
+writes ``<store>/figures/compare/<spec>__<rollout>__<object>.png``: the same
+plus the rollout runs per cell (colour = success rate, grey = no runs); cells
+outside the area that runs started in are drawn too.
 """
 
 from __future__ import annotations
@@ -125,14 +126,29 @@ def figure_dir(store_root: Path) -> Path:
     return store_root / "figures"
 
 
-def save_figures(store_root: Path, result) -> list[Path]:
-    """Write the figures of a ``VerifyResult`` into ``<store_root>/figures/`` (replacing the earlier ones); returns their paths."""
-    out = figure_dir(store_root)
-    if out.is_dir():
-        for old in out.glob("*.png"):
+def compare_figure_dir(store_root: Path) -> Path:
+    return figure_dir(store_root) / "compare"
+
+
+def _clear(directory: Path) -> None:
+    if directory.is_dir():
+        for old in directory.glob("*.png"):
             old.unlink()
+
+
+def save_figures(store_root: Path, result, checks: bool = True, comparisons: bool = True) -> list[Path]:
+    """Write the figures of a ``VerifyResult``, replacing the earlier ones of the same kind; returns their paths.
+
+    Dataset checks go to ``<store_root>/figures/``, rollout comparisons to ``<store_root>/figures/compare/``;
+    ``checks=False`` (``compare``) leaves the first kind alone, ``comparisons=False`` (``verify``) the second.
+    """
+    out, compare_out = figure_dir(store_root), compare_figure_dir(store_root)
+    if checks:
+        _clear(out)
+    if comparisons:
+        _clear(compare_out)
     paths: list[Path] = []
-    for check in result.checks:
+    for check in result.checks if checks else []:
         for axis in check.axes:
             if isinstance(axis, ObjectPositionCheck):
                 for t in axis.coverage:
@@ -154,7 +170,7 @@ def save_figures(store_root: Path, result) -> list[Path]:
                         f"{t.light}: episodes per cell ({t.cells_covered}/{t.cells_total} covered)", annotate,
                         out / f"{check.spec}__{t.light}.png",
                     ))
-    for comparison in result.comparisons:
+    for comparison in result.comparisons if comparisons else []:
         for axis in comparison.axes:
             stem = f"{comparison.spec}__{comparison.rollout}"
             if isinstance(axis, ObjectPositionComparison):
@@ -166,7 +182,7 @@ def save_figures(store_root: Path, result) -> list[Path]:
                     paths.append(_comparison_figure(
                         [(rect(c), c.episodes) for c in rows], [(rect(c), c.runs, c.successes) for c in rows],
                         o.min_episodes, (x0, x1, y0, y1), ("x (m)", "y (m)"), o.object_name, annotate,
-                        out / f"{stem}__{o.object_name}.png",
+                        compare_out / f"{stem}__{o.object_name}.png",
                     ))
             elif isinstance(axis, LightingComparison):
                 for light in axis.lights:
@@ -181,6 +197,6 @@ def save_figures(store_root: Path, result) -> list[Path]:
                     paths.append(_comparison_figure(
                         [(rect, e) for rect, e, _, _ in rows], [(rect, n, s) for rect, _, n, s in rows],
                         r.min_episodes, (float(r.i0), float(r.i1), float(r.t0), float(r.t1)), ("intensity", "color temperature (K)"), light.light, annotate,
-                        out / f"{stem}__{light.light}.png",
+                        compare_out / f"{stem}__{light.light}.png",
                     ))
     return paths

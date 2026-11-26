@@ -1,14 +1,18 @@
-"""verify: check the dataset against the given spec files and compare every ingested rollout, then store the results.
+"""verify: check the recorded dataset against the given spec files; compare: place the runs of rollout logs against the dataset's coverage.
 
-For each spec, a Verification: the dataset and the spec are checked
+verify: for each spec, a Verification: the dataset and the spec are checked
 with the core SHACL rules and those of every registered verifier, then each
-verifier's Python step runs (e.g. per-cell counts). For each spec and each
-ingested rollout, a Comparison: each verifier places the rollout's finished
-runs against the dataset's coverage; a run is in distribution when every axis
-of the spec covers it. With several spec files (e.g. one per axis), each
-rollout also gets a combined result: a run is in distribution overall when
-every compared spec puts it in distribution. Results, with their findings and derived nodes, are
-written to findings/ in the store, replacing the previous ones.
+verifier's Python step runs (e.g. per-cell counts). The results, with their
+findings and derived nodes, are written to findings/ in the store, replacing
+the previous ones.
+
+compare: for each spec and each rollout log file given, a Comparison: each
+verifier places the log's finished runs against the dataset's coverage; a run
+is in distribution when every axis of the spec covers it. With several spec
+files (e.g. one per axis), each rollout also gets a combined result: a run is
+in distribution overall when every compared spec puts it in distribution.
+The log is never ingested: it and the specs are read each time, and only the
+result (the runs and the Comparison) is written to findings/<spec>__<rollout>.ttl.
 """
 
 from __future__ import annotations
@@ -21,7 +25,7 @@ from rdflib import RDF, XSD, Graph, Literal, URIRef
 from .graph import CP, rollout_iri, spec_iri
 from . import registry
 from .report import MAX_FINDING_LINES, MAX_HINT_LINES, cap
-from .store import Store, StoreError, drop_spec, load_spec, now, ontology, source_changes, write_graph
+from .store import Store, StoreError, build_spec, drop_spec, load_spec, now, ontology, read_rollout, source_changes, write_graph
 from .verifier import AxisCheck, AxisComparison, Finding, Verifier, core_graph, pct, rate, run_shacl
 
 
@@ -163,11 +167,10 @@ class VerifyResult:
 def verify_store(
     store: Store,
     specs: list[str | Path],
-    rollouts: list[str] | None = None,
     extra_shapes: list[str | Path] | None = None,
     write: bool = True,
 ) -> VerifyResult:
-    """Verify the dataset against the spec files ``specs`` and compare ``rollouts`` (default: every ingested rollout).
+    """Verify the dataset against the spec files ``specs``.
 
     Each spec file is checked and put into the store under its file name
     (without .ttl); a spec with problems (TODO left, wrong value types, ...)
@@ -176,17 +179,10 @@ def verify_store(
     exactly the specs of the last verify.
     """
     result = VerifyResult()
-    if not specs:
-        result.checks.append(CheckReport(str(store.root), "", errors=["No spec given; run: verify --spec <your spec>.ttl"]))
+    names = _spec_names(store, specs, result)
+    if names is None:
         return result
     paths = [Path(p) for p in specs]
-    names = [p.stem for p in paths]
-    duplicates = sorted({n for n in names if names.count(n) > 1})
-    if duplicates:
-        result.checks.append(
-            CheckReport(str(store.root), "", errors=[f"Two spec files are both named '{n}.ttl'; give each spec its own file name" for n in duplicates])
-        )
-        return result
 
     loaded = []
     for path, name in zip(paths, names):
@@ -195,8 +191,7 @@ def verify_store(
             loaded.append(name)
         except StoreError as exc:
             drop_spec(store, name)
-            episodes = len(set(store.load(store.dataset_file).objects(store.dataset, CP.hasEpisode)))
-            result.checks.append(CheckReport(str(store.root), name, str(path), episodes, errors=list(exc.errors)))
+            result.checks.append(_rejected(store, name, path, exc))
     if write:
         for stale in set(store.spec_names()) - set(names):
             drop_spec(store, stale)
@@ -206,14 +201,67 @@ def verify_store(
         result.checks.append(report)
         if write:
             write_graph(graph, store.check_file(name))
-        for rollout in rollouts if rollouts is not None else store.rollout_names():
-            comparison, graph = compare_rollout(store, name, rollout)
-            result.comparisons.append(comparison)
-            if write and store.rollout_file(rollout).is_file():
-                write_graph(graph, store.comparison_file(name, rollout))
     result.checks.sort(key=lambda c: names.index(c.spec) if c.spec in names else -1)
-    result.combined = combine_comparisons(result.comparisons, [n for n in names if n not in loaded])
     return result
+
+
+def compare_store(store: Store, specs: list[str | Path], rollout_logs: list[str | Path], write: bool = True) -> VerifyResult:
+    """Compare the rollout logs ``rollout_logs`` with the dataset's coverage under the spec files ``specs``.
+
+    Each spec file and each log is read for this call only, so a log that is
+    still being written, or an old one, never leaks into another comparison.
+    With ``write``, each comparison and the runs it judged go to
+    findings/<spec>__<rollout>.ttl (replacing the earlier file of that name); the
+    log itself is not ingested. A spec with problems, or a log that cannot be
+    read, is reported as an error and left out.
+    """
+    result = VerifyResult()
+    names = _spec_names(store, specs, result)
+    if names is None:
+        return result
+    if not rollout_logs:
+        result.checks.append(CheckReport(str(store.root), "", errors=["No rollout log given; pass --rollout-log outputs/rollout/<timestamp>.jsonl"]))
+        return result
+    rollouts = []
+    for path in rollout_logs:
+        try:
+            rollouts.append(read_rollout(store, path))
+        except StoreError as exc:
+            result.checks.append(CheckReport(str(store.root), "", str(path), errors=list(exc.errors)))
+    loaded = []
+    for path, name in zip((Path(p) for p in specs), names):
+        try:
+            loaded.append((name, *build_spec(store, path, name)[:2]))
+        except StoreError as exc:
+            result.checks.append(_rejected(store, name, path, exc))
+    for name, node, spec_graph in loaded:
+        for rollout_graph, rollout_name in rollouts:
+            comparison, graph = compare_rollout(store, name, spec_graph, rollout_graph, rollout_name)
+            result.comparisons.append(comparison)
+            if write:
+                write_graph(graph + rollout_graph, store.comparison_file(name, rollout_name))
+    result.combined = combine_comparisons(result.comparisons, [n for n in names if n not in {name for name, *_ in loaded}])
+    return result
+
+
+def _spec_names(store: Store, specs: list[str | Path], result: VerifyResult) -> list[str] | None:
+    """The spec names (file names without .ttl), or None with the reason in ``result`` when no usable list was given."""
+    if not specs:
+        result.checks.append(CheckReport(str(store.root), "", errors=["No spec given; run with --spec <your spec>.ttl"]))
+        return None
+    names = [Path(p).stem for p in specs]
+    duplicates = sorted({n for n in names if names.count(n) > 1})
+    if duplicates:
+        result.checks.append(
+            CheckReport(str(store.root), "", errors=[f"Two spec files are both named '{n}.ttl'; give each spec its own file name" for n in duplicates])
+        )
+        return None
+    return names
+
+
+def _rejected(store: Store, name: str, path: Path, exc: StoreError) -> CheckReport:
+    episodes = len(set(store.load(store.dataset_file).objects(store.dataset, CP.hasEpisode)))
+    return CheckReport(str(store.root), name, str(path), episodes, errors=list(exc.errors))
 
 
 def _spec_verifiers(graph: Graph, spec: URIRef) -> list[Verifier]:
@@ -223,7 +271,7 @@ def _spec_verifiers(graph: Graph, spec: URIRef) -> list[Verifier]:
             verifier = registry.verifier_for(axis_class)
             if verifier is not None and verifier not in verifiers:
                 verifiers.append(verifier)
-    return verifiers
+    return sorted(verifiers, key=registry.VERIFIERS.index)  # registry order, whatever the graph's iteration order
 
 
 # ---- Dataset vs spec --------------------------------------------------------------------
@@ -274,7 +322,7 @@ def check_spec(store: Store, name: str, extra_shapes: list[str | Path] | None = 
 # ---- Rollout vs dataset coverage --------------------------------------------------------
 
 
-def compare_rollout(store: Store, name: str, rollout_name: str) -> tuple[RolloutComparison, Graph]:
+def compare_rollout(store: Store, name: str, spec_graph: Graph, rollout_graph: Graph, rollout_name: str) -> tuple[RolloutComparison, Graph]:
     dataset, spec = store.dataset, spec_iri(store.dataset, name)
     rollout = rollout_iri(dataset, rollout_name)
     result = RolloutComparison(str(store.root), name, rollout_name)
@@ -286,10 +334,9 @@ def compare_rollout(store: Store, name: str, rollout_name: str) -> tuple[Rollout
     out.add((node, CP.ofRollout, rollout))
     out.add((node, CP.verifiedAt, now()))
 
-    if not store.rollout_file(rollout_name).is_file():
-        result.errors.append(f"No rollout '{rollout_name}' in the store (ingested: {', '.join(store.rollout_names()) or 'none'})")
-        return result, out
-    graph = store.load(store.dataset_file, store.spec_file(name), store.rollout_file(rollout_name))
+    graph = store.load(store.dataset_file)
+    graph += spec_graph
+    graph += rollout_graph
     statuses = {int(graph.value(r, CP["index"])): str(graph.value(r, CP.status)) for r in graph.objects(rollout, CP.hasRun)}
     result.statuses = statuses
     result.eval_file = str(graph.value(rollout, CP.evalFile) or "")
@@ -300,9 +347,7 @@ def compare_rollout(store: Store, name: str, rollout_name: str) -> tuple[Rollout
     result.aborted = len(statuses) - result.runs
     if not result.runs:
         result.errors.append(f"Rollout '{rollout_name}' has no finished run (all aborted or none run)")
-    result.errors += (
-        source_changes(graph, dataset, "dataset") + source_changes(graph, spec, "spec") + source_changes(graph, rollout, "rollout")
-    )
+    result.errors += source_changes(graph, dataset, "dataset") + source_changes(graph, spec, "spec")
     _check_training_dataset(graph, rollout, dataset, result)
 
     verifiers = _spec_verifiers(graph, spec)

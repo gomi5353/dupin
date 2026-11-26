@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from data_verification import verify_store
+from data_verification import compare_store, verify_store
 from data_verification.figures import save_figures
 from data_verification.verify import format_check
 from test_object_position_coverage import CELL_CENTERS
@@ -22,9 +22,12 @@ def test_dataset_check_writes_one_png_per_object(tmp_path: Path, spec: Path) -> 
 def test_comparison_adds_one_png_per_rollout_and_object(tmp_path: Path, spec: Path) -> None:
     store = store_with(tmp_path, spec)
     log = write_log(tmp_path / "rollout" / "run.jsonl", [(x, y, "failed") for x, y in CELL_CENTERS] + [(50.0, 50.0, "succeeded")])
-    compare(store, log)
-    paths = save_figures(store.root, verify_store(store, stored_specs(store), rollouts=[log.stem]))
-    assert sorted(p.name for p in paths) == ["spec__cube.png", "spec__run__cube.png"]
+    specs = stored_specs(store)
+    paths = save_figures(store.root, verify_store(store, specs), comparisons=False)
+    assert [p.name for p in paths] == ["spec__cube.png"]
+    paths = save_figures(store.root, compare_store(store, specs, [log]), checks=False)
+    assert [p.name for p in paths] == ["spec__run__cube.png"] and paths[0].parent == store.root / "figures" / "compare"
+    assert (store.root / "figures" / "spec__cube.png").is_file(), "compare leaves the dataset figures alone"
 
 
 def test_figures_of_an_earlier_verify_are_replaced(tmp_path: Path, spec: Path) -> None:

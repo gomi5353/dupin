@@ -79,7 +79,7 @@ def check(tmp_path: Path, dataset: Path, spec_text: str = SPEC, extra_shapes=Non
     store, _ = ingest_dataset(dataset, tmp_path / "stores")
     spec = tmp_path / "spec.ttl"
     spec.write_text(spec_text)
-    (report,) = verify_store(store, [spec], rollouts=[], extra_shapes=extra_shapes).checks
+    (report,) = verify_store(store, [spec], extra_shapes=extra_shapes).checks
     return report
 
 
@@ -429,7 +429,7 @@ def test_verify_reports_spec_problems_and_checks_the_other_specs(tmp_path: Path)
     assert result.checks[0].errors[0].startswith("Spec still has TODO values")
     assert store.spec_names() == ["good"]
     (report,) = verify_store(store, []).checks
-    assert report.errors == ["No spec given; run: verify --spec <your spec>.ttl"]
+    assert report.errors == ["No spec given; run with --spec <your spec>.ttl"]
     sub = tmp_path / "sub"
     sub.mkdir()
     (sub / "good.ttl").write_text(SPEC)
@@ -525,14 +525,25 @@ def test_command_line_end_to_end(tmp_path: Path) -> None:
     both = cli("verify", "--store", "stores/ds", "--spec", "specs/mine.ttl", "specs/mine.ttl")
     assert "both named 'mine.ttl'" in both.stdout, "--spec takes several files"
     mine.write_text(_fill(TEMPLATE, FILLED))
-    assert cli("ingest", "--store", "stores/ds", "--rollout-log", str(log)).returncode == 0
     verify = cli("verify", "--store", "stores/ds", "--spec", "specs/mine.ttl", "--json", "out/result.json")
     assert verify.returncode == 1, verify.stdout  # cell (1, 1) is empty
-    assert "RESULT: coverage spec NOT met" in verify.stdout and "Record more episodes here" in verify.stdout
-    assert "Record more episodes here" not in cli("verify", "--store", "stores/ds", "--spec", "specs/mine.ttl", "--no-hints").stdout
+    assert "RESULT: coverage spec NOT met" in verify.stdout and "Rollout" not in verify.stdout
     assert json.loads((tmp_path / "out" / "result.json").read_text())["passed"] is False
+    assert cli("ingest", "--store", "stores/ds", "--rollout-log", str(log)).returncode == 2, "rollout logs are no longer ingested"
+    assert cli("verify", "--store", "stores/ds", "--spec", "specs/mine.ttl", "--rollout-log", str(log)).returncode == 2
+    compare = cli("compare", "--store", "stores/ds", "--spec", "specs/mine.ttl", "--rollout-log", str(log))
+    assert compare.returncode == 0, compare.stdout  # comparable; coverage gaps are reported, not an error
+    assert "Record more episodes here" in compare.stdout and "does NOT cover" in compare.stdout
+    assert "Record more episodes here" not in cli("compare", "--store", "stores/ds", "--spec", "specs/mine.ttl", "--rollout-log", str(log), "--no-hints").stdout
+    assert cli("compare", "--store", "stores/ds", "--spec", "specs/mine.ttl").returncode == 2, "--rollout-log is required"
+    assert not (tmp_path / "stores" / "ds" / "rollouts").exists()
+    assert (tmp_path / "stores" / "ds" / "findings" / "mine__20260101-000000.ttl").is_file()
     explore = cli("explore", "--store", "stores/ds")
-    assert explore.returncode == 0 and "NOT passed" in explore.stdout and "0 run(s) in distribution" in explore.stdout
+    assert explore.returncode == 0 and "NOT passed" in explore.stdout
+    assert "20260101-000000: 0/1 succeeded" in explore.stdout and "vs mine: 0 run(s) in distribution" in explore.stdout
+    runs = cli("query", "--store", "stores/ds", "--query-file", str(ROOT / "queries" / "run_outcomes_by_cell.rq"), "--format", "csv")
+    assert runs.returncode == 0 and "mine,cube,1,1" in runs.stdout.replace("20260101-000000,", "")
+    cli("compare", "--store", "stores/ds", "--spec", "specs/mine.ttl", "--rollout-log", str(log), "--no-save")
     q = cli("query", "--store", "stores/ds", "--query-file", str(ROOT / "queries" / "uncovered_cells.rq"), "--format", "csv")
     assert q.returncode == 0 and q.stdout.splitlines()[1] == "mine,cube,1,1,0.1,0.2,0.1,0.2,0,1"
     for removed in ("init", "attach", "detach"):

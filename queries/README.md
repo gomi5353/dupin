@@ -15,9 +15,9 @@ to save a table, and `--with-ontology` to also query the classes and labels.
 | `episodes.rq` | Object Poses | Where did each object start in each recorded episode? (raw facts, no spec needed) |
 | `cell_counts.rq` | Object Poses | How many dataset episodes does each cell of each object-position requirement have? (after `verify`) |
 | `uncovered_cells.rq` | Object Poses | Which cells have fewer episodes than the requirement asks for? (after `verify`) |
-| `run_outcomes_by_cell.rq` | Object Poses | How many rollout runs started in each cell, and how many succeeded? (after `verify`) |
-| `failed_runs_not_covered.rq` | Object Poses | Which failed runs started where the dataset does not cover? (after `verify`) |
-| `findings.rq` | all | Every stored finding, by spec, rollout and severity (after `verify`) |
+| `run_outcomes_by_cell.rq` | Object Poses | How many rollout runs started in each cell, and how many succeeded? (after `compare`) |
+| `failed_runs_not_covered.rq` | Object Poses | Which failed runs started where the dataset does not cover? (after `compare`) |
+| `findings.rq` | all | Every stored finding, by spec, rollout and severity (after `verify` or `compare`) |
 
 The vocabulary of every axis, for writing queries about lighting cells or
 color references, is described in

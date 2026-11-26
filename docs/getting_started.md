@@ -69,7 +69,7 @@ A self-defined task adds one step before recording:
 | Rollout | Running a policy in the simulator for a number of episodes to measure its success rate. |
 | Generalization axis | One way in which the evaluation conditions can differ from the demonstrations, taken from the STAR-Gen taxonomy. The repository checks three axes, each with one *factor*: **Object Poses** (factor object position), **Image Augmentations** (factor lighting), and **Object Properties** (factor referencing objects by color). |
 | Spec | A Turtle (`.ttl`) file that states what a dataset should cover on one axis, for example the table area per object and the episodes per cell. Each predefined task ships one spec per axis in `specs/<task>/`, with every value left as `TODO`; the specs are copied and filled in. |
-| Data verification | The check of a dataset against specs (`scripts/store.py verify`). It reports, per axis, where the dataset has too few episodes, and compares rollouts with the dataset. |
+| Data verification | The check of a dataset against specs (`scripts/store.py verify`). It reports, per axis, where the dataset has too few episodes, and compares rollouts with the dataset (`scripts/store.py compare`). |
 
 ## 3. Step 0: Set up the machine
 
@@ -278,7 +278,7 @@ Other `make` targets:
 | `eval/` | Public evaluation task files, one per task, used by rollout. |
 | `scripts/datagen/generate.py`, `scripts/teleop.py` | The two data-collection methods: state machine and keyboard teleoperation. |
 | `scripts/rollout.py` | Runs a trained policy in the simulator and reports the success rate. |
-| `scripts/store.py` | Command-line interface of the verification store (`ingest`, `verify`, `explore`, `query`). |
+| `scripts/store.py` | Command-line interface of the verification store (`ingest`, `verify`, `compare`, `explore`, `query`). |
 | `specs/<task>/` | The shipped specs of each predefined task, one per axis: `object_pose.ttl`, `image_augmentation.ttl`, `object_property.ttl`. Every value is `TODO`; they are copied and filled in. |
 | `queries/` | Example SPARQL queries over a store. |
 | `tests/` | Tests of the general environment (`make test`). |
@@ -465,8 +465,8 @@ training settings are at fault. Imitation-learning policies tend to work only
 in situations that the demonstrations cover well. The diagnosis therefore
 starts with the data:
 
-1. Put the rollout log (`outputs/rollout/<timestamp>.jsonl`) into the
-   dataset's store and run `verify` again
+1. Run `compare` with the dataset's store, your spec and the rollout log
+   (`outputs/rollout/<timestamp>.jsonl`)
    ([Data Verification §5](data_verification.md#5-compare-the-dataset-with-a-rollout)).
    For every axis, the report shows which runs the dataset covers and the
    success rate of covered and uncovered runs: where the objects started, under

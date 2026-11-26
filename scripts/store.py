@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""Verification store: record a dataset and its rollouts as RDF, check them against your specs, query them.
+"""Verification store: record a dataset as RDF, check it against your specs, compare rollouts with it, query it.
 
 One store per dataset, under stores/<repo_name>/. Reads only meta/ and data/ of
-the dataset (no simulator, no videos) and the rollout logs.
+the dataset (no simulator, no videos); rollout logs are read by `compare`, which stores only its result.
 Guide: docs/data_verification.md
 
   # 1. Put the dataset into a new store (again after recording more episodes)
@@ -11,12 +11,14 @@ Guide: docs/data_verification.md
   # 2. Copy the spec of an axis (specs/<task>/), replace every "TODO"
   cp specs/<task>/object_pose.ttl my_specs/
 
-  # 3. After a rollout (scripts/rollout.py writes outputs/rollout/<timestamp>.jsonl), put it into the store
-  uv run python scripts/store.py ingest --store stores/<repo_name> --rollout-log outputs/rollout/<timestamp>.jsonl
-
-  # 4. Check the dataset against your specs and compare every rollout; specs and results go into the store
+  # 3. Check the dataset against your specs; specs and results go into the store
   #    (append the specs of other axes after the first to check them in the same run)
   uv run python scripts/store.py verify --store stores/<repo_name> --spec my_specs/object_pose.ttl
+
+  # 4. After a rollout (scripts/rollout.py writes outputs/rollout/<timestamp>.jsonl), compare its runs with
+  #    the dataset's coverage under your specs (the log is read each time; only the result is stored)
+  uv run python scripts/store.py compare --store stores/<repo_name> --spec my_specs/object_pose.ttl \
+      --rollout-log outputs/rollout/<timestamp>.jsonl
 
   # 5. Ask the store
   uv run python scripts/store.py explore --store stores/<repo_name>
@@ -36,9 +38,9 @@ from data_verification import (
     StoreError,
     format_check,
     format_combined,
+    compare_store,
     format_comparison,
     ingest_dataset,
-    ingest_rollout,
     open_store,
     query,
     verify_store,
@@ -48,39 +50,50 @@ from data_verification.store import STORES, source_changes
 
 
 def cmd_ingest(args: argparse.Namespace) -> int:
-    if args.dataset is not None:
-        store, data = ingest_dataset(args.dataset, args.stores, name=args.name, task=args.task)
-        print(f"Wrote {store.dataset_file}: {len(data.episode_indices)} episode(s), objects {', '.join(data.object_names)}")
-        print(f"Next: verify --store {store.root} --spec <your spec>.ttl (one --spec per axis; copies of specs/<task>/*.ttl, filled in)")
-        return 0
-    if args.store is None:
-        raise StoreError("ingest --rollout-log needs --store stores/<repo_name>: the store of the dataset the policy was trained on")
-    store = open_store(args.store)
-    rollout = ingest_rollout(store, args.rollout_log)
-    print(f"Wrote {store.rollout_file(args.rollout_log.stem)} ({rollout})")
-    print(f"Next: verify --store {store.root} --spec <your spec>.ttl ...")
+    store, data = ingest_dataset(args.dataset, args.stores, name=args.name, task=args.task)
+    print(f"Wrote {store.dataset_file}: {len(data.episode_indices)} episode(s), objects {', '.join(data.object_names)}")
+    print(f"Next: verify --store {store.root} --spec <your spec>.ttl (one --spec per axis; copies of specs/<task>/*.ttl, filled in)")
     return 0
+
+
+def _write_figures(args: argparse.Namespace, store, result, **kinds) -> None:
+    if args.no_figures:
+        return
+    from data_verification.figures import save_figures
+
+    figures = save_figures(store.root, result, **kinds)
+    if figures:
+        print(f"Figures written to {figures[0].parent}/ ({len(figures)}):")
+        for path in figures:
+            print(f"  {path}")
+
+
+def _write_json(args: argparse.Namespace, result) -> None:
+    if args.json:
+        args.json.parent.mkdir(parents=True, exist_ok=True)
+        args.json.write_text(json.dumps(result.to_dict(), indent=2) + "\n")
 
 
 def cmd_verify(args: argparse.Namespace) -> int:
     store = open_store(args.store)
-    rollouts = [] if args.no_rollouts else (args.rollout or None)
-    result = verify_store(store, args.spec, rollouts=rollouts, extra_shapes=args.extra_shapes)
+    result = verify_store(store, args.spec, extra_shapes=args.extra_shapes)
+    print(("\n\n" + "=" * 80 + "\n\n").join(format_check(c) for c in result.checks))
+    print(f"\nFindings written to {store.root / 'findings'}/")
+    _write_figures(args, store, result, comparisons=False)
+    _write_json(args, result)
+    return 0 if result.passed and not (args.strict and result.warnings()) else 1
+
+
+def cmd_compare(args: argparse.Namespace) -> int:
+    store = open_store(args.store)
+    result = compare_store(store, args.spec, args.rollout_log, write=not args.no_save)
     blocks = [format_check(c) for c in result.checks] + [format_comparison(c, hints=not args.no_hints) for c in result.comparisons]
     blocks += [format_combined(c) for c in result.combined]
     print(("\n\n" + "=" * 80 + "\n\n").join(blocks))
-    print(f"\nFindings written to {store.root / 'findings'}/")
-    if not args.no_figures:
-        from data_verification.figures import save_figures
-
-        figures = save_figures(store.root, result)
-        if figures:
-            print(f"Figures written to {store.root / 'figures'}/ ({len(figures)}):")
-            for path in figures:
-                print(f"  {path}")
-    if args.json:
-        args.json.parent.mkdir(parents=True, exist_ok=True)
-        args.json.write_text(json.dumps(result.to_dict(), indent=2) + "\n")
+    if result.comparisons and not args.no_save:
+        print(f"\nFindings written to {store.root / 'findings'}/")
+    _write_figures(args, store, result, checks=False)
+    _write_json(args, result)
     return 0 if result.passed and not (args.strict and result.warnings()) else 1
 
 
@@ -121,12 +134,10 @@ def cmd_explore(args: argparse.Namespace) -> int:
             print(f"    STALE: {change}")
         print(f"    {_result_line(graph, _node(spec, 'verification'))}")
 
-    print("\nRollouts")
-    for name in store.rollout_names() or ["(none ingested)"]:
-        rollout = _node(ds, f"rollout/{name}")
-        if (rollout, RDF.type, CP.Rollout) not in graph:
-            print(f"  {name}")
-            continue
+    print("\nComparisons")
+    names = sorted(graph.subjects(RDF.type, CP.Rollout))
+    for rollout in names:
+        name = str(rollout).rsplit("/", 1)[-1]
         runs = list(graph.objects(rollout, CP.hasRun))
         aborted = sum(str(graph.value(r, CP.status)) == "aborted" for r in runs)
         print(
@@ -136,13 +147,12 @@ def cmd_explore(args: argparse.Namespace) -> int:
         )
         for change in source_changes(graph, rollout, "rollout"):
             print(f"    STALE: {change}")
-        for spec_name in store.spec_names():
-            comparison = _node(rollout, f"comparison/{spec_name}")
+        for comparison in sorted(graph.subjects(CP.ofRollout, rollout)):
             n = graph.value(comparison, CP.runsInDistribution)
-            if (comparison, RDF.type, CP.Comparison) in graph:
-                print(f"    vs {spec_name}: " + (f"{n} run(s) in distribution; " if n is not None else "") + _findings_summary(graph, comparison))
-            else:
-                print(f"    vs {spec_name}: not compared yet (run verify)")
+            spec_name = str(graph.value(comparison, CP.ofSpec)).rsplit("/", 1)[-1]
+            print(f"    vs {spec_name}: " + (f"{n} run(s) in distribution; " if n is not None else "") + _findings_summary(graph, comparison))
+    if not names:
+        print("  (none; run compare --rollout-log ...)")
     print(f"\nQuery it: query --store {store.root} --query-text 'SELECT ...'  (examples in queries/)")
     return 0
 
@@ -170,31 +180,39 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = parser.add_subparsers(dest="command", required=True)
 
-    ingest = sub.add_parser("ingest", help="Put a dataset (new store) or a rollout log (existing store) into a store.")
-    source = ingest.add_mutually_exclusive_group(required=True)
-    source.add_argument("--dataset", type=Path, help="Local LeRobot v3 dataset directory; writes stores/<name>/dataset.ttl.")
-    source.add_argument("--rollout-log", type=Path, help="outputs/rollout/<timestamp>.jsonl written by scripts/rollout.py.")
-    ingest.add_argument("--store", type=Path, help="With --rollout-log: the store of the dataset the policy was trained on.")
-    ingest.add_argument("--name", help=f"With --dataset: store name (default: the dataset directory name); the store is {STORES}/<name>.")
-    ingest.add_argument("--task", help="With --dataset: the gym task id the dataset was recorded with (stored as cp:task).")
-    ingest.add_argument("--stores", type=Path, default=STORES, help=f"With --dataset: directory of stores (default: {STORES}).")
+    ingest = sub.add_parser("ingest", help="Put a recorded dataset into a new store.")
+    ingest.add_argument("--dataset", required=True, type=Path, help="Local LeRobot v3 dataset directory; writes stores/<name>/dataset.ttl.")
+    ingest.add_argument("--name", help=f"Store name (default: the dataset directory name); the store is {STORES}/<name>.")
+    ingest.add_argument("--task", help="The gym task id the dataset was recorded with (stored as cp:task).")
+    ingest.add_argument("--stores", type=Path, default=STORES, help=f"Directory of stores (default: {STORES}).")
     ingest.set_defaults(func=cmd_ingest)
 
-    verify = sub.add_parser("verify", help="Check the dataset against your spec files and compare the rollouts; store specs and findings.")
+    verify = sub.add_parser("verify", help="Check the recorded dataset against your spec files; store specs and findings.")
     verify.add_argument("--store", required=True, type=Path)
     verify.add_argument(
         "--spec", action="extend", nargs="+", type=Path, required=True,
         help="Your spec files (.ttl), one per axis: --spec a.ttl b.ttl (or --spec a.ttl --spec b.ttl). "
         "The store keeps exactly the specs of the last verify.",
     )
-    verify.add_argument("--rollout", action="append", help="Only this ingested rollout; repeatable (default: all).")
-    verify.add_argument("--no-rollouts", action="store_true", help="Check the dataset only.")
     verify.add_argument("--no-figures", action="store_true", help="Do not write the coverage heatmaps to <store>/figures/.")
-    verify.add_argument("--no-hints", action="store_true", help="Do not print suggested next steps (they are still stored as Info findings).")
     verify.add_argument("--strict", action="store_true", help="Also fail on warnings.")
     verify.add_argument("--json", type=Path, help="Also write the full result as JSON.")
     verify.add_argument("--extra-shapes", type=Path, action="append", default=[], help="Additional SHACL rules (.ttl) for the dataset check; repeatable.")
     verify.set_defaults(func=cmd_verify)
+
+    compare = sub.add_parser("compare", help="Compare the runs of rollout logs with the dataset's coverage under your spec files; stores the result, not the log.")
+    compare.add_argument("--store", required=True, type=Path, help="The store of the dataset the policy was trained on.")
+    compare.add_argument("--spec", action="extend", nargs="+", type=Path, required=True, help="Your spec files (.ttl), one per axis (as for verify).")
+    compare.add_argument(
+        "--rollout-log", action="extend", nargs="+", type=Path, required=True,
+        help="outputs/rollout/<timestamp>.jsonl written by scripts/rollout.py: --rollout-log a.jsonl b.jsonl (or repeat the option).",
+    )
+    compare.add_argument("--no-figures", action="store_true", help="Do not write the coverage heatmaps to <store>/figures/compare/.")
+    compare.add_argument("--no-save", action="store_true", help="Do not write the comparison to <store>/findings/.")
+    compare.add_argument("--no-hints", action="store_true", help="Do not print suggested next steps.")
+    compare.add_argument("--strict", action="store_true", help="Also fail on warnings.")
+    compare.add_argument("--json", type=Path, help="Also write the full result as JSON.")
+    compare.set_defaults(func=cmd_compare)
 
     q = sub.add_parser("query", help="Run a SPARQL query over the store.")
     q.add_argument("--store", required=True, type=Path)
@@ -205,7 +223,7 @@ def main() -> int:
     q.add_argument("--with-ontology", action="store_true", help="Also load the ontology (classes, labels, subclass links).")
     q.set_defaults(func=cmd_query)
 
-    explore = sub.add_parser("explore", help="Summarize the store: dataset, specs, rollouts, latest results.")
+    explore = sub.add_parser("explore", help="Summarize the store: dataset, specs, latest verify and compare results.")
     explore.add_argument("--store", required=True, type=Path)
     explore.set_defaults(func=cmd_explore)
 

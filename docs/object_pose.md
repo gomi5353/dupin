@@ -297,7 +297,7 @@ the counts can be queried later (`queries/cell_counts.rq`,
 
 **Required**
 
-The general steps (put the rollout log into the store, run `verify`) are in
+The general steps (run `compare` with your spec and the rollout log) are in
 [Data Verification §5](data_verification.md#5-compare-the-dataset-with-a-rollout).
 For this axis, the comparison asks: **did the dataset cover the positions the
 rollout actually used?** It reads where each rollout episode (run) started,
@@ -371,7 +371,8 @@ The two hint blocks (**Record more episodes here**, **Grow your area**) are
 suggestions computed from this axis, one way to read the comparison.
 `--no-hints` leaves them out of the printed report; they are still stored as
 `Info` findings. Each run's placement (`cp:RunPlacement` with `cp:cellI`,
-`cp:cellJ`, `cp:covered`) is stored too, so other questions can be answered from it
+`cp:cellJ`, `cp:covered`) is stored too, in `findings/<spec>__<rollout>.ttl`,
+so other questions can be answered from it
 (`queries/run_outcomes_by_cell.rq`, `queries/failed_runs_not_covered.rq`).
 
 The comparison uses the public eval file only. The private test uses a

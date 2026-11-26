@@ -2,17 +2,18 @@
 
     stores/<repo_name>/
         dataset.ttl                       ingest --dataset: dataset, episodes, initial positions
-        rollouts/<rollout>.ttl            ingest --rollout-log: rollout, runs, statuses, initial positions
         specs/<spec>.ttl                  verify --spec: the spec (renamed), derived cells
         findings/<spec>.ttl               verify: Verification of the dataset against the spec
-        findings/<spec>__<rollout>.ttl    verify: Comparison of the rollout's runs under the spec
+        findings/<spec>__<rollout>.ttl    compare: the rollout log's runs and their Comparison under the spec
         queries/                          custom SPARQL queries
 
 Each file is rewritten as a whole (written to a temporary file, then renamed),
 so an interrupted command never leaves half a file. Raw captures stay where
-they are: the LeRobot dataset and the rollout JSONL log are the sources; the
-store keeps their path and a hash, so ``verify`` can tell when a source has
-changed since it entered the store.
+they are: the LeRobot dataset is the source; the store keeps its path and a
+fingerprint, so ``verify`` and ``compare`` can tell when it has changed since
+it entered the store. A rollout log is never ingested: ``compare`` reads the log
+it is given each time and writes only its result (the runs and the Comparison)
+to ``findings/<spec>__<rollout>.ttl``, replacing the same file of an earlier compare.
 """
 
 from __future__ import annotations
@@ -68,9 +69,6 @@ class Store:
     def spec_file(self, name: str) -> Path:
         return self.root / "specs" / f"{name}.ttl"
 
-    def rollout_file(self, name: str) -> Path:
-        return self.root / "rollouts" / f"{name}.ttl"
-
     def check_file(self, spec: str) -> Path:
         return self.root / "findings" / f"{spec}.ttl"
 
@@ -79,9 +77,6 @@ class Store:
 
     def spec_names(self) -> list[str]:
         return sorted(p.stem for p in (self.root / "specs").glob("*.ttl"))
-
-    def rollout_names(self) -> list[str]:
-        return sorted(p.stem for p in (self.root / "rollouts").glob("*.ttl"))
 
     def load(self, *paths: Path) -> Graph:
         graph = new_graph()
@@ -175,8 +170,8 @@ def ingest_dataset(dataset_root: str | Path, stores: str | Path = STORES, name: 
     return store, data
 
 
-def ingest_rollout(store: Store, log_path: str | Path) -> URIRef:
-    """Write stores/<repo_name>/rollouts/<log name>.ttl from a rollout log (outputs/rollout/<timestamp>.jsonl)."""
+def read_rollout(store: Store, log_path: str | Path) -> tuple[Graph, str]:
+    """Read a rollout log (outputs/rollout/<timestamp>.jsonl) into an in-memory graph and its name; nothing is written."""
     try:
         log = read_rollout_log(log_path)
     except RolloutLogError as exc:
@@ -192,10 +187,7 @@ def ingest_rollout(store: Store, log_path: str | Path) -> URIRef:
     repo_id = _trained_on(log.header.get("checkpoint"))
     if repo_id:
         graph.add((rollout, CP.trainedOnRepo, Literal(repo_id)))
-    for stale in (store.root / "findings").glob(f"*__{log.name}.ttl"):
-        stale.unlink()
-    write_graph(graph, store.rollout_file(log.name))
-    return rollout
+    return graph, log.name
 
 
 def _trained_on(checkpoint) -> str | None:
@@ -263,13 +255,24 @@ def _turtle_hint(path: Path, message: str) -> str:
 
 
 def load_spec(store: Store, spec_path: str | Path, name: str | None = None) -> URIRef:
-    """Check a spec file, rename its individuals under the spec's IRI, derive its nodes, write specs/<name>.ttl.
+    """Check a spec file and write it into the store as specs/<name>.ttl (see ``build_spec``).
 
     ``verify`` calls it for every spec it is given, so the store always holds
-    the spec files as they were at the last verify. Renaming lets several
-    specs, all copied from the same shipped spec, live in one store. The
-    dataset gets the spec's axes (cp:hasGeneralizationAxis). Raises
-    ``StoreError`` with every problem found (TODO left, wrong value types, ...).
+    the spec files as they were at the last verify.
+    """
+    node, graph, name = build_spec(store, spec_path, name)
+    _remove_findings(store, name)
+    write_graph(graph, store.spec_file(name))
+    return node
+
+
+def build_spec(store: Store, spec_path: str | Path, name: str | None = None) -> tuple[URIRef, Graph, str]:
+    """Check a spec file, rename its individuals under the spec's IRI, derive its nodes; nothing is written.
+
+    Renaming lets several specs, all copied from the same shipped spec, live in
+    one store. The graph has the spec's axes declared on the dataset
+    (cp:hasGeneralizationAxis). Raises ``StoreError`` with every problem found
+    (TODO left, wrong value types, ...). Returns the spec node, its graph and its name.
     """
     path = Path(spec_path)
     name = name or path.stem
@@ -315,9 +318,7 @@ def load_spec(store: Store, spec_path: str | Path, name: str | None = None) -> U
         graph.add((node, CP.declaresAxis, rename.get(axis, axis)))
         graph.add((store.dataset, CP.hasGeneralizationAxis, rename.get(axis, axis)))
 
-    _remove_findings(store, name)
-    write_graph(graph, store.spec_file(name))
-    return node
+    return node, graph, name
 
 
 def drop_spec(store: Store, name: str) -> None:
@@ -391,7 +392,7 @@ def source_changes(graph: Graph, node: URIRef, kind: str) -> list[str]:
     current = dataset_fingerprint(path) if kind == "dataset" else file_sha256(path)
     if current == str(recorded):
         return []
-    again = {"dataset": f"ingest --dataset {path}", "rollout": f"ingest --rollout-log {path}", "spec": f"verify --spec {path}"}[kind]
+    again = {"dataset": f"ingest --dataset {path}", "rollout": f"compare --rollout-log {path}", "spec": f"verify --spec {path}"}[kind]
     return [f"The {kind} {path} changed after it entered the store; run: {again}"]
 
 

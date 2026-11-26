@@ -6,14 +6,16 @@
 #   ingest  --dataset      a Dataset with its Episodes; each Episode has the
 #                          TaskObjects it recorded, each with its initial
 #                          Position (first recorded frame, env-local, metres).
-#   ingest  --rollout-log  a Rollout of a policy trained on the Dataset, with
-#                          its Runs (status and initial positions).
 #   verify  --spec         a Spec per given file: its
 #                          GeneralizationAxes, each with its AxisRequirements.
 #                          The Dataset then has the axes (cp:hasGeneralizationAxis).
 #                          Then a Verification per spec (dataset vs requirements)
-#                          and a Comparison per spec and rollout (rollout runs
-#                          vs dataset coverage), each with its Findings.
+#                          with its Findings.
+#   compare --rollout-log  a Rollout of a policy trained on the Dataset, with
+#                          its Runs (status and initial positions), read from the
+#                          log at each call (never ingested); then a Comparison per
+#                          spec and rollout (rollout runs vs dataset coverage),
+#                          with its Findings.
 #
 # Ingested facts are never derived; verification results are separate nodes
 # that point at the facts they are about. Every ingested source and spec file

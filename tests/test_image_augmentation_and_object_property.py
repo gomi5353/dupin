@@ -9,7 +9,7 @@ import pyarrow as pa
 import pyarrow.parquet as pq
 import pytest
 
-from data_verification import StoreError, format_check, format_comparison, ingest_dataset, ingest_rollout, load_spec, verify_store
+from data_verification import StoreError, format_check, format_comparison, compare_store, ingest_dataset, load_spec, verify_store
 from data_verification.axes.object_property.coverage import contains_phrase
 from data_verification.dataset import (
     LIGHTING_KEY_PREFIX,
@@ -100,7 +100,7 @@ def check(tmp_path: Path, episodes: list[dict], spec_text: str):
     store, _ = ingest_dataset(write_dataset(tmp_path / "ds", episodes), tmp_path / "stores")
     spec = tmp_path / "spec.ttl"
     spec.write_text(spec_text)
-    (report,) = verify_store(store, [spec], rollouts=[]).checks
+    (report,) = verify_store(store, [spec]).checks
     return store, report
 
 
@@ -123,8 +123,7 @@ def write_log(path: Path, runs: list[tuple[tuple[float, float], str | None, str]
 def compare(tmp_path: Path, spec_text: str, runs, episodes=BALANCED):
     store, _ = check(tmp_path, episodes, spec_text)
     log = write_log(tmp_path / "rollout" / "run.jsonl", runs)
-    ingest_rollout(store, log)
-    (result,) = verify_store(store, [tmp_path / "spec.ttl"], rollouts=[log.stem]).comparisons
+    (result,) = compare_store(store, [tmp_path / "spec.ttl"], [log]).comparisons
     return result
 
 
@@ -150,7 +149,7 @@ def test_dataset_without_the_lighting_column_still_ingests(tmp_path: Path) -> No
     store, _ = ingest_dataset(root, tmp_path / "stores")
     spec = tmp_path / "spec.ttl"
     spec.write_text(LIGHT_SPEC)
-    (report,) = verify_store(store, [spec], rollouts=[]).checks
+    (report,) = verify_store(store, [spec]).checks
     assert not report.passed
     assert any("no 'lighting.rect_light' column" in e for e in report.errors)
 

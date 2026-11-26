@@ -111,14 +111,14 @@ moves: `robot_base` and `fixed_objects` (`fixed_object_names`, such as the
 plate), each as `pos` (env-local, metres) and `rot` (quaternion w, x, y, z).
 They are for reference only; the comparison ignores them.
 
-Putting the log into the training dataset's verification store and running
-`verify` with your spec shows, for every axis in it, which rollout episodes
+Running `compare` with the training dataset's verification store, your spec and
+the log shows, for every axis in it, which rollout episodes
 the dataset does not cover and where to record next
 ([Data Verification §5](data_verification.md#5-compare-the-dataset-with-a-rollout)):
 
 ```bash
-uv run python scripts/store.py ingest --store stores/<repo_name> --rollout-log outputs/rollout/<timestamp>.jsonl
-uv run python scripts/store.py verify --store stores/<repo_name> --spec my_specs/object_pose.ttl
+uv run python scripts/store.py compare --store stores/<repo_name> --spec my_specs/object_pose.ttl \
+    --rollout-log outputs/rollout/<timestamp>.jsonl
 ```
 
 Append the specs of the other axes after the first to compare them in the
