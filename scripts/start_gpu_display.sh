@@ -101,13 +101,32 @@ fi
 # (the root property outlives a dead window manager: check the window exists)
 WM_WIN="$(DISPLAY=":${NUM}" xprop -root _NET_SUPPORTING_WM_CHECK 2>/dev/null | grep -o '0x[0-9a-f]*' | head -1)"
 if [ -z "${WM_WIN}" ] || ! DISPLAY=":${NUM}" xprop -id "${WM_WIN}" >/dev/null 2>&1; then
+    # Run from a terminal of ANOTHER desktop (e.g. the :1 noVNC desktop), this
+    # shell carries its session variables; xfce4-session then answers "Another
+    # session manager is already running" and exits, leaving a black screen.
+    # Start the desktop with a clean session environment.
+    CLEAN=(env -u SESSION_MANAGER -u DBUS_SESSION_BUS_ADDRESS -u XDG_SESSION_ID
+        -u XDG_SESSION_COOKIE -u DESKTOP_SESSION -u XDG_CURRENT_DESKTOP -u GDMSESSION
+        -u WINDOWPATH -u XAUTHORITY "DISPLAY=:${NUM}")
     if command -v startxfce4 >/dev/null && command -v dbus-launch >/dev/null; then
-        DISPLAY=":${NUM}" setsid -f dbus-launch --exit-with-session startxfce4 \
+        "${CLEAN[@]}" setsid -f dbus-launch --exit-with-session startxfce4 \
             >/tmp/desktop-gpu.log 2>&1 </dev/null
-    elif command -v openbox >/dev/null; then
-        DISPLAY=":${NUM}" setsid -f openbox >/tmp/desktop-gpu.log 2>&1 </dev/null
-    else
-        echo "no desktop (startxfce4/openbox) installed: the display has no window manager" >&2
+        for _ in $(seq 1 20); do
+            WM_WIN="$(DISPLAY=":${NUM}" xprop -root _NET_SUPPORTING_WM_CHECK 2>/dev/null | grep -o '0x[0-9a-f]*' | head -1)"
+            [ -n "${WM_WIN}" ] && break
+            sleep 1
+        done
+    fi
+    if [ -z "${WM_WIN}" ]; then
+        echo "XFCE did not start (see /tmp/desktop-gpu.log); falling back to openbox + a terminal" >&2
+        if command -v openbox >/dev/null; then
+            "${CLEAN[@]}" setsid -f openbox >>/tmp/desktop-gpu.log 2>&1 </dev/null
+        fi
+        if command -v xfce4-terminal >/dev/null; then
+            "${CLEAN[@]}" setsid -f xfce4-terminal >>/tmp/desktop-gpu.log 2>&1 </dev/null
+        elif command -v xterm >/dev/null; then
+            "${CLEAN[@]}" setsid -f xterm >>/tmp/desktop-gpu.log 2>&1 </dev/null
+        fi
     fi
 fi
 if ! pgrep -f "x11vnc -display :${NUM} " >/dev/null; then
