@@ -211,12 +211,39 @@ else
 fi
 
 echo "== 4. uv =="
-if command -v uv >/dev/null || [ -x "${HOME}/.local/bin/uv" ]; then
-    echo "present"
-else
-    curl -LsSf https://astral.sh/uv/install.sh | sh || FAILED=1
+# The installer puts uv in ~/.local/bin and writes ~/.local/bin/env, which a
+# shell must `source` to get uv on PATH. A script cannot do that for the
+# terminal that started it, so (a) install to a fixed directory ($HOME may differ
+# under sudo/su), (b) source the env file here so this script and `make` children
+# see uv, (c) make uv visible to every shell: a /usr/local/bin link when root
+# is available, and a PATH line in ~/.bashrc otherwise.
+UV_DIR="${HOME}/.local/bin"
+if ! command -v uv >/dev/null && [ ! -x "${UV_DIR}/uv" ]; then
+    echo "missing: installing"
+    curl -LsSf https://astral.sh/uv/install.sh | env UV_INSTALL_DIR="${UV_DIR}" sh || FAILED=1
 fi
-echo 'If "uv" is not found afterwards: export PATH="$HOME/.local/bin:$PATH"'
+# shellcheck disable=SC1091
+[ -f "${UV_DIR}/env" ] && . "${UV_DIR}/env"
+case ":${PATH}:" in *":${UV_DIR}:"*) ;; *) export PATH="${UV_DIR}:${PATH}" ;; esac
+if UV_BIN="$(command -v uv)"; then
+    echo "uv: ${UV_BIN} ($(uv --version))"
+    if [ "${UV_BIN}" = "${UV_DIR}/uv" ]; then
+        # Not on the default PATH of a new shell yet.
+        if [ "${SUDO}" != "none" ] && [ ! -e /usr/local/bin/uv ]; then
+            run_root ln -s "${UV_BIN}" /usr/local/bin/uv && echo "linked /usr/local/bin/uv"
+        fi
+        if ! grep -qs '\.local/bin' "${HOME}/.bashrc" 2>/dev/null; then
+            printf '\nexport PATH="$HOME/.local/bin:$PATH"\n' >> "${HOME}/.bashrc"
+            echo "added ~/.local/bin to PATH in ~/.bashrc"
+        fi
+        if ! PATH="/usr/local/bin:/usr/bin:/bin" command -v uv >/dev/null; then
+            echo 'NOTE: in THIS terminal run once:  source "$HOME/.local/bin/env"   (new terminals are fine)'
+        fi
+    fi
+else
+    echo "uv installation failed (expected ${UV_DIR}/uv)" >&2
+    FAILED=1
+fi
 
 echo "== 5. noVNC display :0 relay =="
 XPID="$(pgrep -x Xtigervnc | head -1 || true)"
