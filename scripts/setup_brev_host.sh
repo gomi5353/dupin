@@ -157,7 +157,7 @@ if command -v ffmpeg >/dev/null; then
     echo "present"
 else
     echo "missing"
-    apt_install ffmpeg
+    apt_install ffmpeg || echo "  Install it by hand: sudo apt-get update && sudo apt-get install -y ffmpeg" >&2
 fi
 
 echo "== 1d. NVIDIA graphics user-space (Vulkan driver) =="
