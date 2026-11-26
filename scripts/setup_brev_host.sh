@@ -363,7 +363,11 @@ if [ "${FAILED}" = 0 ]; then
         echo "OK. Next: make install-sim && make launch-sim"
     fi
 else
-    echo "Some items could not be fixed (see messages above). Re-run this script as root." >&2
+    if [ "${SUDO}" = "none" ]; then
+        echo "Some items could not be fixed (see messages above): they need root. Re-run as root (su -)." >&2
+    else
+        echo "Some items could not be fixed (see the messages above marked with WARNING/ERROR/missing). Root is not the problem here; fix those items and re-run this script." >&2
+    fi
     exit 1
 fi
 echo "The X relay (step 5) is lost on reboot; re-run this script to restore it."
