@@ -92,6 +92,12 @@ fi
 export XDG_RUNTIME_DIR="${XDG_RUNTIME_DIR:-/tmp/xdg-$(id -u)}"
 mkdir -p "${XDG_RUNTIME_DIR}" && chmod 700 "${XDG_RUNTIME_DIR}"
 # Desktop on the GPU display: XFCE (panel + terminal) if installed, else openbox.
+# openbox is only the fallback (an earlier run, or an XFCE-less image): replace
+# it with XFCE (panel, terminal) once XFCE is available.
+if command -v startxfce4 >/dev/null && pgrep -u "$(id -u)" -x openbox >/dev/null; then
+    pkill -u "$(id -u)" -x openbox || true
+    sleep 1
+fi
 # (the root property outlives a dead window manager: check the window exists)
 WM_WIN="$(DISPLAY=":${NUM}" xprop -root _NET_SUPPORTING_WM_CHECK 2>/dev/null | grep -o '0x[0-9a-f]*' | head -1)"
 if [ -z "${WM_WIN}" ] || ! DISPLAY=":${NUM}" xprop -id "${WM_WIN}" >/dev/null 2>&1; then
