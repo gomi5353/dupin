@@ -17,10 +17,15 @@
 #   2. glvnd egl_vendor.d/10_nvidia.json missing -> ERROR_INCOMPATIBLE_DRIVER
 #   3. libcuda.so link missing                -> PhysX runs on the CPU and hangs
 #   1c. ffmpeg missing                        -> video decoding fails (lerobot-train, lerobot-dataset-viz)
+#   1d. compute-only NVIDIA driver (no libGLX_nvidia, no nvidia_icd.json)
+#                                             -> "No device could be created"
 #   4. uv, cmake, gcc/g++/make missing        -> make install-sim fails while
 #      building a package from source
 #   5. (SSH shell only) noVNC display :0 lives inside the container: relay its
 #      X socket to the host so a GUI run (DISPLAY=:0) shows on localhost:6080.
+#   5b. (SSH shell only) noVNC desktop runs on the host as a software X server
+#      (Xtigervnc :1): Vulkan cannot present to it. Start a GPU X display
+#      (scripts/start_gpu_display.sh, :2) published on noVNC port 6081.
 #
 # Fixes need root. The script decides itself: as root it runs commands directly
 # (root needs no `sudo`), as a user it uses `sudo` only if
@@ -55,13 +60,62 @@ run_root() {
     ${SUDO} "$@"
 }
 
-# apt_install <pkgs...>: wait for the apt/dpkg lock (a fresh VM runs its own
-# first-boot apt jobs for several minutes) instead of failing, and record failure.
+# wait_apt_lock: a fresh VM runs its own first-boot apt/dpkg jobs for several
+# minutes; wait (up to 15 min) until no process holds the apt/dpkg locks.
+wait_apt_lock() {
+    command -v fuser >/dev/null || return 0
+    local waited=0 holder
+    while [ "${waited}" -lt 900 ]; do
+        if [ "${SUDO}" = "none" ]; then holder=""; else
+            holder="$(${SUDO} fuser /var/lib/dpkg/lock-frontend /var/lib/dpkg/lock /var/lib/apt/lists/lock 2>/dev/null || true)"
+        fi
+        [ -z "${holder}" ] && return 0
+        [ "${waited}" = 0 ] && echo "  waiting for another apt/dpkg process (pid ${holder}) to finish..." >&2
+        sleep 5; waited=$((waited + 5))
+    done
+}
+
+# apt_install <pkgs...>: wait for the apt/dpkg lock, retry up to 3 times, show
+# the real apt error (not silenced), and record failure.
 apt_install() {
-    local lock="-o DPkg::Lock::Timeout=900"
-    run_root apt-get ${lock} update -qq || true
-    run_root env DEBIAN_FRONTEND=noninteractive apt-get ${lock} install -y -qq "$@" \
-        || { echo "  apt-get install failed: $*" >&2; FAILED=1; }
+    local lock="-o DPkg::Lock::Timeout=900" try
+    if [ "${SUDO}" = "none" ]; then
+        echo "  needs root: apt-get install $*" >&2; FAILED=1; return 1
+    fi
+    for try in 1 2 3; do
+        wait_apt_lock
+        run_root apt-get ${lock} update -qq 2>&1 | tail -3 || true
+        if run_root env DEBIAN_FRONTEND=noninteractive apt-get ${lock} install -y "$@" 2>&1 | tail -15; then
+            return 0
+        fi
+        echo "  apt-get install failed (attempt ${try}/3): $*" >&2
+        run_root dpkg --configure -a >/dev/null 2>&1 || true
+        sleep 10
+    done
+    FAILED=1
+    return 1
+}
+
+# nv_driver_pkg_info: detect the Ubuntu NVIDIA driver package series from the
+# installed libnvidia-compute package, e.g. "580-server" or "580". Sets
+# NV_BRANCH and NV_VERSION (empty when the driver is not an apt package, e.g.
+# a .run installer).
+nv_driver_pkg_info() {
+    NV_BRANCH="$(dpkg-query -W -f='${Package}\n' 'libnvidia-compute-*' 2>/dev/null \
+        | sed -n 's/^libnvidia-compute-//p' | head -1)"
+    NV_VERSION=""
+    [ -n "${NV_BRANCH}" ] && NV_VERSION="$(dpkg-query -W -f='${Version}' "libnvidia-compute-${NV_BRANCH}" 2>/dev/null)"
+}
+
+# nv_pkg_spec <package>: "<package>=<driver version>" when apt offers exactly
+# the loaded driver's version (user-space must match the kernel module), else
+# the bare package name.
+nv_pkg_spec() {
+    if [ -n "${NV_VERSION}" ] && apt-cache madison "$1" 2>/dev/null | grep -qF "${NV_VERSION}"; then
+        echo "$1=${NV_VERSION}"
+    else
+        echo "$1"
+    fi
 }
 
 echo "== 1. Libraries =="
@@ -106,6 +160,35 @@ else
     apt_install ffmpeg
 fi
 
+echo "== 1d. NVIDIA graphics user-space (Vulkan driver) =="
+# Some cloud images ship only the compute-only "-server" driver (nvidia-smi and
+# CUDA work, but no libGLX_nvidia / nvidia_icd.json). Isaac Sim then fails with
+# "No device could be created" / "Driver Version: 0". Install the graphics
+# libraries of the SAME driver version as the loaded kernel module.
+HAVE_ICD=0
+for f in /usr/share/vulkan/icd.d/nvidia_icd.json /etc/vulkan/icd.d/nvidia_icd.json; do
+    [ -f "${f}" ] && HAVE_ICD=1
+done
+if [ "${IN_CONTAINER}" = 1 ]; then
+    echo "inside the container: provided by the NVIDIA container toolkit; skipped"
+elif ! command -v nvidia-smi >/dev/null; then
+    echo "no nvidia-smi: NVIDIA driver not installed on this VM" >&2; FAILED=1
+elif [ "${HAVE_ICD}" = 1 ] && grep -q "libGLX_nvidia.so.0" <<<"$(ldconfig -p)"; then
+    echo "present"
+else
+    echo "missing (nvidia_icd.json / libGLX_nvidia.so.0)"
+    nv_driver_pkg_info
+    if [ -z "${NV_BRANCH}" ]; then
+        echo "  driver is not an apt package (no libnvidia-compute-*); install the matching NVIDIA graphics libraries yourself" >&2
+        FAILED=1
+    else
+        echo "  driver package series: ${NV_BRANCH} (${NV_VERSION})"
+        run_root apt-get update -qq >/dev/null 2>&1 || true
+        apt_install "$(nv_pkg_spec "libnvidia-gl-${NV_BRANCH}")"
+        ldconfig 2>/dev/null || run_root ldconfig || true
+    fi
+fi
+
 echo "== 2. NVIDIA EGL vendor file (needed by the Vulkan driver) =="
 if [ -f /usr/share/glvnd/egl_vendor.d/10_nvidia.json ] || [ -f /etc/glvnd/egl_vendor.d/10_nvidia.json ]; then
     echo "present"
@@ -137,8 +220,18 @@ echo 'If "uv" is not found afterwards: export PATH="$HOME/.local/bin:$PATH"'
 
 echo "== 5. noVNC display :0 relay =="
 XPID="$(pgrep -x Xtigervnc | head -1 || true)"
+# Is the noVNC desktop a plain host process (not one living in a container)?
+# A host process has "/" as its root directory.
+HOST_VNC=0
+if [ "${IN_CONTAINER}" = 0 ]; then
+    for p in $(pgrep -x Xtigervnc || true); do
+        [ "$(readlink "/proc/${p}/root" 2>/dev/null)" = "/" ] && HOST_VNC=1
+    done
+fi
 if [ "${IN_CONTAINER}" = 1 ]; then
     echo "inside the container: DISPLAY=:0 is local, use it directly; skipped"
+elif [ "${HOST_VNC}" = 1 ]; then
+    echo "noVNC desktop (Xtigervnc) runs on the host itself: no relay needed; see step 5b"
 elif [ -z "${XPID}" ]; then
     echo "no Xtigervnc process (no noVNC desktop on this VM); skipped"
 else
@@ -161,6 +254,42 @@ else
         echo "DISPLAY=:0 reachable (GUI runs show on localhost:6080)"
     else
         echo "WARNING: DISPLAY=:0 still unreachable, see /tmp/xrelay.log" >&2
+        FAILED=1
+    fi
+fi
+
+echo "== 5b. GPU display for the Isaac Sim GUI (host noVNC desktop) =="
+# The host noVNC desktop (Xtigervnc) is a software X server: the NVIDIA Vulkan
+# driver cannot present to it ("X Error BadMatch ... X_CreateWindow", Isaac Sim
+# "invalid device attached to the default window"). Run a second X server on
+# the GPU (NVIDIA Xorg driver) and publish it through x11vnc + noVNC.
+GPU_DISPLAY_STARTED=0
+if [ "${IN_CONTAINER}" = 1 ]; then
+    echo "inside the container; skipped"
+elif [ "${HOST_VNC}" != 1 ]; then
+    echo "no host noVNC desktop on this VM (use SSH + headless, or the container desktop); skipped"
+else
+    nv_driver_pkg_info
+    NEED=""
+    for cmd in Xorg x11vnc openbox websockify; do
+        command -v "${cmd}" >/dev/null || NEED="${NEED} ${cmd}"
+    done
+    if [ -n "${NEED}" ] || ! dpkg-query -W xserver-xorg-video-nvidia-"${NV_BRANCH:-x}" >/dev/null 2>&1; then
+        echo "installing X server, NVIDIA Xorg driver, x11vnc, openbox, noVNC"
+        run_root apt-get update -qq >/dev/null 2>&1 || true
+        if [ -n "${NV_BRANCH}" ]; then
+            apt_install xserver-xorg-core x11vnc openbox novnc websockify \
+                "$(nv_pkg_spec "xserver-xorg-video-nvidia-${NV_BRANCH}")"
+        else
+            echo "  driver is not an apt package: install the NVIDIA Xorg driver yourself" >&2
+            FAILED=1
+        fi
+    else
+        echo "packages present"
+    fi
+    if bash "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/start_gpu_display.sh"; then
+        GPU_DISPLAY_STARTED=1
+    else
         FAILED=1
     fi
 fi
@@ -188,11 +317,24 @@ done
 if [ -z "${ICD}" ]; then
     echo "no nvidia_icd.json found" >&2; FAILED=1
 else
-    VK_ICD_FILENAMES="${ICD}" vulkaninfo --summary 2>&1 | grep -E "deviceName|ERROR" | head -3 || true
+    # No DISPLAY: on a software X server (noVNC desktop) vulkaninfo dies with
+    # "X Error BadMatch" even though the GPU is fine. XDG_RUNTIME_DIR is unset
+    # in SSH shells.
+    VK_OUT="$(env -u DISPLAY XDG_RUNTIME_DIR="${XDG_RUNTIME_DIR:-/tmp}" VK_ICD_FILENAMES="${ICD}" \
+        vulkaninfo --summary 2>&1 | grep -E "deviceName|ERROR" | head -3 || true)"
+    echo "${VK_OUT}"
+    if ! grep -q "deviceName.*NVIDIA" <<<"${VK_OUT}"; then
+        echo "no NVIDIA Vulkan device found (see step 1d)" >&2; FAILED=1
+    fi
 fi
 echo
 if [ "${FAILED}" = 0 ]; then
-    echo "OK. Next: make install-sim && make launch-sim"
+    if [ "${GPU_DISPLAY_STARTED}" = 1 ]; then
+        echo "OK. Next: make install-sim && make launch-sim"
+        echo "GUI: open the noVNC page on port 6081 (not 6080); make launch-sim sets DISPLAY to the GPU display."
+    else
+        echo "OK. Next: make install-sim && make launch-sim"
+    fi
 else
     echo "Some items could not be fixed (see messages above). Re-run this script as root." >&2
     exit 1
