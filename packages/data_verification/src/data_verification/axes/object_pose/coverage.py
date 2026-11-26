@@ -10,7 +10,7 @@ from rdflib import RDF, XSD, Graph, Literal, URIRef
 
 from ...graph import CP, index_literal
 from ...grid import cell_edge, dec, lattice_index  # noqa: F401  (re-exported for compare.py)
-from ...verifier import AxisCheck
+from ...verifier import AxisCheck, ReportTable
 
 AREA_BOUNDS = (CP.areaXMin, CP.areaXMax, CP.areaYMin, CP.areaYMax)
 
@@ -149,6 +149,17 @@ class ObjectPositionCheck(AxisCheck):
             )
             lines.append("")
         return lines
+
+    def tables(self) -> list[ReportTable]:
+        rows = [
+            [
+                t.object_name, f"{t.x_range[0]:.3f} .. {t.x_range[1]:.3f}", f"{t.y_range[0]:.3f} .. {t.y_range[1]:.3f}",
+                f"{len(t.counts[0])} x {len(t.counts)}", f">= {t.min_episodes_per_cell}",
+                f"{t.cells_covered}/{t.cells_total}", "met" if t.cells_covered == t.cells_total else "NOT met",
+            ]
+            for t in self.coverage
+        ]
+        return [ReportTable("Object Poses: dataset coverage", ["Object", "x (m)", "y (m)", "Grid", "Episodes per cell", "Cells covered", "Status"], rows)] if rows else []
 
 
 def check_coverage(graph: Graph, dataset: URIRef, axis: str) -> ObjectPositionCheck:

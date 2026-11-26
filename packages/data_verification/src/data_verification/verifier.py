@@ -40,6 +40,25 @@ class Finding:
 
 
 @dataclass
+class ReportTable:
+    """One table of a report, as plain data; ``render.py`` draws it (``verify``/``compare`` print it as a table on a terminal).
+
+    A cell that is exactly one of ``GOOD`` or ``BAD`` below is coloured, and
+    always carries its text too, so the plain-text output stays readable.
+    """
+
+    title: str
+    columns: list[str]
+    rows: list[list[str]]
+    notes: list[str] = field(default_factory=list)
+    """Lines under the table (e.g. how many runs started outside the area)."""
+
+
+GOOD = ("ok", "seen", "met")
+BAD = ("NOT met", "unseen", "uncovered")
+
+
+@dataclass
 class AxisCheck:
     """What one verifier found about the dataset, beyond its SHACL findings."""
 
@@ -50,6 +69,10 @@ class AxisCheck:
 
     def lines(self) -> list[str]:
         """Report lines printed before the findings (e.g. coverage tables)."""
+        return []
+
+    def tables(self) -> list[ReportTable]:
+        """The same as ``lines`` as tables; an axis that returns none is printed with ``lines`` everywhere."""
         return []
 
 
@@ -65,6 +88,10 @@ class AxisComparison:
     derived: Graph = field(default_factory=Graph)
 
     def lines(self) -> list[str]:
+        return []
+
+    def tables(self) -> list[ReportTable]:
+        """The same as ``lines`` as tables; an axis that returns none is printed with ``lines`` everywhere."""
         return []
 
     def hint_lines(self) -> list[str]:

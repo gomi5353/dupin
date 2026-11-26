@@ -18,7 +18,7 @@ from rdflib import RDF, XSD, Graph, Literal, URIRef
 
 from ...graph import CP, index_literal
 from ...grid import cell_edge, dec, lattice_index
-from ...verifier import AxisCheck, AxisComparison, Finding, pct, rate
+from ...verifier import AxisCheck, AxisComparison, Finding, ReportTable, pct, rate
 
 REQUIREMENTS_QUERY = """
 SELECT ?req ?name ?i0 ?i1 ?t0 ?t1 ?ni ?nt ?min WHERE {
@@ -144,6 +144,18 @@ class LightingCheck(AxisCheck):
             lines.append("")
         return lines
 
+    def tables(self) -> list[ReportTable]:
+        rows = []
+        for t in self.coverage:
+            r = t.req
+            rows.append(
+                [
+                    t.light, f"{float(r.i0):g} .. {float(r.i1):g}", f"{float(r.t0):g} .. {float(r.t1):g}", f"{r.ni} x {r.nt}",
+                    f">= {r.min_episodes}", f"{t.cells_covered}/{t.cells_total}", "met" if t.cells_covered == t.cells_total else "NOT met",
+                ]
+            )
+        return [ReportTable("Image Augmentations: lighting coverage", ["Light", "Intensity", "Temperature (K)", "Grid", "Episodes per cell", "Cells covered", "Status"], rows)] if rows else []
+
 
 def check_lighting(graph: Graph, dataset: URIRef, axis: str) -> LightingCheck:
     """Episodes per cell; a Violation per cell below the minimum; the cells as derived nodes."""
@@ -242,6 +254,23 @@ class LightingComparison(AxisComparison):
             )
             lines.append("")
         return lines
+
+    def tables(self) -> list[ReportTable]:
+        rows, notes = [], []
+        for light in self.lights:
+            r = light.req
+            outside = sum(c.runs for c in light.cells.values() if not c.inside)
+            if outside:
+                notes.append(f"{light.light}: {outside} run(s) started with the light outside your ranges")
+            rows.append(
+                [
+                    light.light, f"{float(r.i0):g} .. {float(r.i1):g}", f"{float(r.t0):g} .. {float(r.t1):g}", f"{r.ni} x {r.nt}", f">= {r.min_episodes}",
+                    f"{light.runs_covered}/{light.runs} ({pct(light.runs_covered, light.runs)})",
+                    rate(light.successes_covered, light.runs_covered), rate(light.successes_not_covered, light.runs - light.runs_covered),
+                ]
+            )
+        columns = ["Light", "Intensity", "Temperature (K)", "Grid", "Episodes per cell", "Runs covered", "Success covered", "Success not covered"]
+        return [ReportTable("Image Augmentations: rollout runs", columns, rows, notes)] if rows else []
 
     def hint_lines(self) -> list[str]:
         lines = []

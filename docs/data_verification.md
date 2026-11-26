@@ -175,7 +175,12 @@ Long lists are cut so the report stays readable: each verifier prints at most
 10 `VIOLATION`, `WARNING` or `ERROR` lines, the hints at most 15, followed by
 `... and N more ...`. The full lists are in `findings/`.
 
-Every report has the same frame. Example, for an Object Poses spec:
+Every report has the same frame. On a terminal it is drawn as tables (a header
+box, one table per object, light or reference, a findings table, and a coloured
+`RESULT` line); a colour is always accompanied by its word (`met`, `NOT met`,
+`seen`, `unseen`), so nothing depends on it. When the output is redirected to a
+file or a pipe, or with `--format text`, it is plain text, which the examples
+below show. Example, for an Object Poses spec:
 
 ```
 Store   : stores/<repo_name>
@@ -222,6 +227,7 @@ episode count, so the same results can be queried later
 | Option of `verify` | Effect |
 |---|---|
 | `--spec a.ttl [b.ttl ...]` | **Required.** The spec file; append more files (one per axis) to check several axes; repeatable |
+| `--format auto\|table\|text` | Report layout: `auto` (default) prints tables on a terminal and plain text when the output is redirected (logs, CI); `table` and `text` force one |
 | `--no-figures` | Does not write the coverage heatmaps |
 | `--json result.json` | Also writes the full result (counts, findings) as JSON |
 | `--strict` | Also fails on warnings |
@@ -311,6 +317,7 @@ uv run python scripts/store.py compare --store stores/<repo_name> \
 | `--spec <file>` | The spec to compare with; append more files (one per axis), as in [section 4](#4-run-the-check-and-read-the-report) |
 | `--rollout-log <file>` | **Required.** The rollout log; append more files to compare several rollouts, one report each |
 | `--no-hints` | Leaves the suggested next steps out of the report |
+| `--format auto\|table\|text` | Report layout, as for `verify` |
 | `--no-save` | Does not write the comparison to `stores/<repo_name>/findings/` |
 | `--no-figures` | Does not write the heatmaps to `stores/<repo_name>/figures/compare/` |
 | `--json result.json` | Also writes the full result as JSON |

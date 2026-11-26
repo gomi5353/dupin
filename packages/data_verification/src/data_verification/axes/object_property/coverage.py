@@ -23,7 +23,7 @@ from dataclasses import dataclass, field
 from rdflib import RDF, Graph, Literal, URIRef
 
 from ...graph import CP, index_literal
-from ...verifier import AxisCheck, AxisComparison, Finding, pct, rate
+from ...verifier import AxisCheck, AxisComparison, Finding, ReportTable, pct, rate
 
 COLOR_TOLERANCE = 1e-3
 """Largest per-channel difference still counted as the same color (the recorder stores float32)."""
@@ -175,6 +175,21 @@ class ObjectPropertyCheck(AxisCheck):
             lines.append("")
         return lines
 
+    def tables(self) -> list[ReportTable]:
+        tables = []
+        for t in self.coverage:
+            r = t.req
+            rows = []
+            for ref in r.references:
+                n = t.counts.get(ref.phrase, 0)
+                rows.append([ref.label, str(n), str(ref.min_episodes), "seen" if n >= ref.min_episodes else "unseen"])
+            if t.unrecognized:
+                rows.append([UNRECOGNIZED, str(t.unrecognized), "", "not counted"])
+            ok = sum(t.counts.get(ref.phrase, 0) >= ref.min_episodes for ref in r.references)
+            notes = [f"{ok}/{len(r.references)} references seen" + (f"; color {_fmt_rgb(t.color)}" if t.color else "")]
+            tables.append(ReportTable(f"Object Properties: references of '{r.obj}'", ["Reference", "Episodes", "Needed", "Status"], rows, notes))
+        return tables
+
 
 def check_object_property(graph: Graph, dataset: URIRef, axis: str) -> ObjectPropertyCheck:
     result = ObjectPropertyCheck(axis)
@@ -275,6 +290,25 @@ class ObjectPropertyComparison(AxisComparison):
             )
             lines.append("")
         return lines
+
+    def tables(self) -> list[ReportTable]:
+        tables = []
+        for obj in self.objects:
+            rows = []
+            for group in obj.groups.values():
+                if group.label == UNRECOGNIZED:
+                    rows.append([group.label, "", "", "not counted", f"{group.successes}/{group.runs}"])
+                else:
+                    rows.append([group.label, str(group.episodes), str(group.needed), "seen" if group.covered else "unseen", f"{group.successes}/{group.runs}"])
+            covered = [g for g in obj.groups.values() if g.covered]
+            other = [g for g in obj.groups.values() if not g.covered]
+            n_cov, n_other = sum(g.runs for g in covered), sum(g.runs for g in other)
+            notes = [
+                f"covered: {n_cov}/{n_cov + n_other} runs ({pct(n_cov, n_cov + n_other)}); success "
+                f"{rate(sum(g.successes for g in covered), n_cov)} seen vs {rate(sum(g.successes for g in other), n_other)} unseen or unrecognized"
+            ]
+            tables.append(ReportTable(f"Object Properties: rollout runs by reference of '{obj.req.obj}'", ["Reference", "Episodes", "Needed", "Status", "Successes / runs"], rows, notes))
+        return tables
 
     def hint_lines(self) -> list[str]:
         lines = []

@@ -12,6 +12,7 @@ dependencies = [
     "numpy",
     "pyarrow",
     "pyshacl>=0.30",
+    "rich",
     "rdflib>=7.1",
 ]
 

@@ -17,7 +17,7 @@ from urllib.parse import quote
 from rdflib import RDF, XSD, Graph, Literal, URIRef
 
 from ...graph import CP
-from ...verifier import AxisComparison, Finding, pct, rate
+from ...verifier import AxisComparison, Finding, ReportTable, pct, rate
 from .coverage import cell_counts, cell_edge, lattice_index, requirement_rows
 
 # Initial positions of the finished runs of ?rollout (bound by the caller).
@@ -121,6 +121,23 @@ class ObjectPositionComparison(AxisComparison):
 
     def lines(self) -> list[str]:
         return [line for obj in self.objects for line in _object_lines(obj)]
+
+    def tables(self) -> list[ReportTable]:
+        rows, notes = [], []
+        for o in self.objects:
+            x0, x1, y0, y1 = o.requirement_area
+            if o.outside:
+                notes.append(f"{o.object_name}: {o.runs_outside} run(s) started outside your area, in {len(o.outside)} cell(s) of the same size")
+            not_covered = o.runs - o.runs_covered
+            rows.append(
+                [
+                    o.object_name, f"{x0:.3f} .. {x1:.3f}", f"{y0:.3f} .. {y1:.3f}", f"{len(o.cells[0])} x {len(o.cells)}", f">= {o.min_episodes}",
+                    f"{o.covered_cells}/{o.sampled_cells}", f"{o.runs_covered}/{o.runs} ({pct(o.runs_covered, o.runs)})",
+                    rate(o.successes_covered, o.runs_covered), rate(o.successes_not_covered, not_covered),
+                ]
+            )
+        columns = ["Object", "x (m)", "y (m)", "Grid", "Episodes per cell", "Sampled cells covered", "Runs covered", "Success covered", "Success not covered"]
+        return [ReportTable("Object Poses: rollout runs", columns, rows, notes)] if rows else []
 
     def hint_lines(self) -> list[str]:
         lines = []

@@ -46,6 +46,7 @@ from data_verification import (
     verify_store,
 )
 from data_verification.graph import CP, spec_iri
+from data_verification.render import make_console, render_check, render_combined, render_comparison, use_tables
 from data_verification.store import STORES, source_changes
 
 
@@ -74,10 +75,25 @@ def _write_json(args: argparse.Namespace, result) -> None:
         args.json.write_text(json.dumps(result.to_dict(), indent=2) + "\n")
 
 
+def _print_reports(args: argparse.Namespace, reports: list[tuple[str, object]]) -> None:
+    """Print each report as rich tables on a terminal (or with --format table), as plain text otherwise."""
+    hints = not getattr(args, "no_hints", False)
+    if use_tables(args.format):
+        console = make_console()
+        draw = {"check": render_check, "comparison": lambda r, c: render_comparison(r, c, hints=hints), "combined": render_combined}
+        for n, (kind, report) in enumerate(reports):
+            if n:
+                console.rule()
+            draw[kind](report, console)
+        return
+    text = {"check": format_check, "comparison": lambda r: format_comparison(r, hints=hints), "combined": format_combined}
+    print(("\n\n" + "=" * 80 + "\n\n").join(text[kind](report) for kind, report in reports))
+
+
 def cmd_verify(args: argparse.Namespace) -> int:
     store = open_store(args.store)
     result = verify_store(store, args.spec, extra_shapes=args.extra_shapes)
-    print(("\n\n" + "=" * 80 + "\n\n").join(format_check(c) for c in result.checks))
+    _print_reports(args, [("check", c) for c in result.checks])
     print(f"\nFindings written to {store.root / 'findings'}/")
     _write_figures(args, store, result, comparisons=False)
     _write_json(args, result)
@@ -87,9 +103,7 @@ def cmd_verify(args: argparse.Namespace) -> int:
 def cmd_compare(args: argparse.Namespace) -> int:
     store = open_store(args.store)
     result = compare_store(store, args.spec, args.rollout_log, write=not args.no_save)
-    blocks = [format_check(c) for c in result.checks] + [format_comparison(c, hints=not args.no_hints) for c in result.comparisons]
-    blocks += [format_combined(c) for c in result.combined]
-    print(("\n\n" + "=" * 80 + "\n\n").join(blocks))
+    _print_reports(args, [("check", c) for c in result.checks] + [("comparison", c) for c in result.comparisons] + [("combined", c) for c in result.combined])
     if result.comparisons and not args.no_save:
         print(f"\nFindings written to {store.root / 'findings'}/")
     _write_figures(args, store, result, checks=False)
@@ -194,6 +208,7 @@ def main() -> int:
         help="Your spec files (.ttl), one per axis: --spec a.ttl b.ttl (or --spec a.ttl --spec b.ttl). "
         "The store keeps exactly the specs of the last verify.",
     )
+    verify.add_argument("--format", choices=("auto", "table", "text"), default="auto", help="Report layout: tables on a terminal, plain text when redirected (auto, default), or force one.")
     verify.add_argument("--no-figures", action="store_true", help="Do not write the coverage heatmaps to <store>/figures/.")
     verify.add_argument("--strict", action="store_true", help="Also fail on warnings.")
     verify.add_argument("--json", type=Path, help="Also write the full result as JSON.")
@@ -208,6 +223,7 @@ def main() -> int:
         help="outputs/rollout/<timestamp>.jsonl written by scripts/rollout.py: --rollout-log a.jsonl b.jsonl (or repeat the option).",
     )
     compare.add_argument("--no-figures", action="store_true", help="Do not write the coverage heatmaps to <store>/figures/compare/.")
+    compare.add_argument("--format", choices=("auto", "table", "text"), default="auto", help="Report layout: tables on a terminal, plain text when redirected (auto, default), or force one.")
     compare.add_argument("--no-save", action="store_true", help="Do not write the comparison to <store>/findings/.")
     compare.add_argument("--no-hints", action="store_true", help="Do not print suggested next steps.")
     compare.add_argument("--strict", action="store_true", help="Also fail on warnings.")

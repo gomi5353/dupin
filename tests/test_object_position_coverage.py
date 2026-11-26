@@ -535,6 +535,9 @@ def test_command_line_end_to_end(tmp_path: Path) -> None:
     assert compare.returncode == 0, compare.stdout  # comparable; coverage gaps are reported, not an error
     assert "Record more episodes here" in compare.stdout and "does NOT cover" in compare.stdout
     assert "Record more episodes here" not in cli("compare", "--store", "stores/ds", "--spec", "specs/mine.ttl", "--rollout-log", str(log), "--no-hints").stdout
+    table = cli("compare", "--store", "stores/ds", "--spec", "specs/mine.ttl", "--rollout-log", str(log), "--format", "table", "--no-figures")
+    assert table.returncode == 0 and "Object Poses: rollout runs" in table.stdout and "Suggested next steps" in table.stdout, table.stdout
+    assert "Object Poses: rollout runs" not in compare.stdout, "redirected output is plain text by default"
     assert cli("compare", "--store", "stores/ds", "--spec", "specs/mine.ttl").returncode == 2, "--rollout-log is required"
     assert not (tmp_path / "stores" / "ds" / "rollouts").exists()
     assert (tmp_path / "stores" / "ds" / "findings" / "mine__20260101-000000.ttl").is_file()
@@ -544,6 +547,7 @@ def test_command_line_end_to_end(tmp_path: Path) -> None:
     runs = cli("query", "--store", "stores/ds", "--query-file", str(ROOT / "queries" / "run_outcomes_by_cell.rq"), "--format", "csv")
     assert runs.returncode == 0 and "mine,cube,1,1" in runs.stdout.replace("20260101-000000,", "")
     cli("compare", "--store", "stores/ds", "--spec", "specs/mine.ttl", "--rollout-log", str(log), "--no-save")
+    assert "Object Poses: dataset coverage" in cli("verify", "--store", "stores/ds", "--spec", "specs/mine.ttl", "--format", "table", "--no-figures").stdout
     q = cli("query", "--store", "stores/ds", "--query-file", str(ROOT / "queries" / "uncovered_cells.rq"), "--format", "csv")
     assert q.returncode == 0 and q.stdout.splitlines()[1] == "mine,cube,1,1,0.1,0.2,0.1,0.2,0,1"
     for removed in ("init", "attach", "detach"):
