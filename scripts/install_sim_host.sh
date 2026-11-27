@@ -20,7 +20,12 @@ export ACCEPT_EULA=Y OMNI_KIT_ACCEPT_EULA=YES PRIVACY_CONSENT=Y
 # CMake >= 4 rejects that unless a policy minimum is given. Harmless on CMake 3.
 export CMAKE_POLICY_VERSION_MINIMUM=3.5
 
-command -v uv >/dev/null || { echo "uv is required: https://docs.astral.sh/uv/" >&2; exit 1; }
+command -v uv >/dev/null || {
+  echo "uv is missing (needed to create the environment)." >&2
+  echo "Install it, then re-run: curl -LsSf https://astral.sh/uv/install.sh | sh   (docs: https://docs.astral.sh/uv/)" >&2
+  echo 'If "uv" is not found afterwards: export PATH="$HOME/.local/bin:$PATH"' >&2
+  exit 1
+}
 
 glibc="$(getconf GNU_LIBC_VERSION | awk '{print $2}')"
 if [ "$(printf '%s\n' 2.35 "${glibc}" | sort -V | head -n1)" != "2.35" ]; then

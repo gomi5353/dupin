@@ -15,7 +15,7 @@ from .axes.image_augmentation.coverage import LightingCheck, LightingComparison
 from .axes.object_pose.compare import ObjectPositionComparison
 from .axes.object_pose.coverage import ObjectPositionCheck
 
-ANNOTATE_MAX = 12  # print the numbers into the cells up to this many columns and rows
+ANNOTATE_MAX = 0  # no numbers inside cells (too crowded); counts are read from the colorbar
 BELOW, COVERED, UNSAMPLED = "#e8a0a0", "#6bb26b", "#dddddd"
 
 # One cell: (x0, x1, y0, y1, ...values)
@@ -53,22 +53,13 @@ def _count_color(n: int, minimum: int, top: int):
 
     if n < minimum:
         return BELOW
-    return colormaps["Greens"](0.2 + 0.4 * min(1.0, (n - minimum) / max(1, top - minimum)))
+    return colormaps["Greens"](0.35 + 0.45 * min(1.0, (n - minimum) / max(1, top - minimum)))
 
 
 def _rate_color(runs: int, successes: int):
     from matplotlib import colormaps
 
     return UNSAMPLED if runs == 0 else colormaps["RdYlGn"](successes / runs)
-
-
-def _legend(ax, minimum: int) -> None:
-    from matplotlib.patches import Patch
-
-    ax.legend(
-        handles=[Patch(color=BELOW, label=f"< {minimum} episodes"), Patch(color=COVERED, label=f">= {minimum} episodes")],
-        loc="upper center", bbox_to_anchor=(0.5, -0.14), ncol=2, fontsize=8, frameon=False,
-    )
 
 
 def _rate_colorbar(fig, ax) -> None:
@@ -80,12 +71,31 @@ def _rate_colorbar(fig, ax) -> None:
     bar.set_label("rollout success rate (grey = no runs)")
 
 
-def _counts_panel(ax, cells: list[tuple[Rect, int]], minimum: int, inside: Rect, labels, title: str, annotate: bool) -> None:
+def _count_colorbar(fig, ax, minimum: int, top: int) -> None:
+    import numpy as np
+    from matplotlib import colormaps
+    from matplotlib.cm import ScalarMappable
+    from matplotlib.colors import BoundaryNorm, ListedColormap
+
+    # pink for counts below the minimum, a green gradient from the minimum up to the largest count
+    greens = [colormaps["Greens"](0.35 + 0.45 * t) for t in np.linspace(0, 1, top - minimum + 1)] if top > minimum else [colormaps["Greens"](0.35)]
+    cmap = ListedColormap([BELOW] * minimum + greens)
+    norm = BoundaryNorm(np.arange(0, minimum + len(greens) + 1), cmap.N)
+    bar = fig.colorbar(ScalarMappable(norm, cmap), ax=ax, fraction=0.046, pad=0.04)
+    ticks = [0.5, minimum + 0.5] if top <= minimum else [0.5, minimum + 0.5, top + 0.5]
+    labels = ["0", f"{minimum} (min)"] if top <= minimum else ["0", f"{minimum} (min)", f"{top} (max)"]
+    bar.set_ticks(ticks)
+    bar.set_ticklabels(labels)
+    bar.set_label(f"episodes per cell (pink = below {minimum}, green = met)")
+
+
+def _counts_panel(fig, ax, cells: list[tuple[Rect, int]], minimum: int, inside: Rect, labels, title: str, annotate: bool) -> None:
     top = max([n for _, n in cells] + [minimum])
     rects = [r for r, _ in cells]
     _draw(ax, rects, [_count_color(n, minimum, top) for _, n in cells], [str(n) for _, n in cells] if annotate else None, inside, labels)
-    ax.set_title(title, fontsize=10)
-    _legend(ax, minimum)
+    met = sum(n >= minimum for _, n in cells)
+    ax.set_title(f"{title}\n{met}/{len(cells)} cells met (>= {minimum})", fontsize=10)
+    _count_colorbar(fig, ax, minimum, top)
 
 
 def _runs_panel(fig, ax, cells: list[tuple[Rect, int, int]], inside: Rect, labels, title: str, annotate: bool) -> None:
@@ -111,14 +121,14 @@ def _grid_rects(x_range, y_range, counts) -> list[tuple[Rect, int]]:
 
 def _dataset_figure(cells, minimum, inside, labels, title, annotate, path: Path) -> Path:
     fig, ax = _pyplot().subplots(figsize=(7, 5.5))
-    _counts_panel(ax, cells, minimum, inside, labels, title, annotate)
+    _counts_panel(fig, ax, cells, minimum, inside, labels, title, annotate)
     return _save(fig, path)
 
 
 def _comparison_figure(count_cells, run_cells, minimum, inside, labels, title, annotate, path: Path) -> Path:
     fig, (left, right) = _pyplot().subplots(1, 2, figsize=(14, 5.5))
-    _counts_panel(left, count_cells, minimum, inside, labels, f"{title}: dataset episodes per cell", annotate)
-    _runs_panel(fig, right, run_cells, inside, labels, f"{title}: rollout runs per cell (succeeded/runs)", annotate)
+    _counts_panel(fig, left, count_cells, minimum, inside, labels, f"{title}: dataset episodes per cell", annotate)
+    _runs_panel(fig, right, run_cells, inside, labels, f"{title}: rollout runs per cell (colour = success rate)", annotate)
     return _save(fig, path)
 
 

@@ -177,7 +177,7 @@ class ToyBlocksCollectionEnvCfg(SingleArmFrankaTaskEnvCfg):
         "blue_block": {"name": "cylinder", "color": "blue object"},
         "red_block": {"name": "triangle", "color": "red object"},
     }
-    reference_weights: dict[str, float] = {"name": 1.0, "color": 0.0}
+    reference_weights: dict[str, float] = {"name": 0.99, "color": 0.01}
     task_description_template: str = "pick up the {green_block}, the {blue_block} and the {red_block} and place them into the storage box."
 
     def __post_init__(self) -> None:

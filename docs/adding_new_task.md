@@ -188,7 +188,7 @@ class CupStackingEnvCfg(SingleArmFrankaTaskEnvCfg):
         "blue_cup": {"name": "blue cup", "color": "blue object"},
         "pink_cup": {"name": "pink cup", "color": "pink object"},
     }
-    reference_weights: dict[str, float] = {"name": 1.0, "color": 0.0}
+    reference_weights: dict[str, float] = {"name": 0.99, "color": 0.01}
     task_description_template: str = "pick up the {blue_cup} and place it on the {pink_cup}."
 
     def __post_init__(self) -> None:

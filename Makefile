@@ -67,7 +67,7 @@ check-uv:
 check-ffmpeg:
 	@command -v ffmpeg >/dev/null || { \
 		echo "ffmpeg is missing (needed to decode dataset videos)." >&2; \
-		echo "Install it, then re-run: sudo apt-get install -y ffmpeg   (macOS: brew install ffmpeg)" >&2; \
+		echo "Install it, then re-run: sudo apt-get update && sudo apt-get install -y ffmpeg   (macOS: brew install ffmpeg)" >&2; \
 		exit 1; }
 
 install-gen: check-uv check-ffmpeg submodules

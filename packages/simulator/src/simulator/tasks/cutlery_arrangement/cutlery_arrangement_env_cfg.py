@@ -150,7 +150,7 @@ class CutleryArrangementEnvCfg(SingleArmFrankaTaskEnvCfg):
         "fork": {"name": "fork", "color": "pink object"},
         "knife": {"name": "knife", "color": "orange object"},
     }
-    reference_weights: dict[str, float] = {"name": 1.0, "color": 0.0}
+    reference_weights: dict[str, float] = {"name": 0.99, "color": 0.01}
     task_description_template: str = "place the {fork} on the left and the {knife} on the right of the plate."
 
     def __post_init__(self) -> None:

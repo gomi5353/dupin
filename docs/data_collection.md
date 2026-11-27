@@ -52,7 +52,7 @@ color temperature of the scene light `rect_light`, and picks how the
 episode's task text refers to the objects: by name or by color
 ([section 4](#4-adjusting-the-collection)). The task text is built from the
 configuration's `task_description_template` and the phrases in
-`object_references`; the recording configurations use the name form only. The
+`object_references`; the recording configurations use the name form 99% of the time and the color form 1%. The
 success check looks only at the object positions at one moment; it does not
 know whether the gripper still holds an object.
 
@@ -152,7 +152,7 @@ The collection can be adjusted to target the data needed, for example:
   evaluation files use 2500–8000 and 3000–6500 K);
 - how often the task text refers to the objects by color: `reference_weights`
   in the task configuration, for example `{"name": 0.5, "color": 0.5}`
-  (recording: `{"name": 1.0, "color": 0.0}`; the evaluation files use
+  (recording: `{"name": 0.99, "color": 0.01}`; the evaluation files use
   `{"name": 0.5, "color": 0.5}`). One form is drawn per episode and used for
   every object. The phrases themselves are in `object_references`. Only the
   words change: the objects are never recolored;

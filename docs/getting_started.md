@@ -147,7 +147,7 @@ make launch-gen    # opens a shell with .venv active (lerobot-train, hf, ... ava
 
 `make install-gen` first checks that `uv` and `ffmpeg` are installed (it stops with the install command if not), initializes the submodules,
 then runs `uv sync`. Without `ffmpeg`, `lerobot-train` and `lerobot-dataset-viz` fail when they decode videos; install it with
-`sudo apt-get install -y ffmpeg`.
+`sudo apt-get update && sudo apt-get install -y ffmpeg`.
 
 `make launch-gen` opens a new shell, whose prompt starts with `(general)`; `exit` leaves it. To activate in the current shell instead, run
 `source .venv/bin/activate`; `deactivate` leaves it. The simulator environment is installed separately in

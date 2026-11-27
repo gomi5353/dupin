@@ -452,7 +452,7 @@ def test_task_text_refers_to_objects_by_name_or_color(task_file: str) -> None:
         assert set(forms) == {"name", "color"}, name
         assert forms["color"].endswith(" object") and not kinds & set(forms["color"].split()), (name, forms["color"])
         assert kinds & set(forms["name"].split()), (name, forms["name"])
-    expected = {"name": 0.5, "color": 0.5} if task_file.startswith("eval/") else {"name": 1.0, "color": 0.0}
+    expected = {"name": 0.5, "color": 0.5} if task_file.startswith("eval/") else {"name": 0.99, "color": 0.01}
     assert weights == expected
     assert "object_color_palettes" not in path.read_text(), "S-PROP never recolors the objects"
     assert _list_attr(path, "recorded_light_names") == ["rect_light"]

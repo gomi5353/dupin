@@ -63,14 +63,14 @@ object_references: dict[str, dict[str, str]] = {
     "fork": {"name": "fork", "color": "pink object"},
     "knife": {"name": "knife", "color": "orange object"},
 }
-reference_weights: dict[str, float] = {"name": 1.0, "color": 0.0}
+reference_weights: dict[str, float] = {"name": 0.99, "color": 0.01}
 task_description_template: str = "place the {fork} on the left and the {knife} on the right of the plate."
 ```
 
 | Setting | Meaning |
 |---|---|
 | `object_references` | Per object (its scene name), one phrase per **form**: `"name"` refers to it by name, `"color"` by its color only. |
-| `reference_weights` | How often each form is used. Recording default `{"name": 1.0, "color": 0.0}` (name only); evaluation files `{"name": 0.5, "color": 0.5}`. |
+| `reference_weights` | How often each form is used. Recording default `{"name": 0.99, "color": 0.01}` (almost always the name); evaluation files `{"name": 0.5, "color": 0.5}`. |
 | `task_description_template` | The task text, with one `{object}` field per object. |
 
 At every reset, the event `choose_object_reference_forms(self.reference_weights)`
